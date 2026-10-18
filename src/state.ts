@@ -3,6 +3,7 @@ import { schedule, newCard, type Card, type Grade } from "./core/fsrs.ts";
 import { loadDeck, wordId, type Deck, type DeckFile, type Word } from "./core/deck.ts";
 import { applyEdit, isEmptyEdit, type WordEdit, type DictEntry } from "./core/edits.ts";
 import { parseIndex, dictShardOf, shardFile, type DictIndex, type DictArticle } from "./core/dict.ts";
+import type { Dialog } from "./core/exercise.ts";
 import { cardId, normSkills, pickNext, queueCounts, ALL_SKILLS, type Skill, type QPick } from "./core/skills.ts";
 import { byDay, dayOf, type DayStat } from "./core/stats.ts";
 import * as store from "./store.ts";
@@ -408,3 +409,34 @@ export async function dictArticle(han: string): Promise<DictArticle | null> {
 
 /** Сколько карточек пройдено сегодня. */
 export const todayCount = () => app.days.get(dayOf(Date.now()))?.count ?? 0;
+
+/* ---------- упражнения: корпус предложений, диалоги, свои наборы ---------- */
+
+let corpus: Promise<[string, string, string, number][]> | null = null;
+/** Корпус предложений (dict/ex.json, публикуется вместе со словарём). */
+export function exCorpus(): Promise<[string, string, string, number][]> {
+  if (!corpus) {
+    corpus = loadDictMeta().then(async (m) => {
+      const r = await fetch(`${dictBase}ex.json?v=${m.v}`);
+      if (!r.ok) throw new Error("Нет предложений для упражнений");
+      return r.json();
+    });
+    corpus.catch(() => { corpus = null; });
+  }
+  return corpus;
+}
+
+let dialogs: Promise<Dialog[]> | null = null;
+/** Диалоги из data/dialogs.json (написаны для приложения). */
+export function exDialogs(): Promise<Dialog[]> {
+  if (!dialogs) {
+    dialogs = fetch("data/dialogs.json").then((r) => { if (!r.ok) throw new Error("нет диалогов"); return r.json(); });
+    dialogs.catch(() => { dialogs = null; });
+  }
+  return dialogs;
+}
+
+/** Свои наборы упражнений (текст файла хранится как есть, разбирается при открытии). */
+export type ExSetFile = { id: string; title: string; text: string; addedAt: number };
+export const loadExSets = async () => (await store.getMeta<ExSetFile[]>("exsets")) ?? [];
+export async function saveExSets(list: ExSetFile[]) { await store.setMeta("exsets", list); }

@@ -9,6 +9,7 @@ import { createWriter, type Writer } from "./writer.ts";
 import { onLeave, show } from "./nav.ts";
 import { showNote } from "./session.ts";
 import { openWordEditor, openAddToDeck } from "./editor.ts";
+import { toggleBookWord, inBook } from "./deckpick.ts";
 import { findWord, wordByHan, refreshOther, pyHTML, statusAny, itemHTML, fromHit, loadDict, dictNow, type OtherWord } from "./lookup.ts";
 
 type Tab = "mean" | "ex" | "words" | "strokes";
@@ -69,6 +70,7 @@ function renderHead(w: Word | OtherWord) {
     : `<span class="tag mid">учу</span>`);
   else if (inDeck) tags.push(`<span class="tag">в колоде, новое</span>`);
   $("d-tags").innerHTML = tags.join("");
+  $("d-tobook").textContent = inBook(w.han) ? "✓ В тетради" : "+ В тетрадь";
   $("d-tags").hidden = !tags.length;
 }
 
@@ -253,6 +255,14 @@ export function initEntry() {
     if (prev && findWord(prev)) openEntry(prev); else { trail.length = 0; show("words"); }
   });
   $("d-todeck").addEventListener("click", () => word && openAddToDeck(word, () => word && renderHead(word)));
+  // «В тетрадь» — в колоду «Мои прописи»; без пиньиня или значения — через обычное «В колоду», там их можно вписать
+  $("d-tobook").addEventListener("click", async () => {
+    const w = word;
+    if (!w) return;
+    if (!w.py || !w.ru) { openAddToDeck(w, () => renderHead(w)); return; }
+    const added = await toggleBookWord([w.han, w.py, w.ru]);
+    $("d-tobook").textContent = added ? "✓ В тетради" : "+ В тетрадь";
+  });
   $("d-edit").addEventListener("click", () => {
     const w = word;
     if (!w) return;

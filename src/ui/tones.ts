@@ -4,7 +4,8 @@
  *  «Произношение» — говоришь слово в микрофон, кривая высоты голоса рисуется поверх образцовых кривых тонов;
  *  для каждого слога — примерная оценка, на какой тон похоже.
  */
-import { words } from "../state.ts";
+import { app } from "../state.ts";
+import { pickDeck, deckWords, deckTitle, setPickLabel } from "./deckpick.ts";
 import { hasRecording, loadRecorded, say } from "../speech.ts";
 import { mark } from "../core/pinyin.ts";
 import { pitchTrack, splitSyllables, semitones, classifyTone, acceptedTones, toneTemplate, resampleCurve, downsample } from "../core/pitch.ts";
@@ -14,9 +15,9 @@ import { onShow, onLeave } from "./nav.ts";
 
 type Tab = "listen" | "speak";
 const LS = "cherta.tones";
-const st = { tab: "listen" as Tab, base: 0 as number, done: 0, right: 0 };
+const st = { tab: "listen" as Tab, base: 0 as number, done: 0, right: 0, deckId: "" };
 try { Object.assign(st, JSON.parse(localStorage.getItem(LS) ?? "{}")); } catch { /* */ }
-const save = () => { try { localStorage.setItem(LS, JSON.stringify({ tab: st.tab, base: st.base })); } catch { /* */ } };
+const save = () => { try { localStorage.setItem(LS, JSON.stringify({ tab: st.tab, base: st.base, deckId: st.deckId })); } catch { /* */ } };
 
 const TONE_SVG: Record<number, string> = {
   1: "M4 6H28", 2: "M4 16L28 4", 3: "M4 6L14 16L28 4", 4: "M4 4L28 16",
@@ -28,9 +29,23 @@ let picked: (number | null)[] = [];
 let cur = 0;
 let checked = false;
 
-/** Слова колоды с записью, 1–3 слога; случайное, но не то же подряд. */
+/** Слова выбранной колоды (по умолчанию — текущей). */
+let srcWords: Word[] = [];
+const words = () => srcWords;
+async function loadSource() {
+  if (!st.deckId || !app.decks.some((d) => d.id === st.deckId)) st.deckId = app.deck?.id ?? app.decks[0]?.id ?? "";
+  srcWords = (await deckWords(st.deckId))?.words ?? [];
+  setPickLabel("tn-src", deckTitle(st.deckId));
+}
+
+/** Открыть «Тоны» с выбранной колодой (из меню колоды). */
+export function useTonesDeck(id: string) { st.deckId = id; save(); }
+
+/** Слова колоды, 1–3 слога; сначала с записью озвучки (в своих колодах записей может не быть — тогда голос браузера). */
 function nextWord(): Word | null {
-  const list = words().filter((w) => hasRecording(w.han) && w.ref.length <= 3);
+  const short = words().filter((w) => w.ref.length && w.ref.length <= 3);
+  const rec = short.filter((w) => hasRecording(w.han));
+  const list = rec.length ? rec : short;
   if (!list.length) return null;
   let w = list[Math.floor(Math.random() * list.length)];
   if (list.length > 1 && w.id === word?.id) w = list[(list.indexOf(w) + 1) % list.length];
@@ -50,7 +65,7 @@ async function listenNext() {
   word = nextWord();
   checked = false;
   $("tn-l-res").hidden = true;
-  if (!word) { $("tn-l-syl").innerHTML = `<p class="hint">В этой колоде нет слов с записью озвучки.</p>`; return; }
+  if (!word) { $("tn-l-syl").innerHTML = `<p class="hint">В этой колоде нет подходящих слов (1–3 слога). Выберите другую колоду.</p>`; return; }
   picked = word.ref.map(() => null);
   cur = 0;
   renderListen();
@@ -178,7 +193,9 @@ function graph(curves: number[][], tones: number[]): string {
 /* ---------- обработчики ---------- */
 
 export function initTones() {
-  onShow("tones", () => { render(); if (st.tab === "listen") listenNext(); else speakNext(); });
+  const start = async () => { await loadSource(); render(); if (st.tab === "listen") listenNext(); else speakNext(); };
+  onShow("tones", start);
+  $("tn-src").addEventListener("click", () => pickDeck("Слова для тонов", st.deckId, (id) => { st.deckId = id; save(); start(); }));
   onLeave("tones", stopRec);
   $("tn-tabs").addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-tab]");

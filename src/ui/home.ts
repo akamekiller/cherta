@@ -1,4 +1,6 @@
 /** Главная — список колод со счётчиками (как в Anki), обзор колоды, действия с колодой, импорт и экспорт. */
+import { useBookDeck } from "./book.ts";
+import { useTonesDeck } from "./tones.ts";
 import { SKILLS, type Skill } from "../core/skills.ts";
 import { app, counts, countsFor, deckById, visibleDecks, nextDueTime, words, switchDeck, newLimit, deckSkills, setDeckOpts, renameDeck, deleteDeck,
   saveUserDeck, hskLookup, dictIndex, type DeckInfo } from "../state.ts";
@@ -99,11 +101,13 @@ function openDeckMenu(id: string) {
     <div class="set-row dm-row"><div class="t"><div>Новых слов в день</div><div>Для этой колоды</div></div>
       <div class="stepper"><button class="icon-btn" id="dm-minus" aria-label="Меньше">−</button><output id="dm-new">${limit}</output><button class="icon-btn" id="dm-plus" aria-label="Больше">+</button></div></div>
     <div class="field"><span class="label">Что тренировать</span>
-      <div class="chips-row wrap" id="dm-skills">${SKILLS.map((k) => `<button class="chip-btn" data-skill="${k.id}" aria-pressed="${deckSkills(id).includes(k.id)}" title="${esc(k.hint)}">${k.name}</button>`).join("")}</div>
+      <div class="chips-row wrapped" id="dm-skills">${SKILLS.map((k) => `<button class="chip-btn" data-skill="${k.id}" aria-pressed="${deckSkills(id).includes(k.id)}" title="${esc(k.hint)}">${k.name}</button>`).join("")}</div>
       <small class="hint" id="dm-skill-hint">У каждого навыка свой интервал повторения, как в Skritter.</small></div>
     <div class="dm-list">
       ${d.user ? `<button class="deck-opt" id="dm-edit"><span>Изменить слова<small>Добавить или убрать слова</small></span></button>` : ""}
       <button class="deck-opt" id="dm-words"><span>Слова колоды<small>Список, поиск, статус</small></span></button>
+      <button class="deck-opt" id="dm-book"><span>Писать в тетради прописей<small>Иероглифы этой колоды по клеткам</small></span></button>
+      <button class="deck-opt" id="dm-tones"><span>Тренировать тоны<small>На слух и произношение по словам колоды</small></span></button>
       <button class="deck-opt" id="dm-export"><span>Экспорт в файл<small>Текст для Anki, Pleco или таблицы</small></span></button>
       <button class="deck-opt danger" id="dm-del"><span>${d.user ? "Удалить колоду" : "Скрыть колоду"}<small>${d.user ? "Прогресс по словам сохранится" : "Вернуть можно внизу списка колод"}</small></span></button>
     </div>
@@ -137,6 +141,8 @@ function openDeckMenu(id: string) {
       openDeckEditor(userDeckById(id), () => refresh());
     });
     q("dm-words").addEventListener("click", async () => { await save(); closeSheet(); await switchDeck(id); show("words"); });
+    q("dm-book").addEventListener("click", async () => { await save(); closeSheet(); useBookDeck(id); show("book"); });
+    q("dm-tones").addEventListener("click", async () => { await save(); closeSheet(); useTonesDeck(id); show("tones"); });
     q("dm-export").addEventListener("click", async () => {
       const deck = await deckById(id);
       const rows = deck.words.map((w): [string, string, string] => [w.han, w.py, w.ru]);

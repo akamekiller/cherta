@@ -3,10 +3,11 @@
 
 python scripts/build_examples.py [raw/examples.gz]
 
-Для каждого уровня HSK берутся пары «китайский — русский», где все иероглифы встречаются в словах HSK этого
-уровня и ниже, и есть хотя бы одно слово именно этого уровня. Китайская часть делится на слова (самое длинное
-совпадение со словами HSK) — из них собираются плитки для упражнения «собери перевод».
-Результат: site/data/ex/hskN.json — [{"zh", "ru", "t": [слова]}], до PER_LEVEL штук, сначала законченные предложения, по длине.
+Корпус предложений для упражнений. Берутся пары «китайский — русский», где все иероглифы встречаются в словах
+HSK (старого 2.0 и нового 3.0, уровень слова — меньший из двух), уровень предложения — самый высокий из его слов.
+Китайская часть делится на слова (самое длинное совпадение со словами HSK) — это плитки, пропуски и подсказки.
+Результат: dict/ex.json (публикуется вместе со словарём в cherta-dict) — [[китайский, русский, "слово слово …", уровень], …],
+до PER_LEVEL[n] предложений на уровень, сначала законченные предложения.
 """
 import gzip
 import json
@@ -16,8 +17,8 @@ import re
 import sys
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
-OUT = os.path.join(ROOT, "site", "data", "ex")
-PER_LEVEL = 400
+OUT = os.path.join(ROOT, "dict")
+PER_LEVEL = {1: 1500, 2: 2500, 3: 3500, 4: 3500, 5: 3500, 6: 3500}
 HAN = re.compile(r"[㐀-鿿]")
 CYR = re.compile(r"[А-Яа-яЁё]")
 BAD = re.compile(r"[\[\]{}<>=@#*_|\\/A-Za-z]")
@@ -29,13 +30,13 @@ def load_hsk():
     decks = json.load(open(os.path.join(ROOT, "data", "decks.json"), encoding="utf8"))
     level = {}
     for d in decks:
-        m = re.match(r"hsk3-(\d)", d["id"])
+        m = re.match(r"hsk[23]-(\d)", d["id"])
         if not m:
             continue
         n = int(m.group(1))
         for l in open(os.path.join(ROOT, "data", d["file"]), encoding="utf8").read().splitlines()[1:]:
             w = l.split("\t")[0].strip()
-            if w and w not in level:
+            if w and (w not in level or n < level[w]):
                 level[w] = n
     return level
 
@@ -85,7 +86,7 @@ def main():
     found = {n: [] for n in range(1, 7)}
     seen = set()
     for zh, ru in pairs(src):
-        if zh in seen or BAD.search(zh) or BAD.search(ru) or not CYR.search(ru) or len(ru) > 90:
+        if zh in seen or BAD.search(zh) or BAD.search(ru) or not CYR.search(ru) or len(ru) > 110:
             continue
         han = [c for c in zh if HAN.match(c)]
         if not han:
@@ -106,14 +107,21 @@ def main():
         found[need].append({"zh": zh, "ru": ru, "t": toks})
     os.makedirs(OUT, exist_ok=True)
     rnd = random.Random(7)
+    out = []
     for n, items in found.items():
         rnd.shuffle(items)
-        # сначала законченные предложения (с точкой, вопросом), потом словосочетания; выбранное — от коротких к длинным
+        # сначала законченные предложения (с точкой, вопросом), потом словосочетания; внутри уровня — от коротких к длинным
         items.sort(key=lambda x: 0 if x["zh"][-1] in "。？！?!." else 1)
-        pick = sorted(items[:PER_LEVEL], key=lambda x: len(x["zh"]))
-        with open(os.path.join(OUT, f"hsk{n}.json"), "w", encoding="utf8") as f:
-            json.dump(pick, f, ensure_ascii=False, separators=(",", ":"))
-        print(f"HSK {n}: подходит {len(items)}, взято {len(pick)}")
+        pick = sorted(items[:PER_LEVEL[n]], key=lambda x: len(x["zh"]))
+        out += [[x["zh"], x["ru"], " ".join(t for t in x["t"] if t.strip()), n] for x in pick]
+        print(f"Уровень {n}: подходит {len(items)}, взято {len(pick)}")
+    with open(os.path.join(OUT, "ex.json"), "w", encoding="utf8") as f:
+        json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
+    print(f"Всего: {len(out)}, {os.path.getsize(os.path.join(OUT, 'ex.json')) // 1024} КБ")
+    # новая версия данных словаря (ex.json публикуется вместе с ним)
+    sys.path.insert(0, os.path.dirname(__file__))
+    from build_dict import write_meta
+    write_meta(OUT, {})
 
 
 if __name__ == "__main__":

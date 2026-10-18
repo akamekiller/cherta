@@ -171,22 +171,7 @@
       <div class="seg lang" role="group" aria-label="Язык"><button data-lang="zh-CN">中文</button><button data-lang="ru-RU">Рус</button></div>
       <button class="btn small ghost" id="w-voice-stop">Готово</button>
     </div>
-    <div class="hw-panel" id="w-hw" hidden>
-      <div class="hw-cands" id="w-hw-cands" aria-live="polite"></div>
-      <div class="hw-pad">
-        <svg class="grid" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-          <g stroke="currentColor" stroke-width=".5" stroke-dasharray="2 1.6" fill="none">
-            <line x1="50" y1="0" x2="50" y2="100"/><line x1="0" y1="50" x2="100" y2="50"/>
-            <line x1="0" y1="0" x2="100" y2="100"/><line x1="100" y1="0" x2="0" y2="100"/>
-          </g>
-        </svg>
-        <canvas id="w-hw-canvas" aria-label="Поле для рисования иероглифа"></canvas>
-      </div>
-      <div class="hw-tools">
-        <button class="btn small" id="w-hw-undo" disabled>Стереть черту</button>
-        <button class="btn small" id="w-hw-clear" disabled>Очистить</button>
-      </div>
-    </div>
+    <div id="w-hw" hidden></div>
     <div class="w-controls" id="w-controls">
       <div class="chips-row" id="w-filters"></div>
       <div class="row w-tools">
@@ -221,7 +206,8 @@
       <p class="word-note" id="d-note" hidden></p>
       <div class="entry-actions">
         <button class="btn small" id="d-todeck">+ В колоду</button>
-        <button class="btn small" id="d-edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg> Изменить</button>
+        <button class="btn small" id="d-tobook">+ В тетрадь</button>
+        <button class="icon-btn" id="d-edit" aria-label="Изменить слово"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg></button>
       </div>
     </div>
     <nav class="tabs" id="d-tabs" role="tablist" aria-label="Разделы статьи">
@@ -266,7 +252,7 @@
   <!-- Тетрадь прописей -->
   <section id="book" class="stack book" hidden>
     <div class="book-src">
-      <div class="seg wide-seg" role="group" aria-label="Что писать"><button data-src="deck" id="bk-src-deck"></button><button data-src="text">Свой текст</button></div>
+      <button class="src-pick" id="bk-src" aria-label="Что писать: выбрать колоду"></button>
       <button class="icon-btn" id="bk-opts" aria-label="Настройки прописей"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button>
       <button class="icon-btn" id="bk-print" aria-label="Печать прописей"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/></svg></button>
     </div>
@@ -297,27 +283,31 @@
   <!-- Печать: заполняется перед window.print() -->
   <!-- Упражнения на перевод -->
   <section id="ex" class="stack ex" hidden>
-    <div class="chips-row" id="ex-levels"></div>
-    <div class="ex-mode-row">
-      <div class="seg wide-seg" role="group" aria-label="Направление" id="ex-modes"><button data-mode="ruzh">На китайский</button><button data-mode="zhru">С китайского</button></div>
-      <label class="ex-py"><input type="checkbox" id="ex-py"> пиньинь</label>
+    <div id="ex-setup" class="stack">
+      <button class="src-pick" id="ex-src" aria-label="Откуда брать предложения"></button>
+      <div class="chips-row wrapped" id="ex-lessons" hidden></div>
+      <div class="field"><span class="label">Что тренировать</span><div class="chips-row wrapped" id="ex-kinds"></div></div>
+      <div class="set-row ex-opts"><div class="t"><div>Заданий за раз</div><div id="ex-src-info">…</div></div>
+        <div class="stepper"><button class="icon-btn" id="ex-n-minus" aria-label="Меньше">−</button><output id="ex-n">10</output><button class="icon-btn" id="ex-n-plus" aria-label="Больше">+</button></div></div>
+      <label class="check"><input type="checkbox" id="ex-py"> Пиньинь над словами</label>
+      <button class="btn primary wide" id="ex-start">Начать</button>
+      <h3 class="grp-title"><span>Мои наборы</span></h3>
+      <div class="deck-list" id="ex-set-list"></div>
+      <div class="tools"><button class="btn small" id="ex-set-add">Загрузить файл</button><button class="btn small" id="ex-set-help">Формат файла</button></div>
+      <input type="file" id="ex-set-file" accept=".txt,.tsv,text/plain" hidden>
+      <p class="hint">Предложения — из базы примеров 大БКРС (bkrs.info), подобраны под слова выбранной колоды. Диалоги написаны для приложения.</p>
     </div>
-    <div class="ex-bar"><i id="ex-prog"></i></div>
-    <div class="panel stack ex-card">
-      <div class="ex-top"><span class="label" id="ex-task"></span><span class="label" id="ex-count"></span></div>
-      <div class="ex-q" id="ex-q"></div>
+    <div id="ex-run" class="stack" hidden>
+      <div class="topbar"><button class="btn ghost small" id="ex-quit">← Выйти</button><span class="label" id="ex-count"></span></div>
+      <div class="ex-bar"><i id="ex-prog"></i></div>
+      <div class="panel stack ex-card" id="ex-card"></div>
       <div class="ex-gloss" id="ex-gloss" hidden></div>
-      <textarea class="ex-in" id="ex-ru-in" rows="2" placeholder="Ваш перевод (можно не писать)" hidden></textarea>
-      <div class="ex-ans" id="ex-ans" hidden></div>
-      <div class="ex-pool" id="ex-pool" hidden></div>
-      <div class="ex-res" id="ex-res" hidden></div>
-      <div class="ex-btns" id="ex-btns"></div>
     </div>
-    <p class="hint">Предложения — из базы примеров 大БКРС (bkrs.info), подобраны по словам HSK каждого уровня.</p>
   </section>
 
   <!-- Тоны и произношение -->
   <section id="tones" class="stack tones" hidden>
+    <button class="src-pick" id="tn-src" aria-label="Колода для тренировки тонов"></button>
     <div class="seg wide-seg" role="group" aria-label="Режим" id="tn-tabs"><button data-tab="listen">На слух</button><button data-tab="speak">Произношение</button></div>
     <div id="tn-listen" class="panel stack">
       <div class="ex-top"><span class="label">Послушайте и поставьте тоны</span><span class="label" id="tn-score"></span></div>

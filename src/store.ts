@@ -136,16 +136,17 @@ const ALL = ["cards", "reviews", "meta", "edits", "userDecks"] as const;
 export async function exportAll(): Promise<string> {
   const db = await open();
   const tx = db.transaction([...ALL]);
-  const [cards, reviews, settings, day, ex, edits, userDecks] = await Promise.all([
+  const [cards, reviews, settings, day, ex, exsets, edits, userDecks] = await Promise.all([
     done(tx.objectStore("cards").getAll()),
     done(tx.objectStore("reviews").getAll()),
     done(tx.objectStore("meta").get("settings")),
     done(tx.objectStore("meta").get("day")),
     done(tx.objectStore("meta").get("ex")),
+    done(tx.objectStore("meta").get("exsets")),
     done(tx.objectStore("edits").getAll()),
     done(tx.objectStore("userDecks").getAll()),
   ]);
-  return JSON.stringify({ format: EXPORT_FORMAT, version: DB_VERSION, exportedAt: new Date().toISOString(), cards, reviews, settings, day, ex, edits, userDecks });
+  return JSON.stringify({ format: EXPORT_FORMAT, version: DB_VERSION, exportedAt: new Date().toISOString(), cards, reviews, settings, day, ex, exsets, edits, userDecks });
 }
 
 export async function importAll(json: string): Promise<number> {
@@ -161,6 +162,7 @@ export async function importAll(json: string): Promise<number> {
   if (data.settings) tx.objectStore("meta").put(data.settings, "settings");
   if (data.day) tx.objectStore("meta").put(data.day, "day");
   if (data.ex) tx.objectStore("meta").put(data.ex, "ex");
+  if (data.exsets) tx.objectStore("meta").put(data.exsets, "exsets");
   await txDone(tx);
   return data.cards.length;
 }

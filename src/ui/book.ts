@@ -2,7 +2,9 @@
  * Тетрадь прописей: один иероглиф — ряд клеток. Первые по бледному контуру, остальные по памяти,
  * каждая клетка проверяется. Плюс печать прописей на A4 (через окно печати браузера → «Сохранить как PDF»).
  */
-import { app, words, hskLookup, dictIndex } from "../state.ts";
+import { app, hskLookup, dictIndex } from "../state.ts";
+import type { Word } from "../core/deck.ts";
+import { pickDeck, deckWords, deckTitle, setPickLabel } from "./deckpick.ts";
 import { uniqueChars, cellPlan, printRows, paginate, rowsPerPage, type PrintCell } from "../core/copybook.ts";
 import { dictPyToNumeric, type DictIndex } from "../core/dict.ts";
 import { parseRef, toMarked } from "../core/pinyin.ts";
@@ -15,9 +17,14 @@ import { openSheet, closeSheet } from "./sheet.ts";
 
 type Src = "deck" | "text";
 const LS = "cherta.book";
-const st = { src: "deck" as Src, text: "", total: 6, trace: 2, pos: {} as Record<string, number>,
+const st = { v: 2, src: "deck" as Src, deckId: "", text: "", total: 10, trace: 3, pos: {} as Record<string, number>,
   print: { perRow: 10, traces: 3, rowsPerChar: 1, count: 12, labels: true, all: false } };
-try { const saved = JSON.parse(localStorage.getItem(LS) ?? "{}"); Object.assign(st, saved, { print: { ...st.print, ...(saved.print ?? {}) } }); } catch { /* */ }
+try {
+  const saved = JSON.parse(localStorage.getItem(LS) ?? "{}");
+  // v1: по умолчанию было 6 клеток (2 по контуру) — переводим на 10 (3), свои значения не трогаем
+  if (!saved.v && saved.total === 6 && saved.trace === 2) { delete saved.total; delete saved.trace; }
+  Object.assign(st, saved, { v: 2, print: { ...st.print, ...(saved.print ?? {}) } });
+} catch { /* */ }
 const save = () => { try { localStorage.setItem(LS, JSON.stringify(st)); } catch { /* */ } };
 
 let writer: Writer | null = null;
@@ -32,10 +39,24 @@ let gen = 0;
 
 export const bookWriter = () => writer;
 
-const key = () => (st.src === "deck" ? `deck:${app.deck?.id ?? ""}` : "text");
+const key = () => (st.src === "deck" ? `deck:${st.deckId}` : "text");
 
-function sourceChars(): string[] {
-  return st.src === "deck" ? uniqueChars(words().map((w) => w.han)) : uniqueChars([st.text]);
+/** Слова колоды-источника (для иероглифов, пиньиня и значения). */
+let srcWords: Word[] = [];
+const words = () => srcWords;
+
+async function loadSource(): Promise<string[]> {
+  if (st.src === "text") { srcWords = []; return uniqueChars([st.text]); }
+  if (!st.deckId || !app.decks.some((d) => d.id === st.deckId)) st.deckId = app.deck?.id ?? app.decks[0]?.id ?? "";
+  srcWords = (await deckWords(st.deckId))?.words ?? [];
+  return uniqueChars(srcWords.map((w) => w.han));
+}
+
+/** Открыть тетрадь с выбранной колодой (из меню колоды и после «+ В тетрадь»). */
+export function useBookDeck(id: string) {
+  st.src = "deck";
+  st.deckId = id;
+  save();
 }
 
 /* ---------- сведения об иероглифе: пиньинь и значение ---------- */
@@ -56,10 +77,12 @@ async function charInfo(ch: string): Promise<{ py: string; ru: string } | null> 
 
 /* ---------- упражнение ---------- */
 
-function render() {
-  chars = sourceChars();
-  $("bk-src-deck").textContent = app.deck?.title ?? "Колода";
-  document.querySelectorAll<HTMLButtonElement>(".book-src [data-src]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.src === st.src)));
+async function render() {
+  const my = ++gen;
+  const list = await loadSource();
+  if (my !== gen) return;
+  chars = list;
+  setPickLabel("bk-src", st.src === "text" ? "Свой текст" : deckTitle(st.deckId));
   $("bk-text-field").hidden = st.src !== "text";
   $<HTMLInputElement>("bk-text").value = st.text;
   const empty = !chars.length;
@@ -71,7 +94,7 @@ function render() {
     $("bk-han").textContent = "";
     $("bk-py").innerHTML = "";
     $("bk-ru").textContent = "";
-    $("bk-status").textContent = st.src === "text" ? "Впишите иероглифы или слова — по ним будут прописи." : "В колоде нет иероглифов.";
+    $("bk-status").textContent = st.src === "text" ? "Впишите иероглифы или слова — по ним будут прописи." : "В колоде нет слов. Добавьте их кнопкой «+ В тетрадь» в карточке слова или выберите другую колоду.";
     return;
   }
   idx = Math.max(0, Math.min(chars.length - 1, st.pos[key()] ?? 0));
@@ -167,7 +190,7 @@ function openOptions() {
       const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-k]");
       if (b) {
         const k = b.dataset.k as "total" | "trace";
-        st[k] = Math.max(k === "total" ? 1 : 0, Math.min(k === "total" ? 12 : st.total, st[k] + Number(b.dataset.d)));
+        st[k] = Math.max(k === "total" ? 1 : 0, Math.min(k === "total" ? 16 : st.total, st[k] + Number(b.dataset.d)));
         if (st.trace > st.total) st.trace = st.total;
         root.querySelector("#bo-total")!.textContent = String(st.total);
         root.querySelector("#bo-trace")!.textContent = String(st.trace);
@@ -266,18 +289,16 @@ async function buildPrint(list: string[]) {
 
 /* ---------- обработчики ---------- */
 
+let t = 0;
 export function initBook() {
   onShow("book", render);
   onLeave("book", stop);
-  document.querySelector(".book-src")!.addEventListener("click", (e) => {
-    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-src]");
-    if (!b) return;
-    st.src = b.dataset.src as Src;
+  $("bk-src").addEventListener("click", () => pickDeck("Что писать", st.src === "text" ? "text" : st.deckId, (id) => {
+    if (id === "text") st.src = "text"; else { st.src = "deck"; st.deckId = id; }
     save();
     render();
     if (st.src === "text" && !st.text) $<HTMLInputElement>("bk-text").focus();
-  });
-  let t = 0;
+  }, [{ id: "text", title: "Свой текст", sub: "Впишите любые иероглифы или слова" }]));
   $("bk-text").addEventListener("input", (e) => {
     st.text = (e.target as HTMLInputElement).value;
     st.pos.text = 0;

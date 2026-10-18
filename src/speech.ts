@@ -71,3 +71,20 @@ export function say(text: string, rate = 0.85) {
   }
   speakDevice(text, rate);
 }
+
+/** Прочитать несколько фраз подряд голосом устройства (диалог). */
+export function sayAll(texts: string[], rate = 0.85) {
+  if (!supported()) return;
+  try {
+    speechSynthesis.cancel();
+    for (const t of texts) {
+      const u = new SpeechSynthesisUtterance(t);
+      u.lang = "zh-CN";
+      if (voice) u.voice = voice;
+      u.rate = rate;
+      speechSynthesis.speak(u);
+    }
+  } catch { /* озвучка необязательна */ }
+}
+
+export const canSpeak = () => supported();

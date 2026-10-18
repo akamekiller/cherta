@@ -177,6 +177,19 @@ def gloss(rows):
     return ""
 
 
+def write_meta(out, extra):
+    """meta.json: версия = хэш всех файлов папки (кроме самой meta). По ней приложение и service worker
+    понимают, что данные пересобраны. Вызывается и из build_examples.py после ex.json."""
+    h = hashlib.sha1()
+    for f in sorted(os.listdir(out)):
+        if f != "meta.json":
+            h.update(open(os.path.join(out, f), "rb").read())
+    path = os.path.join(out, "meta.json")
+    old = json.load(open(path, encoding="utf8")) if os.path.exists(path) else {}
+    with open(path, "w", encoding="utf8") as f:
+        json.dump({**old, **extra, "v": h.hexdigest()[:10]}, f)
+
+
 def main():
     src = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "raw", "dabkrs.gz")
     jieba = sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, "raw", "jieba-dict.txt")
@@ -237,8 +250,9 @@ def main():
     order = sorted(picked, key=rank)
 
     os.makedirs(OUT, exist_ok=True)
-    for f in os.listdir(OUT):
-        os.remove(os.path.join(OUT, f))
+    for f in os.listdir(OUT):  # только свои файлы: ex.json (корпус упражнений) собирается отдельно
+        if f == "index.tsv" or re.fullmatch(r"\d{3}\.json", f):
+            os.remove(os.path.join(OUT, f))
     glosses = {w: gloss(picked[w]["r"]) for w in order}
     for w in order:  # «см. 那儿» — берём значение из той статьи
         if not glosses[w]:
@@ -254,12 +268,7 @@ def main():
     for i, s in enumerate(shards):
         with open(os.path.join(OUT, f"{i:03d}.json"), "w", encoding="utf8") as f:
             json.dump(s, f, ensure_ascii=False, separators=(",", ":"))
-    # версия данных: по ней приложение и service worker понимают, что словарь пересобран
-    h = hashlib.sha1()
-    for f in sorted(os.listdir(OUT)):
-        h.update(open(os.path.join(OUT, f), "rb").read())
-    with open(os.path.join(OUT, "meta.json"), "w", encoding="utf8") as f:
-        json.dump({"v": h.hexdigest()[:10], "count": len(order), "shards": SHARDS}, f)
+    write_meta(OUT, {"count": len(order), "shards": SHARDS})
     missing = [w for w in hsk if w not in picked]
     print(f"Статей: {len(picked)}; из HSK нет в БКРС: {len(missing)} {' '.join(missing[:30])}")
 

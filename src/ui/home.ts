@@ -4,6 +4,7 @@ import { formatGap } from "../core/fsrs.ts";
 import { $, esc, plural } from "./dom.ts";
 import { onShow } from "./nav.ts";
 import { startSession } from "./session.ts";
+import { openDeckEditor, userDeckById } from "./editor.ts";
 
 export function renderHome() {
   const d = app.deck;
@@ -32,8 +33,8 @@ export function renderHome() {
 
 function renderDecks() {
   $("deck-list").innerHTML = app.decks.map((d) =>
-    `<button class="deck-opt" data-id="${esc(d.id)}" aria-current="${d.id === app.deck?.id}"><span>${esc(d.title)}<small>${esc(d.subtitle)}</small></span><span class="n">${d.count} ${plural(d.count, "слово", "слова", "слов")}</span></button>`,
-  ).join("");
+    `<div class="deck-opt" role="button" tabindex="0" data-id="${esc(d.id)}" aria-current="${d.id === app.deck?.id}"><span>${esc(d.title)}<small>${esc(d.subtitle)}</small></span><span class="deck-right"><span class="n">${d.count} ${plural(d.count, "слово", "слова", "слов")}</span>${d.user ? `<button class="ed" data-edit="${esc(d.id)}" aria-label="Изменить колоду"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg></button>` : ""}</span></div>`,
+  ).join("") + `<button class="deck-opt deck-add" id="deck-add">+ Своя колода</button>`;
 }
 function closeDecks() {
   $("deck-list").hidden = true;
@@ -50,7 +51,12 @@ export function initHome() {
     $("deck-btn").setAttribute("aria-expanded", String(open));
   });
   $("deck-list").addEventListener("click", async (e) => {
-    const b = (e.target as HTMLElement).closest<HTMLButtonElement>(".deck-opt");
+    const t = e.target as HTMLElement;
+    const after = async (id: string | null) => { if (id && id !== app.deck?.id) await switchDeck(id); renderHome(); };
+    if (t.closest("#deck-add")) { openDeckEditor(undefined, after); return; }
+    const ed = t.closest<HTMLButtonElement>("[data-edit]");
+    if (ed) { openDeckEditor(userDeckById(ed.dataset.edit!), after); return; }
+    const b = t.closest<HTMLElement>(".deck-opt");
     if (!b?.dataset.id) return;
     if (b.dataset.id !== app.deck?.id) await switchDeck(b.dataset.id);
     renderHome();

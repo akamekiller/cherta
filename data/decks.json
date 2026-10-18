@@ -1,5 +1,44 @@
 [
-  { "id": "hsk3-1", "title": "HSK 1", "subtitle": "Новый HSK 3.0, уровень 1", "lang": "zh", "file": "hsk3-1.tsv" },
-  { "id": "hsk3-2", "title": "HSK 2", "subtitle": "Новый HSK 3.0, уровень 2", "lang": "zh", "file": "hsk3-2.tsv" },
-  { "id": "hsk3-3", "title": "HSK 3", "subtitle": "Новый HSK 3.0, уровень 3", "lang": "zh", "file": "hsk3-3.tsv" }
+  {
+    "id": "hsk3-1",
+    "title": "HSK 1",
+    "subtitle": "Новый HSK 3.0, уровень 1",
+    "lang": "zh",
+    "file": "hsk3-1.tsv"
+  },
+  {
+    "id": "hsk3-2",
+    "title": "HSK 2",
+    "subtitle": "Новый HSK 3.0, уровень 2",
+    "lang": "zh",
+    "file": "hsk3-2.tsv"
+  },
+  {
+    "id": "hsk3-3",
+    "title": "HSK 3",
+    "subtitle": "Новый HSK 3.0, уровень 3",
+    "lang": "zh",
+    "file": "hsk3-3.tsv"
+  },
+  {
+    "id": "hsk3-4",
+    "title": "HSK 4",
+    "subtitle": "Новый HSK 3.0, уровень 4",
+    "lang": "zh",
+    "file": "hsk3-4.tsv"
+  },
+  {
+    "id": "hsk3-5",
+    "title": "HSK 5",
+    "subtitle": "Новый HSK 3.0, уровень 5",
+    "lang": "zh",
+    "file": "hsk3-5.tsv"
+  },
+  {
+    "id": "hsk3-6",
+    "title": "HSK 6",
+    "subtitle": "Новый HSK 3.0, уровень 6",
+    "lang": "zh",
+    "file": "hsk3-6.tsv"
+  }
 ]

@@ -100,3 +100,34 @@ test("колода из TSV", () => {
   assert.equal(d.words[1].id, "zh:中国");
   assert.equal(d.words[1].ref[1].t, 2);
 });
+
+import { toNumeric } from "../src/core/pinyin.ts";
+import { applyEdit, parseUserDeck, isEmptyEdit } from "../src/core/edits.ts";
+
+test("пиньинь пользователя → формат колоды", () => {
+  assert.equal(toNumeric("xué xí"), "xue2 xi2");
+  assert.equal(toNumeric("xue2 xi2"), "xue2 xi2");
+  assert.equal(toNumeric("nǚ ér"), "nv3 er2");
+  assert.equal(toNumeric("xiè xie"), "xie4 xie5");
+  assert.equal(toNumeric("Zhōng'guó"), "zhong1 guo2");
+  assert.equal(toNumeric("abc!"), null);
+  assert.equal(toNumeric(""), null);
+});
+
+test("правка слова накладывается и откатывается", () => {
+  const w = loadDeck({ id: "t", title: "T", lang: "zh", words: [["人", "ren2", "человек"]] }).words[0];
+  const e = applyEdit(w, { id: w.id, ru: "люди", py: "ren4", updatedAt: 1 });
+  assert.equal(e.ru, "люди");
+  assert.equal(e.ref[0].t, 4);
+  assert.equal(w.ru, "человек");
+  assert.equal(applyEdit(w, { id: w.id, py: "мусор", updatedAt: 1 }).ref[0].t, 2);
+  assert.equal(isEmptyEdit({ id: "x", updatedAt: 1 }), true);
+  assert.equal(isEmptyEdit({ id: "x", note: "a", updatedAt: 1 }), false);
+});
+
+test("своя колода: из HSK, со своими полями, пропуски", () => {
+  const hsk: Record<string, { py: string; ru: string }> = { 学习: { py: "xue2 xi2", ru: "учиться" }, 人: { py: "ren2", ru: "человек" } };
+  const r = parseUserDeck("学习\n人, 学习 大\n飞船 | fēi chuán | космический корабль\n猫 | | кошка\nhello", (h) => hsk[h]);
+  assert.deepEqual(r.rows, [["学习", "xue2 xi2", "учиться"], ["人", "ren2", "человек"], ["飞船", "fei1 chuan2", "космический корабль"]]);
+  assert.deepEqual(r.skipped, ["大", "猫", "hello"]);
+});

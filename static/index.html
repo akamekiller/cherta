@@ -114,8 +114,10 @@
       </div>
       <div class="py" id="r-py"></div>
       <div id="r-ru" class="hint"></div>
+      <p class="word-note" id="r-note" hidden></p>
       <div class="verdict" id="r-verdict"></div>
       <div class="grades" id="grades"></div>
+      <button class="link-btn" id="r-edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg> Исправить слово</button>
     </div>
   </section>
 
@@ -146,6 +148,7 @@
       </div>
       <div class="py" id="d-py"></div>
       <div class="hint" id="d-ru"></div>
+      <p class="word-note" id="d-note" hidden></p>
       <div class="detail-chars" id="d-chars"></div>
       <div class="pad">
         <svg class="grid" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
@@ -161,6 +164,7 @@
         <button class="btn small" id="d-try">Написать</button>
       </div>
       <p class="hint" id="d-state"></p>
+      <button class="btn small" id="d-edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg> Изменить слово</button>
     </div>
   </section>
 
@@ -189,6 +193,11 @@
       </div>
     </div>
     <div class="panel stack">
+      <div class="label">Мои правки</div>
+      <p class="hint" id="edits-info"></p>
+      <div class="edit-list" id="edits-list"></div>
+    </div>
+    <div class="panel stack">
       <div class="label">Прогресс</div>
       <p class="hint" id="progress-info"></p>
       <div class="row">
@@ -203,6 +212,11 @@
     <p class="about">Черта __VERSION__. Данные черт: Make Me a Hanzi (Arphic Public License), библиотека Hanzi Writer (MIT). Планировщик повторений: FSRS-5.</p>
   </section>
 </div>
+<div class="sheet-scrim" id="sheet-scrim" hidden></div>
+<section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden>
+  <div class="sheet-head"><h2 id="sheet-title"></h2><button class="icon-btn" id="sheet-close" aria-label="Закрыть">✕</button></div>
+  <div class="sheet-body stack" id="sheet-body"></div>
+</section>
 <script type="module" src="app.js?v=__VERSION__"></script>
 </body>
 </html>

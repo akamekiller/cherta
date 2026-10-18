@@ -1,17 +1,22 @@
-/** Состояние приложения: колода, карточки, настройки, очередь занятия. */
+/** Состояние приложения: колоды, карточки, правки, настройки, очередь занятия. */
 import { schedule, newCard, type Card, type Grade } from "./core/fsrs.ts";
-import { loadDeck, type Deck, type DeckFile, type Word } from "./core/deck.ts";
+import { loadDeck, wordId, type Deck, type DeckFile, type Word } from "./core/deck.ts";
+import { applyEdit, isEmptyEdit, type WordEdit } from "./core/edits.ts";
 import * as store from "./store.ts";
 
 const MIN = 60_000;
 const LEARN_AHEAD = 20 * MIN; // как в Anki: шаги заучивания показываем чуть раньше срока
 
-export type DeckInfo = { id: string; title: string; subtitle: string; lang: string; count: number };
+export type DeckInfo = { id: string; title: string; subtitle: string; lang: string; count: number; user?: boolean };
 
 export const app = {
+  builtinDecks: [] as DeckInfo[],
+  userDecks: [] as store.UserDeck[],
   decks: [] as DeckInfo[],
-  deck: null as Deck | null,
+  baseDeck: null as Deck | null,  // колода как в данных
+  deck: null as Deck | null,      // колода с правками пользователя
   cards: new Map<string, Card>(),
+  edits: new Map<string, WordEdit>(),
   settings: { ...store.DEFAULT_SETTINGS } as store.Settings,
   day: { day: "", newCount: 0 } as store.DayCounter,
 };
@@ -27,22 +32,46 @@ function rollDay() {
 }
 
 export async function init() {
-  const [settings, cards, day] = await Promise.all([store.loadSettings(), store.allCards(), store.getMeta<store.DayCounter>("day")]);
+  const [settings, cards, day, edits, userDecks] = await Promise.all([
+    store.loadSettings(), store.allCards(), store.getMeta<store.DayCounter>("day"), store.allEdits(), store.allUserDecks(),
+  ]);
   app.settings = settings;
   app.cards = cards;
+  app.edits = edits;
+  app.userDecks = userDecks;
   if (day) app.day = day;
   rollDay();
   const idx = await fetch("data/decks/index.json");
   if (!idx.ok) throw new Error("Не удалось загрузить список колод");
-  app.decks = await idx.json();
+  app.builtinDecks = await idx.json();
+  rebuildDeckList();
   const id = app.decks.some((d) => d.id === settings.deck) ? settings.deck : app.decks[0].id;
   await loadDeckById(id);
 }
 
-async function loadDeckById(id: string) {
+function rebuildDeckList() {
+  app.decks = [
+    ...app.builtinDecks,
+    ...app.userDecks.map((d) => ({ id: d.id, title: d.title, subtitle: "Своя колода", lang: "zh", count: d.words.length, user: true })),
+  ];
+}
+
+async function fetchDeckFile(id: string): Promise<DeckFile> {
+  const ud = app.userDecks.find((d) => d.id === id);
+  if (ud) return { id: ud.id, title: ud.title, lang: "zh", words: ud.words };
   const res = await fetch(`data/decks/${id}.json`);
   if (!res.ok) throw new Error("Не удалось загрузить колоду");
-  app.deck = loadDeck((await res.json()) as DeckFile);
+  return res.json();
+}
+
+async function loadDeckById(id: string) {
+  app.baseDeck = loadDeck(await fetchDeckFile(id));
+  applyEdits();
+}
+
+function applyEdits() {
+  const b = app.baseDeck;
+  app.deck = b ? { ...b, words: b.words.map((w) => applyEdit(w, app.edits.get(w.id))) } : null;
 }
 
 export async function switchDeck(id: string) {
@@ -50,49 +79,107 @@ export async function switchDeck(id: string) {
   await updateSettings({ deck: id });
 }
 
-/** Сколько слов колоды уже начато — для списка колод. */
-export function startedIn(ids: Set<string>) {
-  let n = 0;
-  for (const id of ids) if (app.cards.has(id)) n++;
-  return n;
-}
-
-export async function reloadCards() {
+export async function reloadAll() {
   app.cards = await store.allCards();
+  app.edits = await store.allEdits();
+  app.userDecks = await store.allUserDecks();
   app.day = (await store.getMeta<store.DayCounter>("day")) ?? { day: "", newCount: 0 };
   rollDay();
+  rebuildDeckList();
+  const id = app.decks.some((d) => d.id === app.settings.deck) ? app.settings.deck : app.decks[0].id;
+  await loadDeckById(id);
 }
 
 export const words = () => app.deck?.words ?? [];
 export const cardOf = (w: Word) => app.cards.get(w.id);
+export const editOf = (id: string) => app.edits.get(id);
+export const isHidden = (w: Word) => !!app.edits.get(w.id)?.hidden;
+/** Исходный вариант слова (без правок) — для «Вернуть как было». */
+export const baseWord = (id: string) => app.baseDeck?.words.find((w) => w.id === id);
+const active = () => words().filter((w) => !isHidden(w));
+
+/* ---------- правки ---------- */
+
+export async function saveEdit(id: string, patch: Partial<Omit<WordEdit, "id" | "updatedAt">>) {
+  const e: WordEdit = { ...(app.edits.get(id) ?? { id, updatedAt: 0 }), ...patch, id, updatedAt: Date.now() };
+  for (const k of ["ru", "py", "note"] as const) if (e[k] !== undefined && !e[k]!.trim()) delete e[k];
+  if (!e.hidden) delete e.hidden;
+  if (isEmptyEdit(e)) { app.edits.delete(id); await store.deleteEdit(id); }
+  else { app.edits.set(id, e); await store.putEdit(e); }
+  applyEdits();
+}
+
+export async function revertEdit(id: string) {
+  app.edits.delete(id);
+  await store.deleteEdit(id);
+  applyEdits();
+}
+
+/* ---------- свои колоды ---------- */
+
+let hskIndex: Map<string, { py: string; ru: string }> | null = null;
+/** Слово → пиньинь и значение по всем встроенным колодам (с учётом правок). Грузится по требованию. */
+export async function hskLookup() {
+  if (!hskIndex) {
+    hskIndex = new Map();
+    for (const d of app.builtinDecks) {
+      const f: DeckFile = await (await fetch(`data/decks/${d.id}.json`)).json();
+      for (const [han, py, ru] of f.words) if (!hskIndex.has(han)) hskIndex.set(han, { py, ru });
+    }
+  }
+  return (han: string) => {
+    const base = hskIndex!.get(han);
+    const e = app.edits.get(wordId("zh", han));
+    if (!base) return undefined;
+    return { py: e?.py || base.py, ru: e?.ru || base.ru };
+  };
+}
+
+export async function saveUserDeck(d: store.UserDeck) {
+  await store.putUserDeck(d);
+  app.userDecks = await store.allUserDecks();
+  rebuildDeckList();
+  if (app.deck?.id === d.id) await loadDeckById(d.id);
+}
+
+export async function removeUserDeck(id: string) {
+  await store.deleteUserDeck(id);
+  app.userDecks = await store.allUserDecks();
+  rebuildDeckList();
+  if (app.deck?.id === id) await switchDeck(app.decks[0].id);
+}
+
+/* ---------- очередь ---------- */
 
 export function counts() {
   rollDay();
   const now = Date.now();
   let due = 0, learning = 0, review = 0;
-  for (const w of words()) {
+  const list = active();
+  for (const w of list) {
     const c = cardOf(w);
     if (!c) continue;
     if (c.state === "review") { review++; if (c.due <= now) due++; }
     else if (c.due <= now + LEARN_AHEAD) learning++;
   }
-  const unseen = words().filter((w) => !cardOf(w)).length;
+  const unseen = list.filter((w) => !cardOf(w)).length;
   const newLeft = Math.min(unseen, Math.max(0, app.settings.newPerDay - app.day.newCount));
-  return { due, learning, review, newLeft, unseen, total: due + learning + newLeft };
+  return { due, learning, review, newLeft, unseen, total: due + learning + newLeft, hidden: words().length - list.length };
 }
 
 /** Следующее слово: просроченные шаги → повторения → новые → шаги заранее. */
 export function nextWord(excludeId?: string): Word | null {
   rollDay();
   const now = Date.now();
-  const seen = words().map((w) => [w, cardOf(w)] as const).filter((x): x is readonly [Word, Card] => !!x[1]);
-  const earliest = (list: (readonly [Word, Card])[]) => list.sort((a, b) => a[1].due - b[1].due)[0]?.[0] ?? null;
+  const list = active();
+  const seen = list.map((w) => [w, cardOf(w)] as const).filter((x): x is readonly [Word, Card] => !!x[1]);
+  const earliest = (l: (readonly [Word, Card])[]) => l.sort((a, b) => a[1].due - b[1].due)[0]?.[0] ?? null;
   const learningNow = seen.filter(([w, c]) => c.state !== "review" && c.due <= now && w.id !== excludeId);
   if (learningNow.length) return earliest(learningNow);
   const reviews = seen.filter(([, c]) => c.state === "review" && c.due <= now);
   if (reviews.length) return earliest(reviews);
   if (app.day.newCount < app.settings.newPerDay) {
-    const fresh = words().find((w) => !cardOf(w));
+    const fresh = list.find((w) => !cardOf(w));
     if (fresh) return fresh;
   }
   const ahead = seen.filter(([, c]) => c.state !== "review" && c.due <= now + LEARN_AHEAD);
@@ -121,6 +208,6 @@ export async function updateSettings(patch: Partial<store.Settings>) {
 
 export function nextDueTime(): number | null {
   const now = Date.now();
-  const list = words().map(cardOf).filter((c): c is Card => !!c && c.due > now).map((c) => c.due);
+  const list = active().map(cardOf).filter((c): c is Card => !!c && c.due > now).map((c) => c.due);
   return list.length ? Math.min(...list) : null;
 }

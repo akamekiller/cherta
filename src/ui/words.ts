@@ -1,5 +1,7 @@
 /** Список слов колоды, поиск и карточка слова с порядком черт. */
-import { cardOf, words } from "../state.ts";
+import { cardOf, words, isHidden } from "../state.ts";
+import { openWordEditor } from "./editor.ts";
+import { showNote } from "./session.ts";
 import type { Word } from "../core/deck.ts";
 import { formatGap, DAY } from "../core/fsrs.ts";
 import { plain, searchKey } from "../core/pinyin.ts";
@@ -13,6 +15,7 @@ let detailWriter: Writer | null = null;
 export const wordsWriter = () => detailWriter;
 
 function status(w: Word): [string, string] {
+  if (isHidden(w)) return ["скрыто", "hid"];
   const c = cardOf(w);
   if (!c) return ["новое", ""];
   if (c.state !== "review") return ["учу", "learn"];
@@ -40,11 +43,12 @@ function openDetail(id: string) {
   $("d-han").textContent = w.han;
   $("d-py").innerHTML = pinyinHTML(w.ref);
   $("d-ru").textContent = w.ru;
+  showNote($("d-note"), w.id);
   const chars = [...w.han];
   $("d-chars").innerHTML = chars.length > 1
     ? chars.map((c, i) => `<button data-c="${esc(c)}" aria-pressed="${i === 0}">${esc(c)}</button>`).join("") : "";
   const c = cardOf(w);
-  $("d-state").textContent = !c ? "Слово ещё не изучалось."
+  $("d-state").textContent = isHidden(w) ? "Слово скрыто из занятий." : !c ? "Слово ещё не изучалось."
     : c.state !== "review" ? "Слово на этапе заучивания."
     : `Следующее повторение через ${formatGap(Math.max(0, c.due - Date.now()))}.`;
   showChar(chars[0]);
@@ -83,4 +87,8 @@ export function initWords() {
   });
   $("d-say").addEventListener("click", () => detailWord && say(detailWord.han));
   $("d-back").addEventListener("click", () => show("words"));
+  $("d-edit").addEventListener("click", () => {
+    if (!detailWord) return;
+    openWordEditor(detailWord, () => detailWord && openDetail(detailWord.id));
+  });
 }

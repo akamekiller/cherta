@@ -7,11 +7,13 @@ import { initSession, sessionWriter } from "./ui/session.ts";
 import { initWords, wordsWriter } from "./ui/words.ts";
 import { initSettings } from "./ui/settings.ts";
 import { recolor } from "./ui/writer.ts";
+import { initSheet } from "./ui/sheet.ts";
 import { setTheme, onThemeChange } from "./theme.ts";
 import { app } from "./state.ts";
 
 async function boot() {
   initNav();
+  initSheet();
   initHome();
   initSession();
   initWords();

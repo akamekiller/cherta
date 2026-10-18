@@ -1,4 +1,5 @@
-import { app, updateSettings, reloadCards } from "../state.ts";
+import { app, updateSettings, reloadAll, revertEdit } from "../state.ts";
+import { plural } from "./dom.ts";
 import * as store from "../store.ts";
 import { say, voiceStatus, onVoices } from "../speech.ts";
 import { $, esc } from "./dom.ts";
@@ -10,8 +11,20 @@ function renderThemes() {
     <span class="swatch" aria-hidden="true">${t.swatch.map((c) => `<i style="background:${c}"></i>`).join("")}</span>${t.name}</button>`).join("");
 }
 
+function renderEdits() {
+  const list = [...app.edits.values()].sort((a, b) => b.updatedAt - a.updatedAt);
+  $("edits-info").textContent = list.length
+    ? `Изменено ${list.length} ${plural(list.length, "слово", "слова", "слов")}. Исходные данные не меняются — любую правку можно вернуть.`
+    : "Правок пока нет. Изменить слово можно в его карточке или после ответа в занятии.";
+  $("edits-list").innerHTML = list.map((e) => {
+    const parts = [e.ru && `значение: ${e.ru}`, e.py && "пиньинь", e.note && "заметка", e.hidden && "скрыто"].filter(Boolean).join(" · ");
+    return `<div class="edit-row"><span class="h">${esc(e.id.split(":")[1] ?? e.id)}</span><span class="d">${esc(parts)}</span><button class="btn small" data-revert="${esc(e.id)}">Вернуть</button></div>`;
+  }).join("");
+}
+
 function render() {
   renderThemes();
+  renderEdits();
   $("n-val").textContent = String(app.settings.newPerDay);
   $<HTMLInputElement>("s-py").checked = app.settings.pinyin;
   $<HTMLInputElement>("s-voice").checked = app.settings.voice;
@@ -35,6 +48,12 @@ function confirmBox(question: string, yes: string, onYes: () => void) {
 
 export function initSettings() {
   onShow("settings", render);
+  $("edits-list").addEventListener("click", async (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-revert]");
+    if (!b) return;
+    await revertEdit(b.dataset.revert!);
+    renderEdits();
+  });
   $("themes").addEventListener("click", async (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>(".theme-opt");
     if (!b) return;
@@ -70,7 +89,7 @@ export function initSettings() {
     confirmBox("Заменить текущий прогресс данными из файла?", "Заменить", async () => {
       try {
         const n = await store.importAll(text);
-        await reloadCards();
+        await reloadAll();
         app.settings = await store.loadSettings();
         render();
         note(`Загружено карточек: ${n}.`);
@@ -81,7 +100,7 @@ export function initSettings() {
   });
   $("reset").addEventListener("click", () => confirmBox("Удалить весь прогресс? Настройки останутся.", "Удалить", async () => {
     await store.resetProgress();
-    await reloadCards();
+    await reloadAll();
     render();
     note("Прогресс удалён.");
   }));

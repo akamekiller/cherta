@@ -1,9 +1,9 @@
 // Service worker «Черты»: офлайн-работа.
 // Оболочка приложения кэшируется при установке; данные черт и шрифты — при первом запросе.
-const VERSION = "0.4.0-mvdfeavc";
+const VERSION = "0.5.0-mvdg0jgg";
 const SHELL = `cherta-shell-${VERSION}`;
 const DATA = "cherta-data-v1";
-const SHELL_FILES = ["./","index.html","app.js","styles.css","manifest.webmanifest","icons/icon.svg","icons/icon-192.png","data/decks/index.json","data/decks/hsk3-1.json","data/decks/hsk3-2.json","data/decks/hsk3-3.json"];
+const SHELL_FILES = ["./","index.html","app.js","styles.css","manifest.webmanifest","icons/icon.svg","icons/icon-192.png","data/decks/index.json","data/decks/hsk3-1.json","data/decks/hsk3-2.json","data/decks/hsk3-3.json","data/decks/hsk3-4.json","data/decks/hsk3-5.json","data/decks/hsk3-6.json"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(SHELL).then((c) => c.addAll(SHELL_FILES)).then(() => self.skipWaiting()));

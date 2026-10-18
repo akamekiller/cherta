@@ -1,5 +1,6 @@
 /** Занятие: значение → пишешь иероглифы → пиньинь → оценка. */
-import { app, counts, nextWord, preview, answer, cardOf } from "../state.ts";
+import { app, counts, nextWord, preview, answer, cardOf, editOf, words } from "../state.ts";
+import { openWordEditor } from "./editor.ts";
 import type { Word } from "../core/deck.ts";
 import { formatGap, type Grade } from "../core/fsrs.ts";
 import { checkPinyin } from "../core/pinyin.ts";
@@ -137,6 +138,7 @@ function reveal() {
   $("r-han").textContent = w.han;
   $("r-py").innerHTML = pinyinHTML(w.ref, py?.per);
   $("r-ru").textContent = w.ru;
+  showNote($("r-note"), w.id);
   const chips: string[] = [];
   if (gaveUp) chips.push(`<span class="chip no">Подсмотрено</span>`);
   else if (mistakes === 0) chips.push(`<span class="chip ok">Черты без ошибок</span>`);
@@ -167,7 +169,25 @@ async function grade(g: Grade) {
   nextQuestion();
 }
 
+export function showNote(el: HTMLElement, id: string) {
+  const n = editOf(id)?.note;
+  el.hidden = !n;
+  el.textContent = n ?? "";
+}
+
+/** После правки обновляем показанный ответ: значение, пиньинь, заметку. */
+function refreshAfterEdit() {
+  if (!s) return;
+  const fresh = words().find((x) => x.id === s!.word.id);
+  if (!fresh) return;
+  s.word = fresh;
+  $("r-py").innerHTML = pinyinHTML(fresh.ref);
+  $("r-ru").textContent = fresh.ru;
+  showNote($("r-note"), fresh.id);
+}
+
 export function initSession() {
+  $("r-edit").addEventListener("click", () => s && openWordEditor(s.word, refreshAfterEdit));
   $("quit").addEventListener("click", () => show("home"));
   $("done-home").addEventListener("click", () => show("home"));
   onLeave("session", endSession);

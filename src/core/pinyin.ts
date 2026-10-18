@@ -83,6 +83,31 @@ export function checkPinyin(input: string, ref: Syllable[]): PinyinCheck {
   return { ok: per.every(Boolean), per, letters: true };
 }
 
+/**
+ * Пиньинь, введённый человеком, → формат колоды с цифрами.
+ * Слоги разделяются пробелами: "xué xí", "xue2 xi2", "nü3 er2", "ma" (без тона = нейтральный).
+ * Возвращает null, если строку не удалось разобрать.
+ */
+export function toNumeric(input: string): string | null {
+  const tokens = input.trim().toLowerCase().replace(/u:/g, "v").split(/[\s']+/).filter(Boolean);
+  if (!tokens.length) return null;
+  const out: string[] = [];
+  for (const tok of tokens) {
+    if (/^[a-zü]+[1-5](\/[1-5])*$/.test(tok)) { out.push(tok.replace(/ü/g, "v")); continue; }
+    let letters = "", tone = 5;
+    for (const ch of tok.normalize("NFD")) {
+      if (ch === "\u0308") { if (letters.endsWith("u")) letters = letters.slice(0, -1) + "v"; continue; }
+      if (TONE_COMBINING[ch]) { tone = TONE_COMBINING[ch]; continue; }
+      if (/[a-z]/.test(ch)) { letters += ch; continue; }
+      return null;
+    }
+    if (!letters) return null;
+    out.push(letters + tone);
+  }
+  const s = out.join(" ");
+  try { parseRef(s); return s; } catch { return null; }
+}
+
 /** Нормализация строки для поиска по пиньиню: без тонов, ü→v, без пробелов и цифр. */
 export function searchKey(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/u\u0308/g, "v").replace(/[\u0300-\u036f]/g, "")

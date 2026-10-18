@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Черта</title>
+<meta name="description" content="Прописи китайских иероглифов с проверкой черт и интервальными повторениями">
+<meta name="theme-color" content="#F2F4F2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111615" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="styles.css?v=0.2.0-mvddc8b4">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><span class="han">笔</span>Черта</div>
+    <nav aria-label="Разделы">
+      <button data-view="home" aria-current="page">Учить</button>
+      <button data-view="words">Слова</button>
+      <button data-view="settings">Настройки</button>
+    </nav>
+  </header>
+
+  <div id="boot-error" class="boot-error" hidden></div>
+
+  <!-- Главная -->
+  <section id="home" class="stack" hidden>
+    <div class="panel stack">
+      <div class="deck-head">
+        <div>
+          <div class="label">Колода</div>
+          <h2 id="deck-title">HSK 1</h2>
+          <p class="hint" id="deck-sub"></p>
+        </div>
+        <div class="deck-han" aria-hidden="true">一</div>
+      </div>
+      <div class="stats">
+        <div class="stat due"><b id="st-due">0</b><span>к повторению</span></div>
+        <div class="stat new"><b id="st-new">0</b><span>новых сегодня</span></div>
+        <div class="stat known"><b id="st-known">0</b><span>в повторении</span></div>
+      </div>
+      <button class="btn primary wide" id="start">Начать занятие</button>
+      <p class="hint" id="next-hint"></p>
+    </div>
+    <div class="panel stack">
+      <div class="label">Как это работает</div>
+      <p class="hint">Вам показывают значение слова. Напишите иероглифы пальцем в клетке: каждая черта проверяется по форме, направлению и порядку. Введите пиньинь цифрами (<b>ren2</b>) или со знаками (<b>rén</b>). Оценка для повторения ставится сама, её можно поменять.</p>
+    </div>
+  </section>
+
+  <!-- Занятие -->
+  <section id="session" class="stack" hidden>
+    <div class="topbar">
+      <button class="btn ghost small" id="quit">← Выйти</button>
+      <span class="label" id="left"></span>
+    </div>
+    <div class="prompt">
+      <div class="ru" id="q-ru"></div>
+      <div class="meta" id="q-meta"></div>
+    </div>
+    <div class="slots" id="slots"></div>
+    <div class="pad" id="pad">
+      <svg class="grid" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <g stroke="currentColor" stroke-width=".4" stroke-dasharray="2 1.6" fill="none">
+          <line x1="50" y1="0" x2="50" y2="100"/><line x1="0" y1="50" x2="100" y2="50"/>
+          <line x1="0" y1="0" x2="100" y2="100"/><line x1="100" y1="0" x2="0" y2="100"/>
+        </g>
+      </svg>
+      <div class="hw" id="hw"></div>
+      <div class="flash"></div>
+    </div>
+    <div id="ask" class="stack">
+      <div class="tools">
+        <button class="btn small" id="b-hint">Показать контур</button>
+        <button class="btn small" id="b-giveup">Не помню</button>
+      </div>
+      <div class="field" id="py-field">
+        <label class="label" for="py-in">Пиньинь</label>
+        <input id="py-in" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="ren2 или rén" enterkeyhint="done">
+      </div>
+      <button class="btn primary wide" id="b-check" disabled>Проверить</button>
+    </div>
+    <div id="res" class="stack result" hidden>
+      <div class="row" style="justify-content:center">
+        <div class="big" id="r-han"></div>
+        <button class="icon-btn" id="r-say" aria-label="Озвучить"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>
+      </div>
+      <div class="py" id="r-py"></div>
+      <div id="r-ru" class="hint"></div>
+      <div class="verdict" id="r-verdict"></div>
+      <div class="grades" id="grades"></div>
+    </div>
+  </section>
+
+  <!-- Конец занятия -->
+  <section id="done" class="stack" hidden>
+    <div class="panel stack" style="text-align:center">
+      <div class="deck-han" aria-hidden="true">好</div>
+      <h2>На сегодня всё</h2>
+      <p class="hint" id="done-text"></p>
+      <button class="btn primary wide" id="done-home">К колоде</button>
+    </div>
+  </section>
+
+  <!-- Слова -->
+  <section id="words" class="stack" hidden>
+    <div class="field search"><input id="w-search" placeholder="Поиск: 学, xue, учиться" autocomplete="off" aria-label="Поиск по словам"></div>
+    <p class="count" id="w-count"></p>
+    <div class="list" id="w-list"></div>
+  </section>
+
+  <!-- Карточка слова -->
+  <section id="detail" class="stack detail" hidden>
+    <div class="topbar"><button class="btn ghost small" id="d-back">← К словам</button></div>
+    <div class="panel stack result">
+      <div class="row" style="justify-content:center">
+        <div class="big" id="d-han"></div>
+        <button class="icon-btn" id="d-say" aria-label="Озвучить"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>
+      </div>
+      <div class="py" id="d-py"></div>
+      <div class="hint" id="d-ru"></div>
+      <div class="detail-chars" id="d-chars"></div>
+      <div class="pad">
+        <svg class="grid" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <g stroke="currentColor" stroke-width=".5" stroke-dasharray="2 1.6" fill="none">
+            <line x1="50" y1="0" x2="50" y2="100"/><line x1="0" y1="50" x2="100" y2="50"/>
+            <line x1="0" y1="0" x2="100" y2="100"/><line x1="100" y1="0" x2="0" y2="100"/>
+          </g>
+        </svg>
+        <div class="hw" id="d-hw"></div>
+      </div>
+      <div class="tools">
+        <button class="btn small" id="d-anim">Порядок черт</button>
+        <button class="btn small" id="d-try">Написать</button>
+      </div>
+      <p class="hint" id="d-state"></p>
+    </div>
+  </section>
+
+  <!-- Настройки -->
+  <section id="settings" class="stack" hidden>
+    <div class="panel">
+      <div class="set-row">
+        <div class="t"><div>Новых слов в день</div><div>Сколько новых карточек добавлять за день</div></div>
+        <div class="stepper"><button class="icon-btn" id="n-minus" aria-label="Меньше">−</button><output id="n-val">10</output><button class="icon-btn" id="n-plus" aria-label="Больше">+</button></div>
+      </div>
+      <div class="set-row">
+        <div class="t"><div>Проверять пиньинь</div><div>Поле для ввода чтения на карточке</div></div>
+        <input type="checkbox" class="switch" id="s-py" aria-label="Проверять пиньинь">
+      </div>
+      <div class="set-row">
+        <div class="t"><div>Озвучка после ответа</div><div>Голос устройства проговаривает слово</div></div>
+        <input type="checkbox" class="switch" id="s-voice" aria-label="Озвучка после ответа">
+      </div>
+      <div class="set-row">
+        <div class="t"><div>Проверить голос</div><div id="voice-info">Ищем китайский голос…</div></div>
+        <button class="btn small" id="s-test">你好</button>
+      </div>
+    </div>
+    <div class="panel stack">
+      <div class="label">Прогресс</div>
+      <p class="hint" id="progress-info"></p>
+      <div class="row">
+        <button class="btn small" id="export">Сохранить в файл</button>
+        <button class="btn small" id="import">Загрузить из файла</button>
+        <input type="file" id="import-file" accept="application/json,.json" hidden>
+      </div>
+      <div class="row"><button class="btn small danger" id="reset">Сбросить прогресс</button></div>
+      <div class="confirm" id="confirm-box" hidden></div>
+      <p class="note" id="io-note"></p>
+    </div>
+    <p class="about">Черта 0.2.0-mvddc8b4. Данные черт: Make Me a Hanzi (Arphic Public License), библиотека Hanzi Writer (MIT). Планировщик повторений: FSRS-5.</p>
+  </section>
+</div>
+<script type="module" src="app.js?v=0.2.0-mvddc8b4"></script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+// Сборка сайта в папку site/ (её и выкладываем на GitHub Pages).
+// Запуск: npm run build   (нужен esbuild: npm install)
+import { build } from "esbuild";
+import { readFileSync, writeFileSync, mkdirSync, cpSync, readdirSync, rmSync, existsSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const out = join(root, "site");
+const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+const VERSION = `${pkg.version}-${Date.now().toString(36)}`;
+
+// 1. Чистим всё, кроме данных черт (они тяжёлые и меняются редко)
+mkdirSync(out, { recursive: true });
+for (const f of readdirSync(out)) if (f !== "data") rmSync(join(out, f), { recursive: true, force: true });
+
+// 2. Код
+await build({
+  entryPoints: [join(root, "src/main.ts")],
+  bundle: true,
+  format: "esm",
+  target: ["es2020", "safari15"],
+  minify: true,
+  sourcemap: false,
+  outfile: join(out, "app.js"),
+  legalComments: "eof",
+  logLevel: "warning",
+});
+
+// 3. Статика с подстановкой версии
+cpSync(join(root, "static/icons"), join(out, "icons"), { recursive: true });
+for (const f of ["styles.css", "manifest.webmanifest"]) cpSync(join(root, "static", f), join(out, f));
+writeFileSync(join(out, "index.html"), readFileSync(join(root, "static/index.html"), "utf8").replaceAll("__VERSION__", VERSION));
+
+// 4. Колоды из data/*.tsv
+const decksOut = join(out, "data/decks");
+mkdirSync(decksOut, { recursive: true });
+const decks = JSON.parse(readFileSync(join(root, "data/decks.json"), "utf8"));
+for (const d of decks) {
+  const rows = readFileSync(join(root, "data", d.file), "utf8").replace(/\r/g, "").split("\n").slice(1)
+    .map((l) => l.trim()).filter(Boolean).map((l) => l.split("\t").map((x) => x.trim()));
+  writeFileSync(join(decksOut, `${d.id}.json`), JSON.stringify({ id: d.id, title: d.title, lang: d.lang, words: rows }));
+}
+
+// 5. Данные черт должны быть собраны заранее (scripts/build-strokes.mjs)
+if (!existsSync(join(out, "data/strokes/00.json"))) {
+  console.warn("! Нет site/data/strokes — запустите: node scripts/build-strokes.mjs <путь к all.json>");
+}
+
+// 6. Service worker со списком файлов оболочки
+const shell = ["./", "index.html", "app.js", "styles.css", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png",
+  ...decks.map((d) => `data/decks/${d.id}.json`)];
+writeFileSync(join(out, "sw.js"), readFileSync(join(root, "static/sw.js"), "utf8")
+  .replace("__VERSION__", VERSION).replace("__SHELL_FILES__", JSON.stringify(shell)));
+writeFileSync(join(out, ".nojekyll"), "");
+
+console.log(`Готово: site/ (версия ${VERSION})`);

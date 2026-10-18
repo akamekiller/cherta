@@ -1,0 +1,751 @@
+<title>Черта</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one narrow column, like a practice notebook page; the writing square is the centre of gravity. */
+:root{
+  --paper:#F2F4F2; --sheet:#FFFFFF; --ink:#18201E; --muted:#5E6A66; --line:#DCE2DF;
+  --jade:#1E7A60; --jade-soft:#E1F0EA; --grid:#D9705F; --good:#1E7A60; --warn:#B7791F; --bad:#C2413A;
+  --t1:#D23B33; --t2:#D98A12; --t3:#2E9447; --t4:#2F6FD1; --t5:#8A938F;
+  --f-ui:"Golos Text",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-han:"Noto Serif SC","Songti SC","SimSun",serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#111615; --sheet:#1A2120; --ink:#E7ECEA; --muted:#97A39F; --line:#2B3533;
+  --jade:#4CC59E; --jade-soft:#18342C; --grid:#B55A4C; --good:#4CC59E; --warn:#E3A848; --bad:#EE6B62;
+  --t1:#F0625A; --t2:#F0A940; --t3:#54C06E; --t4:#6F9FF0; --t5:#7F8A86; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#111615; --sheet:#1A2120; --ink:#E7ECEA; --muted:#97A39F; --line:#2B3533;
+  --jade:#4CC59E; --jade-soft:#18342C; --grid:#B55A4C; --good:#4CC59E; --warn:#E3A848; --bad:#EE6B62;
+  --t1:#F0625A; --t2:#F0A940; --t3:#54C06E; --t4:#6F9FF0; --t5:#7F8A86; color-scheme:dark}
+html,body{background:var(--paper);color:var(--ink)}
+body{font-family:var(--f-ui);font-size:15px;line-height:1.5;-webkit-tap-highlight-color:transparent}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--paper)}
+.wrap{max-width:460px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 32px}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--paper);display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:12px}
+.brand{display:flex;align-items:baseline;gap:8px;font-weight:700;font-size:20px;letter-spacing:-.01em}
+.brand .han{font-family:var(--f-han);color:var(--jade);font-size:22px}
+nav{display:flex;gap:2px;background:var(--sheet);border:1px solid var(--line);border-radius:999px;padding:3px}
+nav button{border:0;background:none;color:var(--muted);font:500 13px var(--f-ui);padding:6px 12px;border-radius:999px;cursor:pointer}
+nav button[aria-current="page"]{background:var(--ink);color:var(--paper)}
+button{font-family:inherit}
+:focus-visible{outline:2px solid var(--jade);outline-offset:2px}
+.label{font:500 11px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h2{font-size:22px;line-height:1.25;margin:0;text-wrap:balance}
+.panel{background:var(--sheet);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+.stack{display:flex;flex-direction:column;gap:14px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--sheet);color:var(--ink);font:600 15px var(--f-ui);padding:12px 16px;border-radius:12px;cursor:pointer;min-height:46px}
+.btn.primary{background:var(--jade);border-color:var(--jade);color:#fff}
+:root[data-theme="dark"] .btn.primary{color:#0D1513}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn.primary{color:#0D1513}}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.ghost{background:none}
+.btn.small{min-height:38px;padding:8px 12px;font-size:14px}
+.wide{width:100%}
+
+/* home */
+.deck-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.deck-han{font-family:var(--f-han);font-size:44px;line-height:1;color:var(--jade)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{border-top:2px solid var(--line);padding-top:8px}
+.stat b{display:block;font-size:26px;font-variant-numeric:tabular-nums;line-height:1.1}
+.stat span{font-size:12.5px;color:var(--muted)}
+.stat.due{border-color:var(--t4)} .stat.new{border-color:var(--jade)} .stat.known{border-color:var(--t3)}
+.hint{font-size:13.5px;color:var(--muted);margin:0}
+
+/* session */
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.prompt{text-align:center;padding-block:6px 2px}
+.prompt .ru{font-size:24px;font-weight:600;line-height:1.25;text-wrap:balance}
+.prompt .meta{font-size:13px;color:var(--muted);margin-top:4px}
+.slots{display:flex;justify-content:center;gap:6px;min-height:46px}
+.slot{width:42px;height:46px;border-bottom:2px solid var(--line);font-family:var(--f-han);font-size:32px;display:grid;place-items:center;color:var(--ink)}
+.slot.cur{border-color:var(--jade)}
+.slot.bad{color:var(--warn)}
+.pad{position:relative;margin:0 auto;width:100%;max-width:340px;aspect-ratio:1;background:var(--sheet);border:1.5px solid var(--grid);border-radius:4px;touch-action:none;user-select:none;-webkit-user-select:none}
+.pad svg.grid{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;color:var(--grid);opacity:.55}
+.pad .hw{position:absolute;inset:0}
+.pad .flash{position:absolute;inset:0;border-radius:3px;pointer-events:none;box-shadow:inset 0 0 0 3px transparent;transition:box-shadow .25s}
+.pad.miss .flash{box-shadow:inset 0 0 0 3px var(--warn)}
+.tools{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field input{font:500 18px var(--f-ui);padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--sheet);color:var(--ink);min-width:0}
+.field input:focus{outline:2px solid var(--jade);outline-offset:0;border-color:transparent}
+.result{text-align:center}
+.result .big{font-family:var(--f-han);font-size:64px;line-height:1.1;font-weight:700}
+.py{font-size:20px;font-weight:600;letter-spacing:.01em}
+.py .s{padding:0 1px}
+.py .wrong{text-decoration:underline wavy var(--bad);text-underline-offset:5px}
+.t1{color:var(--t1)}.t2{color:var(--t2)}.t3{color:var(--t3)}.t4{color:var(--t4)}.t5{color:var(--t5)}
+.verdict{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.chip{font-size:12.5px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--paper);border:1px solid var(--line);color:var(--muted)}
+.chip.ok{color:var(--good);border-color:currentColor}
+.chip.mid{color:var(--warn);border-color:currentColor}
+.chip.no{color:var(--bad);border-color:currentColor}
+.grades{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.grade{border:1px solid var(--line);background:var(--sheet);color:var(--ink);border-radius:12px;padding:8px 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;font:600 14px var(--f-ui)}
+.grade small{font:500 11px var(--f-mono);color:var(--muted)}
+.grade.suggest{border-color:var(--jade);background:var(--jade-soft);box-shadow:0 0 0 1px var(--jade)}
+.icon-btn{border:1px solid var(--line);background:var(--sheet);color:var(--ink);width:42px;height:42px;border-radius:12px;display:inline-grid;place-items:center;cursor:pointer}
+.icon-btn svg{width:20px;height:20px}
+
+/* words */
+.search input{width:100%;box-sizing:border-box}
+.list{display:flex;flex-direction:column;background:var(--sheet);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.item{display:grid;grid-template-columns:76px 1fr auto;gap:12px;align-items:center;padding:10px 14px;border:0;border-top:1px solid var(--line);background:none;color:inherit;text-align:left;cursor:pointer;font:inherit}
+.item:first-child{border-top:0}
+.item .h{font-family:var(--f-han);font-size:26px;line-height:1.1}
+.item .txt{min-width:0}
+.item .txt .py{font-size:14px}
+.item .txt .ru{font-size:13.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.status{font:500 11px var(--f-mono);color:var(--muted);white-space:nowrap}
+.status.learn{color:var(--warn)} .status.rev{color:var(--good)}
+.detail .pad{max-width:240px}
+.detail-chars{display:flex;justify-content:center;gap:8px}
+.detail-chars button{font-family:var(--f-han);font-size:24px;border:1px solid var(--line);background:var(--sheet);color:var(--ink);border-radius:10px;width:46px;height:46px;cursor:pointer}
+.detail-chars button[aria-pressed="true"]{border-color:var(--jade);color:var(--jade)}
+
+/* settings */
+.set-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-block:12px;border-top:1px solid var(--line)}
+.set-row:first-child{border-top:0;padding-top:0}
+.set-row .t{min-width:0}
+.set-row .t div:first-child{font-weight:600}
+.set-row .t div:last-child{font-size:13px;color:var(--muted)}
+.stepper{display:flex;align-items:center;gap:6px}
+.stepper output{min-width:28px;text-align:center;font-weight:700;font-variant-numeric:tabular-nums}
+.switch{appearance:none;width:46px;height:28px;border-radius:999px;background:var(--line);position:relative;cursor:pointer;flex:none;transition:background .2s}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:var(--sheet);transition:transform .2s}
+.switch:checked{background:var(--jade)}
+.switch:checked::after{transform:translateX(18px)}
+.sync{font-size:13px;color:var(--muted)}
+.sync b{color:var(--ink);font-weight:600}
+.danger{color:var(--bad)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand"><span class="han">笔</span>Черта</div>
+    <nav aria-label="Разделы">
+      <button id="nav-learn" data-view="home" aria-current="page">Учить</button>
+      <button id="nav-words" data-view="words">Слова</button>
+      <button id="nav-set" data-view="settings">Настройки</button>
+    </nav>
+  </header>
+
+  <!-- HOME -->
+  <section id="home" class="stack">
+    <div class="panel stack">
+      <div class="deck-head">
+        <div>
+          <div class="label">Колода</div>
+          <h2>HSK 1</h2>
+          <p class="hint" id="deck-sub">150 слов · 178 иероглифов</p>
+        </div>
+        <div class="deck-han" aria-hidden="true">一</div>
+      </div>
+      <div class="stats">
+        <div class="stat due"><b id="st-due">0</b><span>к повторению</span></div>
+        <div class="stat new"><b id="st-new">10</b><span>новых сегодня</span></div>
+        <div class="stat known"><b id="st-known">0</b><span>в повторении</span></div>
+      </div>
+      <button class="btn primary wide" id="start">Начать занятие</button>
+      <p class="hint" id="next-hint"></p>
+    </div>
+    <div class="panel stack">
+      <div class="label">Как это работает</div>
+      <p class="hint">Вам показывают значение слова. Напишите иероглифы пальцем в клетке: каждая черта проверяется по форме, направлению и порядку. Введите пиньинь цифрами (<b>ren2</b>) или со знаками (<b>rén</b>). Оценка для повторения ставится сама, её можно поменять.</p>
+    </div>
+  </section>
+
+  <!-- SESSION -->
+  <section id="session" class="stack" hidden>
+    <div class="topbar">
+      <button class="btn ghost small" id="quit">← Выйти</button>
+      <span class="label" id="left"></span>
+    </div>
+    <div class="prompt">
+      <div class="ru" id="q-ru"></div>
+      <div class="meta" id="q-meta"></div>
+    </div>
+    <div class="slots" id="slots"></div>
+    <div class="pad" id="pad">
+      <svg class="grid" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <g stroke="currentColor" stroke-width=".4" stroke-dasharray="2 1.6" fill="none">
+          <line x1="50" y1="0" x2="50" y2="100"/><line x1="0" y1="50" x2="100" y2="50"/>
+          <line x1="0" y1="0" x2="100" y2="100"/><line x1="100" y1="0" x2="0" y2="100"/>
+        </g>
+      </svg>
+      <div class="hw" id="hw"></div>
+      <div class="flash"></div>
+    </div>
+    <div id="ask" class="stack">
+      <div class="tools">
+        <button class="btn small" id="b-hint">Показать контур</button>
+        <button class="btn small" id="b-giveup">Не помню</button>
+      </div>
+      <div class="field" id="py-field">
+        <label class="label" for="py-in">Пиньинь</label>
+        <input id="py-in" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="ren2 или rén" enterkeyhint="done">
+      </div>
+      <button class="btn primary wide" id="b-check" disabled>Проверить</button>
+    </div>
+    <div id="res" class="stack result" hidden>
+      <div class="row" style="justify-content:center">
+        <div class="big" id="r-han"></div>
+        <button class="icon-btn" id="r-say" aria-label="Озвучить"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>
+      </div>
+      <div class="py" id="r-py"></div>
+      <div id="r-ru" class="hint"></div>
+      <div class="verdict" id="r-verdict"></div>
+      <div class="grades" id="grades"></div>
+    </div>
+  </section>
+
+  <!-- DONE -->
+  <section id="done" class="stack" hidden>
+    <div class="panel stack" style="text-align:center">
+      <div class="deck-han" aria-hidden="true">好</div>
+      <h2>На сегодня всё</h2>
+      <p class="hint" id="done-text"></p>
+      <button class="btn primary wide" id="done-home">К колоде</button>
+    </div>
+  </section>
+
+  <!-- WORDS -->
+  <section id="words" class="stack" hidden>
+    <div class="field search"><input id="w-search" placeholder="Поиск: 学, xue, учиться" autocomplete="off" aria-label="Поиск по словам"></div>
+    <div class="list" id="w-list"></div>
+  </section>
+
+  <!-- DETAIL -->
+  <section id="detail" class="stack detail" hidden>
+    <div class="topbar"><button class="btn ghost small" id="d-back">← К словам</button></div>
+    <div class="panel stack result">
+      <div class="row" style="justify-content:center">
+        <div class="big" id="d-han"></div>
+        <button class="icon-btn" id="d-say" aria-label="Озвучить"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>
+      </div>
+      <div class="py" id="d-py"></div>
+      <div class="hint" id="d-ru"></div>
+      <div class="detail-chars" id="d-chars"></div>
+      <div class="pad" id="d-pad">
+        <svg class="grid" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <g stroke="currentColor" stroke-width=".5" stroke-dasharray="2 1.6" fill="none">
+            <line x1="50" y1="0" x2="50" y2="100"/><line x1="0" y1="50" x2="100" y2="50"/>
+            <line x1="0" y1="0" x2="100" y2="100"/><line x1="100" y1="0" x2="0" y2="100"/>
+          </g>
+        </svg>
+        <div class="hw" id="d-hw"></div>
+      </div>
+      <div class="tools">
+        <button class="btn small" id="d-anim">Порядок черт</button>
+        <button class="btn small" id="d-try">Написать</button>
+      </div>
+      <p class="hint" id="d-state"></p>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="settings" class="stack" hidden>
+    <div class="panel">
+      <div class="set-row">
+        <div class="t"><div>Новых слов в день</div><div>Сколько новых карточек добавлять за день</div></div>
+        <div class="stepper"><button class="icon-btn" id="n-minus" aria-label="Меньше">−</button><output id="n-val">10</output><button class="icon-btn" id="n-plus" aria-label="Больше">+</button></div>
+      </div>
+      <div class="set-row">
+        <div class="t"><div>Проверять пиньинь</div><div>Поле для ввода чтения на карточке</div></div>
+        <input type="checkbox" class="switch" id="s-py" aria-label="Проверять пиньинь">
+      </div>
+      <div class="set-row">
+        <div class="t"><div>Озвучка после ответа</div><div>Голос телефона проговаривает слово</div></div>
+        <input type="checkbox" class="switch" id="s-voice" aria-label="Озвучка после ответа">
+      </div>
+      <div class="set-row">
+        <div class="t"><div>Проверить голос</div><div id="voice-info">Ищем китайский голос…</div></div>
+        <button class="btn small" id="s-test">你好</button>
+      </div>
+    </div>
+    <div class="panel stack">
+      <div class="label">Прогресс</div>
+      <p class="sync" id="sync"></p>
+      <div id="reset-box" class="row">
+        <button class="btn small danger" id="reset">Сбросить прогресс</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.7.2/dist/hanzi-writer.min.js"></script>
+<script>
+const STROKES = __STROKES__;
+const RAW = __WORDS__;
+(function(){
+"use strict";
+const $ = s => document.getElementById(s);
+
+/* ---------- pinyin ---------- */
+const MARKS = {a:"āáǎàa",e:"ēéěèe",i:"īíǐìi",o:"ōóǒòo",u:"ūúǔùu",v:"ǖǘǚǜü"};
+function parseRef(str){
+  return str.split(" ").map(tok=>{
+    const m = tok.match(/^([a-z]+?)(\d)((?:\/\d)*)$/);
+    return {s:m[1], t:+m[2], alt:m[3]?m[3].split("/").filter(Boolean).map(Number):[]};
+  });
+}
+function mark(s,t){
+  const tone = t>=1&&t<=4 ? t-1 : 4;
+  let idx = -1;
+  if (s.includes("a")) idx = s.indexOf("a");
+  else if (s.includes("e")) idx = s.indexOf("e");
+  else if (s.includes("ou")) idx = s.indexOf("o");
+  else { for (let i=s.length-1;i>=0;i--) if ("iouv".includes(s[i])) { idx=i; break; } }
+  let out = "";
+  for (let i=0;i<s.length;i++){
+    const c = s[i];
+    out += (i===idx ? MARKS[c][tone] : (c==="v" ? "ü" : c));
+  }
+  return out;
+}
+const TONE_CM = {"\u0304":1,"\u0301":2,"\u030C":3,"\u0300":4};
+function parseUser(input){
+  const s = input.toLowerCase().replace(/u:/g,"v").normalize("NFD");
+  let L = ""; const tones = [];
+  for (const ch of s){
+    if (ch==="\u0308"){ if (L.endsWith("u")) L = L.slice(0,-1)+"v"; continue; }
+    if (TONE_CM[ch]){ if (L) tones.push({pos:L.length-1,t:TONE_CM[ch]}); continue; }
+    if (/[a-z]/.test(ch)){ L += ch; continue; }
+    if (/[0-5]/.test(ch)){ if (L) tones.push({pos:L.length-1,t:(+ch||5)}); continue; }
+  }
+  return {L, tones};
+}
+function checkPinyin(input, ref){
+  const u = parseUser(input);
+  const refL = ref.map(x=>x.s).join("");
+  if (u.L !== refL) return {ok:false, per:ref.map(()=>false), letters:false};
+  let pos = 0; const per = [];
+  for (const syl of ref){
+    const a = pos, b = pos + syl.s.length; pos = b;
+    const mine = u.tones.filter(x=>x.pos>=a && x.pos<b);
+    const t = mine.length ? mine[mine.length-1].t : 5;
+    per.push(t===syl.t || syl.alt.includes(t));
+  }
+  return {ok:per.every(Boolean), per, letters:true};
+}
+function pyHTML(ref, per){
+  return ref.map((x,i)=>`<span class="s t${x.t}${per && !per[i] ? " wrong":""}">${mark(x.s,x.t)}</span>`).join("");
+}
+
+/* ---------- data ---------- */
+const WORDS = RAW.map((w,i)=>({id:w[0], han:w[0], ref:parseRef(w[1]), ru:w[2], i}));
+const byId = Object.fromEntries(WORDS.map(w=>[w.id,w]));
+
+/* ---------- store ---------- */
+const LS_KEY = "cherta.v1";
+const DEFAULT = {v:1, cards:{}, day:{d:"",n:0}, settings:{newPerDay:10, pinyin:true, voice:true}, updatedAt:0};
+let S = structuredClone(DEFAULT);
+try { const raw = localStorage.getItem(LS_KEY); if (raw) S = Object.assign(structuredClone(DEFAULT), JSON.parse(raw)); } catch(e){}
+S.settings = Object.assign({}, DEFAULT.settings, S.settings||{});
+let remote = null, syncState = "local", saveTimer = null, saving = false, dirty = false;
+
+function save(){
+  S.updatedAt = Date.now();
+  try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch(e){}
+  dirty = true;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(flush, 700);
+}
+async function flush(){
+  if (!remote || saving || !dirty) return;
+  saving = true; dirty = false;
+  try { await remote.set(JSON.parse(JSON.stringify(S))); syncState = "cloud"; }
+  catch(e){ syncState = "error"; }
+  saving = false; renderSync();
+  if (dirty) flush();
+}
+(async function initRemote(){
+  try {
+    if (!window.claude || !window.claude.use) return;
+    const [db, user] = await Promise.all([claude.use("db"), claude.use("user")]);
+    if (!db || !user) return;
+    const id = await user.id();
+    if (!id) return;
+    const ref = db.doc("data/users/" + id + "/cherta");
+    const snap = await ref.get();
+    if (snap.exists){
+      const d = snap.data();
+      if ((d.updatedAt||0) > (S.updatedAt||0)){
+        S = Object.assign(structuredClone(DEFAULT), JSON.parse(JSON.stringify(d)));
+        S.settings = Object.assign({}, DEFAULT.settings, S.settings||{});
+        try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch(e){}
+        refreshAll();
+      }
+    }
+    remote = ref; syncState = "cloud";
+    if (!snap.exists || (snap.data().updatedAt||0) < (S.updatedAt||0)) { dirty = true; flush(); }
+    renderSync();
+  } catch(e){ syncState = "local"; renderSync(); }
+})();
+
+/* ---------- scheduler (Anki-style steps, FSRS later) ---------- */
+const MIN = 60e3, DAY = 864e5, STEPS = [1, 10];
+function dayKey(t=Date.now()){ const d = new Date(t - 4*3600e3); return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate(); }
+function rollDay(){ const k = dayKey(); if (S.day.d !== k){ S.day = {d:k, n:0}; } }
+function card(id){ return S.cards[id]; }
+function preview(c, g){
+  // returns {state, ms} without mutating
+  const now = Date.now();
+  c = c ? {...c} : {s:"new", step:0, ivl:0, ease:2.5, lapses:0, reps:0};
+  if (c.s === "new" || c.s === "learn"){
+    if (g===0){ c.s="learn"; c.step=0; c.due=now+STEPS[0]*MIN; }
+    else if (g===1){ c.s="learn"; c.due=now+(c.step===0?6:STEPS[Math.min(c.step,STEPS.length-1)]*1.5)*MIN; }
+    else if (g===2){
+      c.step++;
+      if (c.step >= STEPS.length){ c.s="review"; c.ivl=Math.max(1, c.ivl||1); c.due=now+c.ivl*DAY; }
+      else { c.s="learn"; c.due=now+STEPS[c.step]*MIN; }
+    } else { c.s="review"; c.ivl=Math.max(4, Math.round((c.ivl||1)*1.5)); c.due=now+c.ivl*DAY; }
+  } else {
+    if (g===0){ c.lapses++; c.ease=Math.max(1.3,c.ease-0.2); c.ivl=Math.max(1,Math.round(c.ivl*0.3)); c.s="learn"; c.step=0; c.due=now+STEPS[1]*MIN; }
+    else if (g===1){ c.ease=Math.max(1.3,c.ease-0.15); c.ivl=Math.max(c.ivl+1, Math.round(c.ivl*1.2)); c.due=now+c.ivl*DAY; }
+    else if (g===2){ c.ivl=Math.max(c.ivl+1, Math.round(c.ivl*c.ease)); c.due=now+c.ivl*DAY; }
+    else { c.ease+=0.15; c.ivl=Math.max(c.ivl+2, Math.round(c.ivl*c.ease*1.3)); c.due=now+c.ivl*DAY; }
+  }
+  c.reps++;
+  return c;
+}
+function fmtGap(ms){
+  if (ms < 60*MIN) return Math.max(1,Math.round(ms/MIN))+" мин";
+  if (ms < DAY) return Math.round(ms/3600e3)+" ч";
+  const d = Math.round(ms/DAY);
+  if (d < 31) return d+" дн";
+  if (d < 365) return Math.round(d/30)+" мес";
+  return (d/365).toFixed(1).replace(".0","")+" г";
+}
+function counts(){
+  rollDay();
+  const now = Date.now();
+  let due=0, learn=0, known=0;
+  for (const w of WORDS){ const c = card(w.id); if (!c) continue;
+    if (c.s==="review"){ known++; if (c.due<=now) due++; }
+    else if (c.s==="learn"){ if (c.due<=now+20*MIN) learn++; }
+  }
+  const unseen = WORDS.filter(w=>!card(w.id)).length;
+  const newLeft = Math.min(unseen, Math.max(0, S.settings.newPerDay - S.day.n));
+  return {due, learn, known, newLeft, unseen};
+}
+function nextCard(excludeId){
+  rollDay();
+  const now = Date.now();
+  const all = WORDS.map(w=>[w, card(w.id)]);
+  const pick = arr => arr.sort((a,b)=>a[1].due-b[1].due)[0];
+  let l = all.filter(([w,c])=>c && c.s==="learn" && c.due<=now && w.id!==excludeId);
+  if (l.length) return pick(l)[0];
+  let r = all.filter(([w,c])=>c && c.s==="review" && c.due<=now);
+  if (r.length) return pick(r)[0];
+  if (S.day.n < S.settings.newPerDay){ const n = all.find(([w,c])=>!c); if (n) return n[0]; }
+  l = all.filter(([w,c])=>c && c.s==="learn" && c.due<=now+20*MIN);
+  if (l.length){ const p = pick(l); if (p[0].id!==excludeId || l.length===1) return p[0]; return pick(l.filter(x=>x[0].id!==excludeId))[0]; }
+  return null;
+}
+
+/* ---------- voice ---------- */
+let zhVoice = null;
+function loadVoices(){
+  if (!("speechSynthesis" in window)) { $("voice-info").textContent = "Браузер не поддерживает озвучку"; return; }
+  const vs = speechSynthesis.getVoices();
+  zhVoice = vs.find(v=>/zh[-_]CN/i.test(v.lang)) || vs.find(v=>/^zh/i.test(v.lang)) || null;
+  $("voice-info").textContent = zhVoice ? "Голос: " + zhVoice.name : (vs.length ? "Китайский голос не найден, установите его в настройках телефона" : "Ищем китайский голос…");
+}
+if ("speechSynthesis" in window){ loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+function say(text){
+  if (!("speechSynthesis" in window)) return;
+  try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = "zh-CN"; if (zhVoice) u.voice = zhVoice; u.rate = 0.85; speechSynthesis.speak(u); } catch(e){}
+}
+
+/* ---------- writer helpers ---------- */
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function colors(){ return {strokeColor:css("--ink"), outlineColor:css("--line"), drawingColor:css("--ink"), highlightColor:css("--jade"), radicalColor:null}; }
+function loader(ch, done, fail){ STROKES[ch] ? done(STROKES[ch]) : fail && fail(new Error("no data")); }
+function makeWriter(el, ch, extra){
+  el.innerHTML = "";
+  const size = Math.round(el.getBoundingClientRect().width) || 300;
+  return HanziWriter.create(el, ch, Object.assign({
+    width:size, height:size, padding:Math.round(size*0.06), charDataLoader:loader,
+    showOutline:false, showCharacter:false, drawingWidth:Math.max(14, size/18),
+    strokeAnimationSpeed:1.2, delayBetweenStrokes:180, showHintAfterMisses:3, leniency:1.1
+  }, colors(), extra||{}));
+}
+const libOK = () => typeof window.HanziWriter !== "undefined";
+
+/* ---------- navigation ---------- */
+const VIEWS = ["home","session","done","words","detail","settings"];
+function show(v){
+  VIEWS.forEach(x=>$(x).hidden = x!==v);
+  const tab = v==="session"||v==="done"||v==="home" ? "home" : v==="detail" ? "words" : v;
+  document.querySelectorAll("nav button").forEach(b=>b.setAttribute("aria-current", b.dataset.view===tab ? "page":"false"));
+  window.scrollTo(0,0);
+  if (v==="home") renderHome();
+  if (v==="words") renderWords();
+  if (v==="settings") renderSettings();
+}
+document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()=>{ if (sess) endSession(); show(b.dataset.view); }));
+
+/* ---------- home ---------- */
+function renderHome(){
+  const c = counts();
+  $("st-due").textContent = c.due + c.learn;
+  $("st-new").textContent = c.newLeft;
+  $("st-known").textContent = c.known;
+  const any = c.due + c.learn + c.newLeft;
+  $("start").disabled = !any;
+  $("start").textContent = any ? "Начать занятие" : "Карточек на сейчас нет";
+  let hint = "";
+  if (!any){
+    const fut = WORDS.map(w=>card(w.id)).filter(c=>c && c.due>Date.now()).map(c=>c.due).sort((a,b)=>a-b)[0];
+    hint = fut ? "Следующая карточка через " + fmtGap(fut-Date.now()) + ". Лимит новых можно поднять в настройках." : "";
+  } else if (c.unseen === WORDS.length) hint = "Первое занятие: " + c.newLeft + " новых слов. Займёт около 10 минут.";
+  $("next-hint").textContent = hint;
+}
+$("start").addEventListener("click", startSession);
+
+/* ---------- session ---------- */
+let sess = null;
+function startSession(){
+  if (!libOK()){ $("next-hint").textContent = "Не загрузилась библиотека проверки черт. Проверьте интернет и обновите страницу."; return; }
+  sess = {done:0, writer:null, word:null};
+  show("session");
+  nextQuestion();
+}
+function endSession(){ if (sess && sess.writer) try{ sess.writer.cancelQuiz(); }catch(e){} sess = null; }
+$("quit").addEventListener("click", ()=>{ endSession(); show("home"); });
+$("done-home").addEventListener("click", ()=>show("home"));
+
+function nextQuestion(){
+  const w = nextCard(sess.word && sess.word.id);
+  if (!w){
+    endSession(); show("done");
+    $("done-text").textContent = "Новые карточки и повторения закончились. Возвращайтесь завтра.";
+    return;
+  }
+  const c = counts();
+  $("left").textContent = "осталось " + (c.due + c.learn + c.newLeft);
+  sess.word = w; sess.ci = 0; sess.miss = []; sess.gave = []; sess.hint = [];
+  sess.isNew = !card(w.id);
+  $("q-ru").textContent = w.ru;
+  const n = [...w.han].length;
+  $("q-meta").textContent = (sess.isNew ? "Новое слово · " : "") + (n===1 ? "1 иероглиф" : n + (n<5?" иероглифа":" иероглифов"));
+  $("ask").hidden = false; $("res").hidden = true;
+  $("py-in").value = "";
+  $("py-field").hidden = !S.settings.pinyin;
+  $("b-check").disabled = true;
+  $("b-check").textContent = S.settings.pinyin ? "Проверить" : "Сначала напишите иероглифы";
+  renderSlots();
+  startChar(sess.isNew);
+}
+function renderSlots(){
+  const chars = [...sess.word.han];
+  $("slots").innerHTML = chars.map((ch,i)=>{
+    const done = i < sess.ci;
+    const cls = "slot" + (i===sess.ci ? " cur":"") + (done && (sess.miss[i]>2 || sess.gave[i]) ? " bad":"");
+    return `<div class="${cls}">${done ? ch : ""}</div>`;
+  }).join("");
+}
+function startChar(withOutline){
+  const ch = [...sess.word.han][sess.ci];
+  if (sess.writer) try{ sess.writer.cancelQuiz(); }catch(e){}
+  sess.writer = makeWriter($("hw"), ch, {showOutline:!!withOutline});
+  sess.miss[sess.ci] = sess.miss[sess.ci] || 0;
+  if (withOutline) sess.hint[sess.ci] = true;
+  runQuiz();
+}
+function runQuiz(){
+  const i = sess.ci, wr = sess.writer;
+  wr.quiz({
+    onMistake: ()=>{ sess.miss[i]++; const p=$("pad"); p.classList.add("miss"); setTimeout(()=>p.classList.remove("miss"), 280); },
+    onComplete: ()=>{
+      setTimeout(()=>{
+        if (!sess || sess.ci !== i) return;
+        sess.ci++;
+        renderSlots();
+        if (sess.ci < [...sess.word.han].length) startChar(sess.isNew);
+        else charsDone();
+      }, 450);
+    }
+  });
+}
+function charsDone(){
+  if (!S.settings.pinyin) { reveal(); return; }
+  $("b-check").disabled = false;
+  $("b-check").textContent = "Проверить";
+  if (!$("py-in").value) $("py-in").focus({preventScroll:true});
+}
+$("b-hint").addEventListener("click", ()=>{
+  if (!sess || sess.ci >= [...sess.word.han].length) return;
+  sess.hint[sess.ci] = true; sess.writer.showOutline();
+});
+$("b-giveup").addEventListener("click", ()=>{
+  if (!sess || sess.ci >= [...sess.word.han].length) return;
+  const i = sess.ci, wr = sess.writer;
+  sess.gave[i] = true;
+  try{ wr.cancelQuiz(); }catch(e){}
+  wr.showOutline();
+  wr.animateCharacter({onComplete: ()=>{
+    if (!sess || sess.ci!==i) return;
+    setTimeout(()=>{ if (!sess || sess.ci!==i) return; wr.hideCharacter(); runQuiz(); }, 400);
+  }});
+});
+$("py-in").addEventListener("keydown", e=>{ if (e.key==="Enter" && !$("b-check").disabled){ e.preventDefault(); reveal(); } });
+$("b-check").addEventListener("click", reveal);
+
+function reveal(){
+  const w = sess.word;
+  const n = [...w.han].length;
+  const totalMiss = sess.miss.reduce((a,b)=>a+(b||0),0);
+  const gave = sess.gave.some(Boolean);
+  const hinted = sess.hint.some(Boolean);
+  let py = null;
+  if (S.settings.pinyin) py = checkPinyin($("py-in").value, w.ref);
+  // auto grade
+  let g;
+  if (gave) g = 0;
+  else if (totalMiss > 3*n) g = 0;
+  else if (totalMiss > n || (hinted && !sess.isNew)) g = 1;
+  else g = (totalMiss===0 && !hinted) ? 2 : 1;
+  if (sess.isNew && !gave) g = Math.max(g, 2) === 2 && totalMiss<=n ? 2 : g;
+  if (py && !py.ok) g = Math.min(g, py.letters ? 1 : 0);
+  sess.suggest = g;
+
+  $("ask").hidden = true; $("res").hidden = false;
+  $("r-han").textContent = w.han;
+  $("r-py").innerHTML = pyHTML(w.ref, py ? py.per : null);
+  $("r-ru").textContent = w.ru;
+  const chips = [];
+  if (gave) chips.push(`<span class="chip no">Подсмотрено</span>`);
+  else chips.push(totalMiss===0 ? `<span class="chip ok">Черты без ошибок</span>` : `<span class="chip ${totalMiss>n?"no":"mid"}">Ошибок в чертах: ${totalMiss}</span>`);
+  if (hinted && !gave) chips.push(`<span class="chip mid">С контуром</span>`);
+  if (py) chips.push(py.ok ? `<span class="chip ok">Пиньинь верно</span>` : `<span class="chip no">Пиньинь: ${py.letters ? "тоны" : "ошибка"}${$("py-in").value.trim() ? " · вы: " + escapeHTML($("py-in").value.trim()) : ""}</span>`);
+  $("r-verdict").innerHTML = chips.join("");
+  const names = ["Снова","Трудно","Хорошо","Легко"];
+  const now = Date.now();
+  $("grades").innerHTML = names.map((nm,i)=>{
+    const p = preview(card(w.id), i);
+    return `<button class="grade${i===g?" suggest":""}" data-g="${i}">${nm}<small>${fmtGap(p.due-now)}</small></button>`;
+  }).join("");
+  $("grades").querySelectorAll(".grade").forEach(b=>b.addEventListener("click",()=>grade(+b.dataset.g)));
+  if (S.settings.voice) say(w.han);
+}
+function grade(g){
+  const w = sess.word;
+  if (!card(w.id)) { rollDay(); S.day.n++; }
+  S.cards[w.id] = preview(card(w.id), g);
+  save();
+  sess.done++;
+  nextQuestion();
+}
+$("r-say").addEventListener("click", ()=>sess && say(sess.word.han));
+function escapeHTML(s){ return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+/* ---------- words ---------- */
+function statusOf(w){
+  const c = card(w.id);
+  if (!c) return ["новое",""];
+  if (c.s==="learn") return ["учу","learn"];
+  return [fmtGap(c.ivl*DAY),"rev"];
+}
+function norm(s){ return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/ü/g,"v").replace(/[\s\d']/g,""); }
+function renderWords(){
+  const q = $("w-search").value.trim();
+  const nq = norm(q);
+  const list = WORDS.filter(w=>!q || w.han.includes(q) || norm(w.ref.map(x=>x.s).join("")).includes(nq) || w.ru.toLowerCase().includes(q.toLowerCase()));
+  $("w-list").innerHTML = list.length ? list.map(w=>{
+    const [st,cls] = statusOf(w);
+    return `<button class="item" data-id="${w.id}"><span class="h">${w.han}</span><span class="txt"><div class="py">${pyHTML(w.ref)}</div><div class="ru">${w.ru}</div></span><span class="status ${cls}">${st}</span></button>`;
+  }).join("") : `<div class="item" style="cursor:default"><span></span><span class="hint">Ничего не нашлось</span><span></span></div>`;
+  $("w-list").querySelectorAll("button.item").forEach(b=>b.addEventListener("click",()=>openDetail(b.dataset.id)));
+}
+$("w-search").addEventListener("input", renderWords);
+
+let det = {w:null, ch:null, writer:null};
+function openDetail(id){
+  const w = byId[id]; det.w = w;
+  show("detail");
+  $("d-han").textContent = w.han;
+  $("d-py").innerHTML = pyHTML(w.ref);
+  $("d-ru").textContent = w.ru;
+  const chars = [...w.han];
+  $("d-chars").innerHTML = chars.length>1 ? chars.map((c,i)=>`<button data-c="${c}" aria-pressed="${i===0}">${c}</button>`).join("") : "";
+  $("d-chars").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+    $("d-chars").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed", x===b)); detChar(b.dataset.c);
+  }));
+  const c = card(w.id);
+  $("d-state").textContent = !c ? "Слово ещё не изучалось." : c.s==="learn" ? "Слово на этапе заучивания." : "Следующее повторение через " + fmtGap(Math.max(0,c.due-Date.now())) + ".";
+  detChar(chars[0]);
+}
+function detChar(ch){
+  det.ch = ch;
+  if (!libOK()) { $("d-state").textContent = "Не загрузилась библиотека проверки черт."; return; }
+  if (det.writer) try{ det.writer.cancelQuiz(); }catch(e){}
+  det.writer = makeWriter($("d-hw"), ch, {showCharacter:true, showOutline:true});
+}
+$("d-anim").addEventListener("click", ()=>{ if (!det.writer) return; try{det.writer.cancelQuiz();}catch(e){} det.writer.showOutline(); det.writer.animateCharacter(); });
+$("d-try").addEventListener("click", ()=>{ if (!det.writer) return; det.writer.hideCharacter(); det.writer.showOutline(); det.writer.quiz({onComplete:()=>{}}); });
+$("d-say").addEventListener("click", ()=>det.w && say(det.w.han));
+$("d-back").addEventListener("click", ()=>show("words"));
+
+/* ---------- settings ---------- */
+function renderSettings(){
+  $("n-val").textContent = S.settings.newPerDay;
+  $("s-py").checked = S.settings.pinyin;
+  $("s-voice").checked = S.settings.voice;
+  renderSync();
+}
+function renderSync(){
+  const learned = Object.keys(S.cards).length;
+  const where = syncState==="cloud" ? "<b>Сохраняется в вашем аккаунте</b> и доступен с любого устройства по этой ссылке."
+    : syncState==="error" ? "<b>Не удалось сохранить в аккаунт.</b> Прогресс пока хранится только в этом браузере."
+    : "<b>Хранится в этом браузере.</b> Войдите в claude.ai, чтобы прогресс синхронизировался между устройствами.";
+  $("sync").innerHTML = where + " Начато слов: " + learned + " из " + WORDS.length + ".";
+}
+$("n-minus").addEventListener("click", ()=>{ S.settings.newPerDay = Math.max(0, S.settings.newPerDay-5); save(); renderSettings(); });
+$("n-plus").addEventListener("click", ()=>{ S.settings.newPerDay = Math.min(50, S.settings.newPerDay+5); save(); renderSettings(); });
+$("s-py").addEventListener("change", e=>{ S.settings.pinyin = e.target.checked; save(); });
+$("s-voice").addEventListener("change", e=>{ S.settings.voice = e.target.checked; save(); });
+$("s-test").addEventListener("click", ()=>say("你好"));
+$("reset").addEventListener("click", ()=>{
+  $("reset-box").innerHTML = `<span class="hint">Удалить весь прогресс по колоде?</span><button class="btn small danger" id="reset-yes">Удалить</button><button class="btn small" id="reset-no">Отмена</button>`;
+  $("reset-yes").addEventListener("click", ()=>{ const st = S.settings; S = structuredClone(DEFAULT); S.settings = st; save(); restoreReset(); renderSettings(); });
+  $("reset-no").addEventListener("click", restoreReset);
+});
+function restoreReset(){
+  $("reset-box").innerHTML = `<button class="btn small danger" id="reset">Сбросить прогресс</button>`;
+  $("reset").addEventListener("click", ()=>$("reset").dispatchEvent(new Event("x")));
+  // rebind
+  const b = $("reset"); b.replaceWith(b.cloneNode(true));
+  $("reset").addEventListener("click", resetClick);
+}
+function resetClick(){ $("reset").onclick=null; document.getElementById("reset") && document.getElementById("reset").dispatchEvent(new Event("noop")); }
+// simple delegation for reset confirm
+$("reset-box").addEventListener("click", e=>{
+  if (e.target.id==="reset"){
+    $("reset-box").innerHTML = `<span class="hint">Удалить весь прогресс по колоде?</span><button class="btn small danger" id="reset-yes">Удалить</button><button class="btn small" id="reset-no">Отмена</button>`;
+  } else if (e.target.id==="reset-yes"){
+    const st = S.settings; S = structuredClone(DEFAULT); S.settings = st; save();
+    $("reset-box").innerHTML = `<button class="btn small danger" id="reset">Сбросить прогресс</button>`; renderSettings();
+  } else if (e.target.id==="reset-no"){
+    $("reset-box").innerHTML = `<button class="btn small danger" id="reset">Сбросить прогресс</button>`;
+  }
+});
+
+function refreshAll(){
+  if (!$("home").hidden) renderHome();
+  if (!$("settings").hidden) renderSettings();
+  if (!$("words").hidden) renderWords();
+}
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", ()=>{ if (sess && sess.writer) { const c=colors(); for (const k in c) if (c[k]) try{sess.writer.updateColor(k,c[k]);}catch(e){} } });
+
+show("home");
+})();
+</script>

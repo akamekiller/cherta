@@ -2,10 +2,10 @@
 // Оболочка приложения кэшируется при установке; данные черт, словаря и шрифты — при первом запросе.
 // Файлы словаря (репозиторий cherta-dict) запрашиваются с ?v=<версия из meta.json>: после пересборки адрес новый,
 // а старые версии того же файла удаляются из кэша.
-const VERSION = "0.9.0-mvdnc3hi";
+const VERSION = "0.17.0-mvduzoo1";
 const SHELL = `cherta-shell-${VERSION}`;
 const DATA = "cherta-data-v1";
-const SHELL_FILES = ["./","index.html","app.js","styles.css","manifest.webmanifest","icons/icon.svg","icons/icon-192.png","data/decks/index.json","data/decks/hsk3-1.json","data/decks/hsk3-2.json","data/decks/hsk3-3.json","data/decks/hsk3-4.json","data/decks/hsk3-5.json","data/decks/hsk3-6.json"];
+const SHELL_FILES = ["./","index.html","app.js","styles.css","manifest.webmanifest","icons/icon.svg","icons/icon-192.png","data/decks/index.json","data/decks/hsk3-1.json","data/decks/hsk3-2.json","data/decks/hsk3-3.json","data/decks/hsk3-4.json","data/decks/hsk3-5.json","data/decks/hsk3-6.json","data/decks/radicals.json","data/decks/life-uni.json","data/decks/life-dorm.json","data/decks/life-bank.json","data/decks/life-transport.json","data/decks/life-shop.json","data/decks/life-doctor.json","data/ex/hsk1.json","data/ex/hsk2.json","data/ex/hsk3.json","data/ex/hsk4.json","data/ex/hsk5.json","data/ex/hsk6.json"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(SHELL).then((c) => c.addAll(SHELL_FILES)).then(() => self.skipWaiting()));

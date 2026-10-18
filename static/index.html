@@ -36,9 +36,10 @@
   <nav class="dr-list">
       <button class="dr-item" data-view="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="13" height="15" rx="2"/><path d="M8 3h11a1 1 0 0 1 1 1v13"/></svg><span class="dr-text"><b>Карточки</b><small>Повторение слов с письмом</small></span></button>
       <button class="dr-item" data-view="words"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.5-4.5"/></svg><span class="dr-text"><b>Слова</b><small>Колода, HSK и словарь</small></span></button>
-      <div class="dr-item soon" aria-disabled="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M9 5v14M15 5v14"/></svg><span class="dr-text"><b>Тетрадь прописей</b><small>Скоро</small></span></div>
-      <div class="dr-item soon" aria-disabled="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h7"/></svg><span class="dr-text"><b>Упражнения</b><small>Скоро</small></span></div>
-      <div class="dr-item soon" aria-disabled="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h2l3-7 4 14 3-9 2 2h4"/></svg><span class="dr-text"><b>Тоны и произношение</b><small>Скоро</small></span></div>
+      <button class="dr-item" data-view="book"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M9 5v14M15 5v14"/></svg><span class="dr-text"><b>Тетрадь прописей</b><small>Иероглиф по клеткам, печать</small></span></button>
+      <button class="dr-item" data-view="ex"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h7"/></svg><span class="dr-text"><b>Упражнения</b><small>Перевод предложений</small></span></button>
+      <button class="dr-item" data-view="tones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h2l3-7 4 14 3-9 2 2h4"/></svg><span class="dr-text"><b>Тоны и произношение</b><small>На слух и голосом</small></span></button>
+      <button class="dr-item" data-view="stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span class="dr-text"><b>Статистика</b><small>Серия, календарь, прогноз</small></span></button>
       <button class="dr-item" data-view="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span class="dr-text"><b>Настройки</b><small>Тема, лимиты, прогресс</small></span></button>
   </nav>
 </aside>
@@ -53,29 +54,36 @@
 
   <div id="boot-error" class="boot-error" hidden></div>
 
-  <!-- Главная -->
+  <!-- Главная: список колод, как в Anki -->
   <section id="home" class="stack" hidden>
-    <div class="panel stack">
-      <button class="deck-head" id="deck-btn" aria-expanded="false" aria-controls="deck-list">
-        <span>
-          <span class="label">Колода · сменить</span>
-          <span class="deck-name" id="deck-title">HSK 1</span>
-          <span class="hint" id="deck-sub"></span>
-        </span>
-        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-      </button>
-      <div class="deck-list" id="deck-list" hidden></div>
-      <div class="stats">
-        <div class="stat due"><b id="st-due">0</b><span>к повторению</span></div>
-        <div class="stat new"><b id="st-new">0</b><span>новых сегодня</span></div>
-        <div class="stat known"><b id="st-known">0</b><span>в повторении</span></div>
-      </div>
-      <button class="btn primary wide" id="start">Начать занятие</button>
-      <p class="hint" id="next-hint"></p>
+    <div class="decks-table">
+      <div class="dt-head" aria-hidden="true"><span>Колода</span><span class="c-new">Новые</span><span class="c-learn">Учу</span><span class="c-due">Повтор</span><span></span></div>
+      <div id="decks"></div>
     </div>
-    <div class="panel stack">
-      <div class="label">Как это работает</div>
-      <p class="hint">Вам показывают значение слова. Напишите иероглифы пальцем в клетке: каждая черта проверяется по форме, направлению и порядку. Введите пиньинь цифрами (<b>ren2</b>) или со знаками (<b>rén</b>). Оценка для повторения ставится сама, её можно поменять.</p>
+    <div id="goal-line"></div>
+    <p class="hint center" id="today-line"></p>
+    <div class="deck-actions">
+      <button class="btn" id="deck-create">Новая колода</button>
+      <button class="btn" id="deck-import">Импорт</button>
+      <input type="file" id="deck-import-file" accept=".txt,.tsv,.csv,text/plain,text/csv,text/tab-separated-values" hidden>
+    </div>
+    <button class="link-btn" id="decks-hidden" hidden></button>
+  </section>
+
+  <!-- Колода: обзор перед занятием -->
+  <section id="deck" class="stack" hidden>
+    <div class="topbar"><button class="btn ghost small" id="deck-back">← Колоды</button><button class="icon-btn" id="deck-menu" aria-label="Действия с колодой"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button></div>
+    <div class="deck-over">
+      <h2 class="deck-name" id="deck-title"></h2>
+      <p class="hint" id="deck-sub"></p>
+      <div class="over-counts">
+        <div><b class="c-new" id="st-new">0</b><span>новые</span></div>
+        <div><b class="c-learn" id="st-learn">0</b><span>учу</span></div>
+        <div><b class="c-due" id="st-due">0</b><span>повторить</span></div>
+      </div>
+      <button class="btn primary wide" id="start">Учить</button>
+      <p class="hint center" id="next-hint"></p>
+      <button class="btn wide" id="deck-words">Слова колоды</button>
     </div>
   </section>
 
@@ -83,10 +91,12 @@
   <section id="session" class="stack" hidden>
     <div class="topbar">
       <button class="btn ghost small" id="quit">← Выйти</button>
+      <button class="btn ghost small" id="undo" hidden title="Ctrl+Z">↶ Отменить</button>
       <span class="label" id="left"></span>
     </div>
     <div class="prompt">
       <div class="ru" id="q-ru"></div>
+      <div class="py q-py" id="q-py" hidden></div>
       <div class="meta" id="q-meta"></div>
     </div>
     <div class="slots" id="slots"></div>
@@ -118,7 +128,7 @@
             <button type="button" class="t5" data-t="5" aria-label="Лёгкий тон"><svg viewBox="0 0 32 20" aria-hidden="true"><circle cx="16" cy="10" r="3.5" fill="currentColor"/></svg></button>
             <svg class="tone-trail" id="tone-trail" aria-hidden="true"><path/></svg>
           </div>
-          <p class="hint tone-hint">Выберите слог, затем проведите тон по полосе или нажмите знак</p>
+          <p class="hint tone-hint" id="tone-hint">Выберите слог, затем проведите тон по полосе или нажмите знак</p>
         </div>
         <input id="py-in" hidden autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="ren2 или rén" enterkeyhint="done">
       </div>
@@ -133,6 +143,7 @@
       <div id="r-ru" class="hint"></div>
       <p class="word-note" id="r-note" hidden></p>
       <div class="verdict" id="r-verdict"></div>
+      <div class="hand-box" id="r-hand" hidden></div>
       <div class="grades" id="grades"></div>
       <button class="link-btn" id="r-edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg> Исправить слово</button>
     </div>
@@ -252,6 +263,91 @@
     </div>
   </section>
 
+  <!-- Тетрадь прописей -->
+  <section id="book" class="stack book" hidden>
+    <div class="book-src">
+      <div class="seg wide-seg" role="group" aria-label="Что писать"><button data-src="deck" id="bk-src-deck"></button><button data-src="text">Свой текст</button></div>
+      <button class="icon-btn" id="bk-opts" aria-label="Настройки прописей"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button>
+      <button class="icon-btn" id="bk-print" aria-label="Печать прописей"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/></svg></button>
+    </div>
+    <div class="field" id="bk-text-field" hidden><input id="bk-text" placeholder="Иероглифы или слова: 学习 中国" autocomplete="off" aria-label="Свой текст для прописей"></div>
+    <div class="book-head">
+      <button class="icon-btn" id="bk-prev" aria-label="Предыдущий иероглиф">‹</button>
+      <div class="book-char"><span class="bk-han" id="bk-han"></span><span class="bk-info"><span class="py" id="bk-py"></span><span class="hint" id="bk-ru"></span></span></div>
+      <button class="icon-btn" id="bk-next" aria-label="Следующий иероглиф">›</button>
+    </div>
+    <div class="bk-strip" id="bk-strip" aria-label="Клетки упражнения"></div>
+    <div class="pad" id="bk-pad">
+        <svg class="grid" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <g stroke="currentColor" stroke-width=".5" stroke-dasharray="2 1.6" fill="none">
+            <line x1="50" y1="0" x2="50" y2="100"/><line x1="0" y1="50" x2="100" y2="50"/>
+            <line x1="0" y1="0" x2="100" y2="100"/><line x1="100" y1="0" x2="0" y2="100"/>
+          </g>
+        </svg>
+        <div class="hw" id="bk-hw"></div>
+        <div class="flash"></div>
+    </div>
+    <div class="tools">
+      <button class="btn small" id="bk-anim">Порядок черт</button>
+      <button class="btn small" id="bk-again">Заново</button>
+    </div>
+    <p class="hint center" id="bk-status"></p>
+  </section>
+
+  <!-- Печать: заполняется перед window.print() -->
+  <!-- Упражнения на перевод -->
+  <section id="ex" class="stack ex" hidden>
+    <div class="chips-row" id="ex-levels"></div>
+    <div class="ex-mode-row">
+      <div class="seg wide-seg" role="group" aria-label="Направление" id="ex-modes"><button data-mode="ruzh">На китайский</button><button data-mode="zhru">С китайского</button></div>
+      <label class="ex-py"><input type="checkbox" id="ex-py"> пиньинь</label>
+    </div>
+    <div class="ex-bar"><i id="ex-prog"></i></div>
+    <div class="panel stack ex-card">
+      <div class="ex-top"><span class="label" id="ex-task"></span><span class="label" id="ex-count"></span></div>
+      <div class="ex-q" id="ex-q"></div>
+      <div class="ex-gloss" id="ex-gloss" hidden></div>
+      <textarea class="ex-in" id="ex-ru-in" rows="2" placeholder="Ваш перевод (можно не писать)" hidden></textarea>
+      <div class="ex-ans" id="ex-ans" hidden></div>
+      <div class="ex-pool" id="ex-pool" hidden></div>
+      <div class="ex-res" id="ex-res" hidden></div>
+      <div class="ex-btns" id="ex-btns"></div>
+    </div>
+    <p class="hint">Предложения — из базы примеров 大БКРС (bkrs.info), подобраны по словам HSK каждого уровня.</p>
+  </section>
+
+  <!-- Тоны и произношение -->
+  <section id="tones" class="stack tones" hidden>
+    <div class="seg wide-seg" role="group" aria-label="Режим" id="tn-tabs"><button data-tab="listen">На слух</button><button data-tab="speak">Произношение</button></div>
+    <div id="tn-listen" class="panel stack">
+      <div class="ex-top"><span class="label">Послушайте и поставьте тоны</span><span class="label" id="tn-score"></span></div>
+      <button class="btn wide" id="tn-l-play">▶ Послушать ещё раз</button>
+      <div class="py-slots" id="tn-l-syl"></div>
+      <div class="tone-pad tn-pad" id="tn-l-pad"></div>
+      <div class="ex-res" id="tn-l-res" hidden></div>
+      <button class="btn primary wide" id="tn-l-check" disabled>Проверить</button>
+    </div>
+    <div id="tn-speak" class="panel stack" hidden>
+      <div class="tn-word-box" id="tn-s-word"></div>
+      <div class="tools"><button class="btn small" id="tn-s-ref">▶ Образец</button><button class="btn small" id="tn-mine" hidden>▶ Моя запись</button></div>
+      <div id="tn-graph"></div>
+      <button class="btn primary wide tn-rec" id="tn-rec">● Записать</button>
+      <div id="tn-s-res"></div>
+      <button class="btn ghost small" id="tn-s-next">Другое слово →</button>
+    </div>
+  </section>
+
+  <!-- Статистика -->
+  <section id="stats" class="stack" hidden>
+    <div class="st-tiles" id="st-tiles"></div>
+    <div class="set-row dm-row goal-row"><div class="t"><div>Цель на день</div><div>Сколько карточек пройти</div></div>
+      <div class="stepper"><button class="icon-btn" id="goal-minus" aria-label="Меньше">−</button><output id="goal-val">30</output><button class="icon-btn" id="goal-plus" aria-label="Больше">+</button></div></div>
+    <div class="panel stack st-block"><h3 class="st-h">Календарь занятий</h3><div id="st-cal"></div></div>
+    <div class="panel stack st-block"><h3 class="st-h">Прогноз повторений</h3><div id="st-fc"></div><p class="hint" id="st-fc-sum"></p></div>
+    <div class="panel stack st-block"><h3 class="st-h">Ответы за 30 дней</h3><div id="st-hist"></div><p class="hint" id="st-hist-sum"></p></div>
+    <p class="hint" id="st-cards"></p>
+  </section>
+
   <!-- Настройки -->
   <section id="settings" class="stack" hidden>
     <div class="panel">
@@ -265,6 +361,8 @@
         <div class="chips-row" id="pens"></div>
         <div class="t"><div>Чернила</div></div>
         <div class="inks" id="inks"></div>
+        <label class="pen-size"><span class="t"><div>Толщина</div></span>
+          <input type="range" id="pen-size" min="0.5" max="1.6" step="0.1" aria-label="Толщина пера"><output id="pen-size-val"></output></label>
         <label class="pen-keep"><span class="t"><div>Оставлять мои черты</div><div>Иначе верная черта заменяется эталонной</div></span>
           <input type="checkbox" class="switch" id="s-keep"></label>
         <div class="pen-try">
@@ -281,7 +379,11 @@
         </div>
       </div>
       <div class="set-row">
-        <div class="t"><div>Новых слов в день</div><div>Сколько новых карточек добавлять за день</div></div>
+        <div class="t"><div>Вибрация на ошибку</div><div>Короткая отдача при неверной черте</div></div>
+        <input type="checkbox" class="switch" id="s-vibrate" aria-label="Вибрация на ошибку">
+      </div>
+      <div class="set-row">
+        <div class="t"><div>Новых слов в день</div><div>По умолчанию для колод; у колоды можно задать свой лимит в её меню (⋯)</div></div>
         <div class="stepper"><button class="icon-btn" id="n-minus" aria-label="Меньше">−</button><output id="n-val">10</output><button class="icon-btn" id="n-plus" aria-label="Больше">+</button></div>
       </div>
       <div class="set-row">
@@ -323,5 +425,6 @@
   <div class="sheet-body stack" id="sheet-body"></div>
 </section>
 <script type="module" src="app.js?v=__VERSION__"></script>
+<div id="print-area" aria-hidden="true"></div>
 </body>
 </html>

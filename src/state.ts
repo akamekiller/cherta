@@ -3,12 +3,14 @@ import { schedule, newCard, type Card, type Grade } from "./core/fsrs.ts";
 import { loadDeck, wordId, type Deck, type DeckFile, type Word } from "./core/deck.ts";
 import { applyEdit, isEmptyEdit, type WordEdit, type DictEntry } from "./core/edits.ts";
 import { parseIndex, dictShardOf, shardFile, type DictIndex, type DictArticle } from "./core/dict.ts";
+import { cardId, normSkills, pickNext, queueCounts, ALL_SKILLS, type Skill, type QPick } from "./core/skills.ts";
+import { byDay, dayOf, type DayStat } from "./core/stats.ts";
 import * as store from "./store.ts";
 
 const MIN = 60_000;
 const LEARN_AHEAD = 20 * MIN; // как в Anki: шаги заучивания показываем чуть раньше срока
 
-export type DeckInfo = { id: string; title: string; subtitle: string; lang: string; count: number; user?: boolean };
+export type DeckInfo = { id: string; title: string; subtitle: string; group?: string; lang: string; count: number; user?: boolean; hidden?: boolean; baseTitle: string };
 
 export const app = {
   builtinDecks: [] as DeckInfo[],
@@ -19,7 +21,9 @@ export const app = {
   cards: new Map<string, Card>(),
   edits: new Map<string, WordEdit>(),
   settings: { ...store.DEFAULT_SETTINGS } as store.Settings,
-  day: { day: "", newCount: 0 } as store.DayCounter,
+  day: { day: "", newCount: 0, byDeck: {} } as store.DayCounter,
+  /** Ответы по дням (для серии, цели на день и статистики). */
+  days: new Map<string, DayStat>(),
 };
 
 /** День начинается в 4 утра, как в Anki. */
@@ -29,13 +33,16 @@ export function dayKey(t = Date.now()): string {
 }
 function rollDay() {
   const k = dayKey();
-  if (app.day.day !== k) app.day = { day: k, newCount: 0 };
+  if (app.day.day !== k) app.day = { day: k, newCount: 0, byDeck: {} };
+  // старый формат без разбивки по колодам: всё, что выучено сегодня, — в текущей колоде
+  if (!app.day.byDeck) app.day = { ...app.day, byDeck: app.day.newCount ? { [app.settings.deck]: app.day.newCount } : {} };
 }
 
 export async function init() {
-  const [settings, cards, day, edits, userDecks] = await Promise.all([
-    store.loadSettings(), store.allCards(), store.getMeta<store.DayCounter>("day"), store.allEdits(), store.allUserDecks(),
+  const [settings, cards, day, edits, userDecks, reviews] = await Promise.all([
+    store.loadSettings(), store.allCards(), store.getMeta<store.DayCounter>("day"), store.allEdits(), store.allUserDecks(), store.allReviews(),
   ]);
+  app.days = byDay(reviews);
   app.settings = settings;
   app.cards = cards;
   app.edits = edits;
@@ -50,12 +57,90 @@ export async function init() {
   await loadDeckById(id);
 }
 
+/* ---------- все колоды: для списка со счётчиками ---------- */
+
+const deckFiles = new Map<string, Promise<DeckFile>>();
+
+/** Колода с правками пользователя (для счётчиков в списке колод и экспорта). */
+export async function deckById(id: string): Promise<Deck> {
+  let f: Promise<DeckFile>;
+  if (app.userDecks.some((d) => d.id === id)) f = fetchDeckFile(id);
+  else {
+    f = deckFiles.get(id) ?? fetchDeckFile(id);
+    deckFiles.set(id, f);
+    f.catch(() => deckFiles.delete(id));
+  }
+  const d = loadDeck(await f);
+  return { ...d, title: app.decks.find((x) => x.id === id)?.title ?? d.title, words: d.words.map((w) => applyEdit(w, app.edits.get(w.id))) };
+}
+
+export type DeckCounts = { due: number; learning: number; review: number; newLeft: number; unseen: number; total: number };
+
+/** Навыки колоды (как в Skritter): по умолчанию все четыре. */
+export const deckSkills = (deckId: string): Skill[] => normSkills(app.settings.deckOpts?.[deckId]?.skills);
+
+const qWords = (deck: Deck) => deck.words.map((w) => ({ id: w.id, hidden: !!app.edits.get(w.id)?.hidden }));
+const getCard = (id: string) => app.cards.get(id);
+const qOpts = (deckId: string, exclude?: string) => ({
+  now: Date.now(), skills: deckSkills(deckId), learnAhead: LEARN_AHEAD, exclude,
+  newWordsLeft: Math.max(0, newLimit(deckId) - newDone(deckId)),
+});
+
+/** Счётчики колоды: к повторению, на шаге заучивания, новых на сегодня (по лимиту колоды). */
+export function countsFor(deck: Deck): DeckCounts {
+  rollDay();
+  return queueCounts(qWords(deck), getCard, qOpts(deck.id));
+}
+
+export const newLimit = (deckId: string) => app.settings.deckOpts?.[deckId]?.newPerDay ?? app.settings.newPerDay;
+export const newDone = (deckId: string) => app.day.byDeck?.[deckId] ?? 0;
+
+/** Изменить настройки колоды (название, скрыта, лимит). Пустые значения удаляются. */
+export async function setDeckOpts(id: string, patch: Partial<store.DeckOpts>) {
+  const all = { ...(app.settings.deckOpts ?? {}) };
+  const o: store.DeckOpts = { ...(all[id] ?? {}), ...patch };
+  if (!o.title?.trim()) delete o.title; else o.title = o.title.trim();
+  if (!o.hidden) delete o.hidden;
+  if (o.newPerDay === undefined || o.newPerDay === app.settings.newPerDay) delete o.newPerDay;
+  if (!o.skills || normSkills(o.skills).length === ALL_SKILLS.length) delete o.skills; else o.skills = normSkills(o.skills);
+  if (Object.keys(o).length) all[id] = o; else delete all[id];
+  await updateSettings({ deckOpts: all });
+  rebuildDeckList();
+  if (app.deck?.id === id) app.deck = { ...app.deck, title: app.decks.find((d) => d.id === id)?.title ?? app.deck.title };
+}
+
+/** Переименовать: своя колода меняется сама, у встроенной — своё название поверх. */
+export async function renameDeck(id: string, title: string) {
+  const ud = app.userDecks.find((d) => d.id === id);
+  if (ud) { await saveUserDeck({ ...ud, title: title.trim() || ud.title }); return; }
+  const base = app.decks.find((d) => d.id === id)?.baseTitle;
+  await setDeckOpts(id, { title: title.trim() === base ? "" : title });
+}
+
+/** Удалить свою колоду или скрыть встроенную. Прогресс по словам сохраняется. */
+export async function deleteDeck(id: string) {
+  if (app.userDecks.some((d) => d.id === id)) {
+    await removeUserDeck(id);
+    await setDeckOpts(id, { title: "", hidden: false, newPerDay: undefined });
+  } else {
+    await setDeckOpts(id, { hidden: true });
+    if (app.deck?.id === id) {
+      const next = app.decks.find((d) => !d.hidden);
+      if (next) await switchDeck(next.id);
+    }
+  }
+}
+
 function rebuildDeckList() {
+  const opts = app.settings.deckOpts ?? {};
   app.decks = [
-    ...app.builtinDecks,
-    ...app.userDecks.map((d) => ({ id: d.id, title: d.title, subtitle: "Своя колода", lang: "zh", count: d.words.length, user: true })),
+    ...app.builtinDecks.map((d) => ({ ...d, baseTitle: d.baseTitle ?? d.title, title: opts[d.id]?.title || d.baseTitle || d.title, hidden: !!opts[d.id]?.hidden })),
+    ...app.userDecks.map((d) => ({ id: d.id, title: d.title, baseTitle: d.title, subtitle: "Своя колода", group: "Свои колоды", lang: "zh", count: d.words.length, user: true, hidden: !!opts[d.id]?.hidden })),
   ];
 }
+
+/** Колоды, видимые в списке; текущая — всегда. */
+export const visibleDecks = () => app.decks.filter((d) => !d.hidden || d.id === app.deck?.id);
 
 async function fetchDeckFile(id: string): Promise<DeckFile> {
   const ud = app.userDecks.find((d) => d.id === id);
@@ -72,7 +157,7 @@ async function loadDeckById(id: string) {
 
 function applyEdits() {
   const b = app.baseDeck;
-  app.deck = b ? { ...b, words: b.words.map((w) => applyEdit(w, app.edits.get(w.id))) } : null;
+  app.deck = b ? { ...b, title: app.decks.find((d) => d.id === b.id)?.title ?? b.title, words: b.words.map((w) => applyEdit(w, app.edits.get(w.id))) } : null;
 }
 
 export async function switchDeck(id: string) {
@@ -86,7 +171,8 @@ export async function reloadAll() {
   app.cards = await store.allCards();
   app.edits = await store.allEdits();
   app.userDecks = await store.allUserDecks();
-  app.day = (await store.getMeta<store.DayCounter>("day")) ?? { day: "", newCount: 0 };
+  app.days = byDay(await store.allReviews());
+  app.day = (await store.getMeta<store.DayCounter>("day")) ?? { day: "", newCount: 0, byDeck: {} };
   rollDay();
   rebuildDeckList();
   const id = app.decks.some((d) => d.id === app.settings.deck) ? app.settings.deck : app.decks[0].id;
@@ -99,7 +185,6 @@ export const editOf = (id: string) => app.edits.get(id);
 export const isHidden = (w: Word) => !!app.edits.get(w.id)?.hidden;
 /** Исходный вариант слова (без правок) — для «Вернуть как было». */
 export const baseWord = (id: string) => app.baseDeck?.words.find((w) => w.id === id);
-const active = () => words().filter((w) => !isHidden(w));
 
 /* ---------- правки ---------- */
 
@@ -174,66 +259,83 @@ export async function removeUserDeck(id: string) {
 
 /* ---------- очередь ---------- */
 
-export function counts() {
+export function counts(): DeckCounts {
+  return app.deck ? countsFor(app.deck) : { due: 0, learning: 0, review: 0, newLeft: 0, unseen: 0, total: 0 };
+}
+
+/** Следующая карточка текущей колоды: слово и навык. */
+export type NextCard = { word: Word; skill: Skill; fresh: QPick["fresh"] };
+export function nextCard(excludeCardId?: string): NextCard | null {
+  rollDay();
+  const d = app.deck;
+  if (!d) return null;
+  const p = pickNext(qWords(d), getCard, qOpts(d.id, excludeCardId));
+  return p ? { word: d.words[p.word], skill: p.skill, fresh: p.fresh } : null;
+}
+
+export const skillCard = (w: Word, skill: Skill) => app.cards.get(cardId(w.id, skill));
+
+export function preview(w: Word, skill: Skill, g: Grade, now = Date.now()): Card {
+  const id = cardId(w.id, skill);
+  return schedule(app.cards.get(id) ?? newCard(id, now), g, now);
+}
+
+/** Что нужно, чтобы отменить ответ (как Ctrl+Z в Anki). */
+export type UndoInfo = { id: string; before: Card | undefined; reviewKey: IDBValidKey; day: store.DayCounter; at: number; grade: Grade };
+
+export async function answer(w: Word, skill: Skill, g: Grade, mistakes: number, fresh: QPick["fresh"]): Promise<UndoInfo> {
   rollDay();
   const now = Date.now();
-  let due = 0, learning = 0, review = 0;
-  const list = active();
-  for (const w of list) {
-    const c = cardOf(w);
-    if (!c) continue;
-    if (c.state === "review") { review++; if (c.due <= now) due++; }
-    else if (c.due <= now + LEARN_AHEAD) learning++;
+  const id = cardId(w.id, skill);
+  const before = app.cards.get(id);
+  const dayBefore = app.day;
+  const next = schedule(before ?? newCard(id, now), g, now);
+  if (fresh === "word") {
+    const deckId = app.deck?.id ?? app.settings.deck;
+    app.day = { ...app.day, newCount: app.day.newCount + 1, byDeck: { ...app.day.byDeck, [deckId]: (app.day.byDeck?.[deckId] ?? 0) + 1 } };
   }
-  const unseen = list.filter((w) => !cardOf(w)).length;
-  const newLeft = Math.min(unseen, Math.max(0, app.settings.newPerDay - app.day.newCount));
-  return { due, learning, review, newLeft, unseen, total: due + learning + newLeft };
+  app.cards.set(id, next);
+  const reviewKey = await store.saveAnswer(next, { id, at: now, grade: g, state: before?.state ?? "new", mistakes }, app.day);
+  const k = dayOf(now), ds = app.days.get(k) ?? { count: 0, again: 0 };
+  app.days.set(k, { count: ds.count + 1, again: ds.again + (g === 1 ? 1 : 0) });
+  return { id, before, reviewKey, day: dayBefore, at: now, grade: g };
 }
 
-/** Следующее слово: просроченные шаги → повторения → новые → шаги заранее. */
-export function nextWord(excludeId?: string): Word | null {
-  rollDay();
+export async function undoAnswer(u: UndoInfo) {
+  if (u.before) app.cards.set(u.id, u.before); else app.cards.delete(u.id);
+  app.day = u.day;
+  const ds = app.days.get(dayOf(u.at));
+  if (ds) app.days.set(dayOf(u.at), { count: Math.max(0, ds.count - 1), again: Math.max(0, ds.again - (u.grade === 1 ? 1 : 0)) });
+  await store.undoAnswer(u.id, u.before, u.reviewKey, u.day);
+}
+
+export function nextDueTime(): number | null {
+  const d = app.deck;
+  if (!d) return null;
   const now = Date.now();
-  const list = active();
-  const seen = list.map((w) => [w, cardOf(w)] as const).filter((x): x is readonly [Word, Card] => !!x[1]);
-  const earliest = (l: (readonly [Word, Card])[]) => l.sort((a, b) => a[1].due - b[1].due)[0]?.[0] ?? null;
-  const learningNow = seen.filter(([w, c]) => c.state !== "review" && c.due <= now && w.id !== excludeId);
-  if (learningNow.length) return earliest(learningNow);
-  const reviews = seen.filter(([, c]) => c.state === "review" && c.due <= now);
-  if (reviews.length) return earliest(reviews);
-  if (app.day.newCount < app.settings.newPerDay) {
-    const fresh = list.find((w) => !cardOf(w));
-    if (fresh) return fresh;
+  let best: number | null = null;
+  for (const w of d.words) {
+    if (isHidden(w)) continue;
+    for (const sk of deckSkills(d.id)) {
+      const c = app.cards.get(cardId(w.id, sk));
+      if (c && c.due > now && (best === null || c.due < best)) best = c.due;
+    }
   }
-  const ahead = seen.filter(([, c]) => c.state !== "review" && c.due <= now + LEARN_AHEAD);
-  const notSame = ahead.filter(([w]) => w.id !== excludeId);
-  return earliest(notSame.length ? notSame : ahead);
+  return best;
 }
 
-export function preview(w: Word, g: Grade, now = Date.now()): Card {
-  return schedule(cardOf(w) ?? newCard(w.id, now), g, now);
+/** Слова с частыми провалами («пиявки», как в Anki): забыты ≥ n раз хотя бы в одном навыке. */
+export function lapsesOf(w: Word): number {
+  return Math.max(0, ...ALL_SKILLS.map((sk) => app.cards.get(cardId(w.id, sk))?.lapses ?? 0));
 }
-
-export async function answer(w: Word, g: Grade, mistakes: number) {
-  rollDay();
-  const now = Date.now();
-  const before = cardOf(w);
-  const next = schedule(before ?? newCard(w.id, now), g, now);
-  if (!before) app.day = { ...app.day, newCount: app.day.newCount + 1 };
-  app.cards.set(w.id, next);
-  await store.saveAnswer(next, { id: w.id, at: now, grade: g, state: before?.state ?? "new", mistakes }, app.day);
-}
+export const LEECH = 4;
+export const isLeech = (w: Word) => lapsesOf(w) >= LEECH;
 
 export async function updateSettings(patch: Partial<store.Settings>) {
   app.settings = { ...app.settings, ...patch };
   await store.setMeta("settings", app.settings);
 }
 
-export function nextDueTime(): number | null {
-  const now = Date.now();
-  const list = active().map(cardOf).filter((c): c is Card => !!c && c.due > now).map((c) => c.due);
-  return list.length ? Math.min(...list) : null;
-}
 
 /* ---------- словарь (大БКРС) ---------- */
 
@@ -303,3 +405,6 @@ export async function dictArticle(han: string): Promise<DictArticle | null> {
   }
   return (await p)[han] ?? null;
 }
+
+/** Сколько карточек пройдено сегодня. */
+export const todayCount = () => app.days.get(dayOf(Date.now()))?.count ?? 0;

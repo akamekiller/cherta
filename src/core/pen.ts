@@ -96,9 +96,10 @@ export function brushWidths(pts: PenPoint[], base: number): number[] {
     for (let i = 1; i < n; i++) speed[i] = speed[i - 1] * 0.7 + speed[i] * 0.3;
   }
   const w = pts.map((p, i) => {
-    if (pressure && p.p !== undefined) return 0.35 + 1.25 * clamp(p.p, 0, 1);
-    // ~1.5 ед/мс — спокойное письмо (черта через пол-иероглифа за 0.4 с), 4+ — быстрый росчерк
-    return clamp(1.65 - 0.27 * speed[i], 0.5, 1.5);
+    if (pressure && p.p !== undefined) return 0.3 + 1.0 * clamp(p.p, 0, 1);
+    // ~1.5 ед/мс — спокойное письмо (черта через пол-иероглифа за 0.4 с), 4+ — быстрый росчерк.
+    // Разброс умеренный: кисть не должна «заливать» иероглиф при медленном письме пальцем.
+    return clamp(1.25 - 0.22 * speed[i], 0.45, 1.2);
   });
   // плавность толщины
   for (let i = 1; i < n; i++) w[i] = w[i - 1] * 0.6 + w[i] * 0.4;
@@ -165,15 +166,20 @@ function circle(c: PenPoint, r: number): string {
   return linePath(pts) + "Z";
 }
 
-/** Главная функция: как нарисовать черту выбранным пером. base — толщина «карандаша». */
-export function penShape(type: PenType, raw: PenPoint[], base: number): PenShape {
+/** Толщина пера в настройках: множитель к обычной толщине. */
+export const PEN_SIZE = { min: 0.5, max: 1.6, step: 0.1, def: 1 };
+export const clampSize = (v: unknown) => typeof v === "number" && isFinite(v) ? clamp(Math.round(v * 10) / 10, PEN_SIZE.min, PEN_SIZE.max) : PEN_SIZE.def;
+
+/** Главная функция: как нарисовать черту выбранным пером. base — толщина «карандаша», size — множитель из настроек. */
+export function penShape(type: PenType, raw: PenPoint[], base: number, size = 1): PenShape {
+  base *= size;
   if (raw.length === 0) return { d: "", mode: "stroke", width: base, opacity: 1 };
   if (type === "pencil") return { d: linePath(raw), mode: "stroke", width: base, opacity: 1 };
   const pts = smooth(raw);
   if (type === "pen") return { d: linePath(pts), mode: "stroke", width: base * 0.5, opacity: 1 };
   if (type === "marker") return { d: linePath(pts), mode: "stroke", width: base * 1.8, opacity: 0.88 };
-  // кисть: основа шире карандаша, точки через равный шаг
-  const b = base * 3;
+  // кисть: основа шире карандаша (в 1,6 раза, максимум ~2 карандаша), точки через равный шаг
+  const b = base * 1.6;
   const even = resample(pts, Math.max(2, b * 0.18));
   return { d: outlinePath(even, brushWidths(even, b).map((k) => k * b)), mode: "fill", width: 0, opacity: 1 };
 }

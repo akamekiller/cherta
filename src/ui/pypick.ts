@@ -16,6 +16,7 @@ let cur = 0;
 let keyboard = false;
 try { keyboard = localStorage.getItem(LS) === "keys"; } catch { /* */ }
 let changed: () => void = () => {};
+let tonesOnly = false;
 
 /** Ответ в формате «xue2 xi2» для checkPinyin; пустые слоги — пустые. */
 export function pyAnswer(): string {
@@ -31,10 +32,12 @@ export function pyAnswerShown(): string {
 
 export const pyComplete = () => keyboard ? !!$<HTMLInputElement>("py-in").value.trim() : slots.every((x) => x.s && x.t);
 
-export function resetPyPick(id: string, syllables: Syllable[]) {
+/** onlyTones — буквы слогов уже даны, ставятся только тоны (навык «Тоны»). */
+export function resetPyPick(id: string, syllables: Syllable[], onlyTones = false) {
   ref = syllables;
-  slots = ref.map(() => ({ s: null, t: null }));
-  options = ref.map((x, i) => syllableOptions(x.s, 6, `${id}:${i}`));
+  tonesOnly = onlyTones;
+  slots = ref.map((x) => ({ s: onlyTones ? x.s : null, t: null }));
+  options = ref.map((x, i) => (onlyTones ? [x.s] : syllableOptions(x.s, 6, `${id}:${i}`)));
   cur = 0;
   $<HTMLInputElement>("py-in").value = "";
   render();
@@ -46,6 +49,8 @@ function render() {
   $("py-in").hidden = !keyboard;
   $("py-mode").textContent = keyboard ? "Выбрать кнопками" : "Набрать с клавиатуры";
   if (keyboard) return;
+  $("py-opts").hidden = tonesOnly;
+  $("tone-hint").textContent = tonesOnly ? "Проведите тон по полосе или нажмите знак — для каждого слога" : "Выберите слог, затем проведите тон по полосе или нажмите знак";
   $("py-slots").innerHTML = slots.map((x, i) => {
     const text = x.s ? mark(x.s, x.t ?? 5) : "";
     return `<button type="button" class="py-slot${i === cur ? " cur" : ""}${x.s && x.t ? ` t${x.t}` : ""}" data-i="${i}" aria-label="Слог ${i + 1}">${text ? esc(text) : "<span>?</span>"}${x.s && !x.t ? "<small>тон?</small>" : ""}</button>`;

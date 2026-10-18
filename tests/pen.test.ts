@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { penShape, brushWidths, resample, outlinePath, isPen, type PenPoint } from "../src/core/pen.ts";
+import { penShape, brushWidths, resample, outlinePath, isPen, clampSize, type PenPoint } from "../src/core/pen.ts";
 
 const line = (n: number, dt: number): PenPoint[] =>
   Array.from({ length: n }, (_, i) => ({ x: 100 + i * 20, y: 500, t: i * dt }));
@@ -40,4 +40,20 @@ test("точка и черта без времени не ломаются", () 
   assert.ok(!s.d.includes("NaN"));
   assert.equal(outlinePath([], []), "");
   assert.ok(isPen("brush") && !isPen("crayon"));
+});
+
+test("толщина пера из настроек", () => {
+  const a = penShape("pencil", line(3, 16), 16, 0.5), b = penShape("pencil", line(3, 16), 16, 1.5);
+  assert.equal(a.width, 8);
+  assert.equal(b.width, 24);
+  assert.equal(clampSize(9), 1.6);
+  assert.equal(clampSize("x"), 1);
+  assert.equal(clampSize(0.74), 0.7);
+});
+
+test("кисть не толще двух карандашей при медленном письме", () => {
+  const slow = line(40, 80);
+  const s = penShape("brush", slow, 16);
+  const ys = [...s.d.matchAll(/[ML][\d.]+ ([\d.]+)/g)].map((m) => Number(m[1]));
+  assert.ok(Math.max(...ys) - Math.min(...ys) <= 16 * 2 + 1);
 });

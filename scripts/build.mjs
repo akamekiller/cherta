@@ -46,7 +46,7 @@ for (const d of decks) {
   const rows = readFileSync(join(root, "data", d.file), "utf8").replace(/\r/g, "").split("\n").slice(1)
     .map((l) => l.trim()).filter(Boolean).map((l) => l.split("\t").map((x) => x.trim()));
   writeFileSync(join(decksOut, `${d.id}.json`), JSON.stringify({ id: d.id, title: d.title, lang: d.lang, words: rows }));
-  index.push({ id: d.id, title: d.title, subtitle: d.subtitle ?? "", lang: d.lang, count: rows.length });
+  index.push({ id: d.id, title: d.title, subtitle: d.subtitle ?? "", group: d.group ?? "", lang: d.lang, count: rows.length });
 }
 writeFileSync(join(decksOut, "index.json"), JSON.stringify(index));
 
@@ -57,7 +57,9 @@ if (!existsSync(join(out, "data/strokes/00.json"))) {
 
 // 6. Service worker со списком файлов оболочки
 const shell = ["./", "index.html", "app.js", "styles.css", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png",
-  "data/decks/index.json", ...decks.map((d) => `data/decks/${d.id}.json`)];
+  "data/decks/index.json", ...decks.map((d) => `data/decks/${d.id}.json`),
+  // предложения для упражнений (scripts/build_examples.py) — небольшие, кладём в офлайн-кэш сразу
+  ...(existsSync(join(out, "data/ex")) ? readdirSync(join(out, "data/ex")).filter((f) => f.endsWith(".json")).map((f) => `data/ex/${f}`) : [])];
 writeFileSync(join(out, "sw.js"), readFileSync(join(root, "static/sw.js"), "utf8")
   .replace("__VERSION__", VERSION).replace("__SHELL_FILES__", JSON.stringify(shell)));
 writeFileSync(join(out, ".nojekyll"), "");

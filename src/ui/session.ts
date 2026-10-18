@@ -1,5 +1,11 @@
-/** Занятие: значение → пишешь иероглифы → пиньинь → оценка. */
-import { app, counts, nextWord, preview, answer, cardOf, editOf, words } from "../state.ts";
+/**
+ * Занятие. Навыки слова (как в Skritter): написание (значение → иероглифы → пиньинь, оценка сама),
+ * чтение и значение (иероглифы → вспомнить → показать ответ → оценить себя), тоны (иероглифы → тоны жестом → оценка сама).
+ */
+import { app, counts, nextCard, preview, answer, undoAnswer, skillCard, editOf, words, lapsesOf, LEECH, type UndoInfo, type NextCard } from "../state.ts";
+import { SKILLS, cardId, type Skill } from "../core/skills.ts";
+import type { P } from "../core/beauty.ts";
+import { handResult, beautyLabel } from "./handview.ts";
 import { openWordEditor } from "./editor.ts";
 import type { Word } from "../core/deck.ts";
 import { formatGap, type Grade } from "../core/fsrs.ts";
@@ -14,6 +20,10 @@ import { initPyPick, resetPyPick, pyAnswer, pyAnswerShown } from "./pypick.ts";
 
 type Session = {
   word: Word | null;
+  skill: Skill;
+  fresh: NextCard["fresh"];
+  /** Последний ответ — для «Отменить». */
+  undo: { info: UndoInfo; card: NextCard } | null;
   chars: string[];
   ci: number;
   miss: number[];
@@ -25,6 +35,8 @@ type Session = {
   grading: boolean;  // идёт сохранение оценки — повторные нажатия игнорируются
   mistakes: number;
   done: number;
+  /** Свои черты по иероглифам — для оценки почерка и повтора. */
+  drawn: P[][][];
 };
 let s: Session | null = null;
 export const sessionWriter = () => s?.writer ?? null;
@@ -32,7 +44,7 @@ export const sessionWriter = () => s?.writer ?? null;
 const GRADE_NAMES = ["Снова", "Трудно", "Хорошо", "Легко"];
 
 export function startSession() {
-  s = { word: null, chars: [], ci: 0, miss: [], gave: [], hint: [], isNew: false, writer: null, answered: false, grading: false, mistakes: 0, done: 0 };
+  s = { word: null, skill: "write", fresh: null, undo: null, chars: [], ci: 0, miss: [], gave: [], hint: [], isNew: false, writer: null, answered: false, grading: false, mistakes: 0, done: 0, drawn: [] };
   show("session");
   nextQuestion();
 }
@@ -43,10 +55,17 @@ function stopWriter() {
 
 function endSession() { stopWriter(); s = null; }
 
-function nextQuestion() {
+const SKILL_TASK: Record<Skill, string> = {
+  write: "напишите иероглифы",
+  read: "вспомните пиньинь и значение",
+  tone: "поставьте тоны",
+  def: "вспомните значение",
+};
+
+function nextQuestion(force?: NextCard) {
   if (!s) return;
-  const w = nextWord(s.word?.id);
-  if (!w) {
+  const next = force ?? nextCard(s.word ? cardId(s.word.id, s.skill) : undefined);
+  if (!next) {
     const n = s.done;
     endSession();
     $("done-text").textContent = n
@@ -55,24 +74,51 @@ function nextQuestion() {
     show("done");
     return;
   }
+  const { word: w, skill } = next;
   const c = counts();
   $("left").textContent = `осталось ${c.total}`;
+  $("undo").hidden = !s.undo;
   const chars = [...w.han];
-  Object.assign(s, { word: w, chars, ci: 0, miss: chars.map(() => 0), gave: chars.map(() => false), hint: chars.map(() => false), isNew: !cardOf(w), answered: false, grading: false, mistakes: 0 });
-  preload(w.han);
-  $("q-ru").textContent = w.ru;
-  $("q-meta").textContent = `${s.isNew ? "Новое слово · " : ""}${chars.length} ${plural(chars.length, "иероглиф", "иероглифа", "иероглифов")}`;
+  Object.assign(s, { word: w, skill, fresh: next.fresh, chars, ci: 0, miss: chars.map(() => 0), gave: chars.map(() => false), hint: chars.map(() => false), isNew: !skillCard(w, skill), answered: false, grading: false, mistakes: 0, drawn: chars.map(() => []) });
+  stopWriter();
+  const write = skill === "write";
+  const isNew = s.isNew ? "Новое · " : "";
+  // вопрос: для написания — значение, для остальных навыков — иероглифы
+  $("q-ru").textContent = write ? w.ru : w.han;
+  $("q-ru").classList.toggle("q-han", !write);
+  $("q-py").hidden = skill !== "def" && skill !== "tone";
+  $("q-py").innerHTML = skill === "def" ? pinyinHTML(w.ref) : skill === "tone" ? esc(w.ru) : "";
+  $("q-py").classList.toggle("q-tr", skill === "tone");
+  $("q-meta").textContent = write
+    ? `${isNew}${chars.length} ${plural(chars.length, "иероглиф", "иероглифа", "иероглифов")}`
+    : `${isNew}${SKILLS.find((x) => x.id === skill)!.name}: ${SKILL_TASK[skill]}`;
   $("ask").hidden = false;
   $("res").hidden = true;
-  resetPyPick(w.id, w.ref);
-  // пиньинь — после иероглифов: пока пишешь, экран не загромождён
-  $("py-field").hidden = true;
-  $("ask").querySelector<HTMLElement>(".tools")!.hidden = false;
+  document.querySelector<HTMLElement>("#session .prompt")!.hidden = false;
+  $("slots").hidden = !write;
+  $("pad").hidden = !write;
+  $("ask").querySelector<HTMLElement>(".tools")!.hidden = !write;
   const check = $<HTMLButtonElement>("b-check");
-  check.disabled = true;
-  check.textContent = app.settings.pinyin ? "Проверить" : "Сначала напишите иероглифы";
-  renderSlots();
-  startChar();
+  if (write) {
+    preload(w.han);
+    resetPyPick(w.id, w.ref);
+    // пиньинь — после иероглифов: пока пишешь, экран не загромождён
+    $("py-field").hidden = true;
+    check.disabled = true;
+    check.textContent = app.settings.pinyin ? "Проверить" : "Сначала напишите иероглифы";
+    renderSlots();
+    startChar();
+  } else if (skill === "tone") {
+    resetPyPick(w.id, w.ref, true);
+    $("py-field").hidden = false;
+    check.disabled = false;
+    check.textContent = "Проверить";
+  } else {
+    $("py-field").hidden = true;
+    check.disabled = false;
+    check.textContent = "Показать ответ";
+    check.focus({ preventScroll: true });
+  }
 }
 
 function renderSlots() {
@@ -98,8 +144,12 @@ function runQuiz() {
   if (!s?.writer) return;
   const i = s.ci, cur = s;
   s.writer.quiz({
+    onCorrectStroke: (d: { strokeNum: number; drawnPath: { points: P[] } }) => {
+      if (s === cur) cur.drawn[i][d.strokeNum] = d.drawnPath.points.map((p) => ({ x: p.x, y: p.y }));
+    },
     onMistake: () => {
       cur.miss[i]++;
+      if (app.settings.vibrate) try { navigator.vibrate?.(35); } catch { /* не все устройства умеют */ }
       const pad = $("pad");
       pad.classList.add("miss");
       setTimeout(() => pad.classList.remove("miss"), 280);
@@ -133,49 +183,107 @@ function reveal() {
   if (!s?.word || s.answered) return;
   s.answered = true;
   const w = s.word;
-  const mistakes = s.miss.reduce((a, b) => a + b, 0);
-  const gaveUp = s.gave.some(Boolean);
-  const hinted = s.hint.some(Boolean);
-  const typed = pyAnswer();
-  const shownAnswer = pyAnswerShown();
-  const py = app.settings.pinyin ? checkPinyin(typed, w.ref) : null;
-  const g = autoGrade({ chars: s.chars.length, mistakes, gaveUp, hinted, isNew: s.isNew, pinyin: py });
+  const skill = s.skill;
+  const chips: string[] = [];
+  let g: Grade = 3;
+  let per: boolean[] | undefined;
+  if (skill === "write") {
+    const mistakes = s.miss.reduce((a, b) => a + b, 0);
+    const gaveUp = s.gave.some(Boolean);
+    const hinted = s.hint.some(Boolean);
+    const typed = pyAnswer();
+    const py = app.settings.pinyin ? checkPinyin(typed, w.ref) : null;
+    g = autoGrade({ chars: s.chars.length, mistakes, gaveUp, hinted, isNew: s.isNew, pinyin: py });
+    if (gaveUp) chips.push(`<span class="chip no">Подсмотрено</span>`);
+    else if (mistakes === 0) chips.push(`<span class="chip ok">Черты без ошибок</span>`);
+    else chips.push(`<span class="chip ${mistakes > s.chars.length ? "no" : "mid"}">Ошибок в чертах: ${mistakes}</span>`);
+    if (hinted && !gaveUp && !s.isNew) chips.push(`<span class="chip mid">С контуром</span>`);
+    if (py) {
+      per = py.per;
+      chips.push(py.ok ? `<span class="chip ok">Пиньинь верно</span>`
+        : `<span class="chip no">Пиньинь: ${py.letters ? "тоны" : "ошибка"}${typed ? ` · вы: ${esc(pyAnswerShown())}` : ""}</span>`);
+    }
+    s.mistakes = mistakes;
+  } else if (skill === "tone") {
+    const py = checkPinyin(pyAnswer(), w.ref);
+    per = py.per;
+    const wrong = py.per.filter((x) => !x).length;
+    g = py.ok ? 3 : 1;
+    s.mistakes = wrong;
+    chips.push(py.ok ? `<span class="chip ok">Тоны верно</span>` : `<span class="chip no">Неверных тонов: ${wrong} · вы: ${esc(pyAnswerShown())}</span>`);
+  } else {
+    chips.push(`<span class="chip">Оцените себя: вспомнили?</span>`);
+  }
+  const lapses = lapsesOf(w);
+  if (lapses >= LEECH) chips.push(`<button class="chip mid leech" id="r-leech">Пиявка: забыто ${lapses} раз — добавить подсказку</button>`);
 
   $("ask").hidden = true;
   $("res").hidden = false;
+  // у чтения, тонов и значения ответ повторяет вопрос — вопрос прячем
+  document.querySelector<HTMLElement>("#session .prompt")!.hidden = skill !== "write";
+  $("pad").hidden = skill !== "write";
+  $("slots").hidden = skill !== "write";
   $("r-han").textContent = w.han;
-  $("r-py").innerHTML = pinyinHTML(w.ref, py?.per);
+  $("r-py").innerHTML = pinyinHTML(w.ref, per);
   $("r-ru").textContent = w.ru;
   showNote($("r-note"), w.id);
-  const chips: string[] = [];
-  if (gaveUp) chips.push(`<span class="chip no">Подсмотрено</span>`);
-  else if (mistakes === 0) chips.push(`<span class="chip ok">Черты без ошибок</span>`);
-  else chips.push(`<span class="chip ${mistakes > s.chars.length ? "no" : "mid"}">Ошибок в чертах: ${mistakes}</span>`);
-  if (hinted && !gaveUp && !s.isNew) chips.push(`<span class="chip mid">С контуром</span>`);
-  if (py) {
-    chips.push(py.ok ? `<span class="chip ok">Пиньинь верно</span>`
-      : `<span class="chip no">Пиньинь: ${py.letters ? "тоны" : "ошибка"}${typed ? ` · вы: ${esc(shownAnswer)}` : ""}</span>`);
-  }
   $("r-verdict").innerHTML = chips.join("");
+  document.getElementById("r-leech")?.addEventListener("click", () => s?.word && openWordEditor(s.word, refreshAfterEdit));
   const now = Date.now();
   $("grades").innerHTML = GRADE_NAMES.map((name, i) => {
     const gr = (i + 1) as Grade;
-    const gap = preview(w, gr, now).due - now;
+    const gap = preview(w, skill, gr, now).due - now;
     return `<button class="grade${gr === g ? " suggest" : ""}" data-g="${gr}">${name}<small>${formatGap(gap)}</small></button>`;
   }).join("");
-  s.mistakes = mistakes;
   if (app.settings.voice) say(w.han);
   ($("grades").querySelector(".suggest") as HTMLButtonElement | null)?.focus({ preventScroll: true });
+  $("r-hand").hidden = true;
+  $("r-hand").innerHTML = "";
+  if (skill === "write") showHand(s);
+}
+
+/** Оценка почерка: метка в ответе, по нажатию — свои черты рядом с образцом и повтор письма. */
+async function showHand(cur: Session) {
+  const word = cur.word;
+  const res = await handResult(cur.chars, cur.drawn);
+  if (s !== cur || cur.word !== word || !res) return;
+  const chip = document.createElement("button");
+  chip.className = `chip hand ${res.score >= 75 ? "ok" : res.score >= 55 ? "mid" : "no"}`;
+  chip.textContent = `Почерк: ${res.score} — ${beautyLabel(res.score)}`;
+  chip.setAttribute("aria-expanded", "false");
+  $("r-verdict").append(chip);
+  const box = $("r-hand");
+  box.innerHTML = res.html;
+  chip.addEventListener("click", () => {
+    box.hidden = !box.hidden;
+    chip.setAttribute("aria-expanded", String(!box.hidden));
+    if (!box.hidden) res.play(box);
+  });
+  box.querySelector("[data-hv-play]")?.addEventListener("click", () => res.play(box));
 }
 
 async function grade(g: Grade) {
   if (!s?.word || !s.answered || s.grading) return;
   const cur = s;
   cur.grading = true;
-  await answer(cur.word!, g, cur.mistakes);
+  const card: NextCard = { word: cur.word!, skill: cur.skill, fresh: cur.fresh };
+  const info = await answer(cur.word!, cur.skill, g, cur.mistakes, cur.fresh);
   if (s !== cur) return;
+  cur.undo = { info, card };
   cur.done++;
   nextQuestion();
+}
+
+/** Отменить последний ответ и показать ту карточку снова. */
+async function undo() {
+  if (!s?.undo || s.grading) return;
+  const cur = s, u = s.undo;
+  cur.undo = null;
+  cur.grading = true;
+  await undoAnswer(u.info);
+  if (s !== cur) return;
+  cur.done = Math.max(0, cur.done - 1);
+  nextQuestion(u.card);
 }
 
 export function showNote(el: HTMLElement, id: string) {
@@ -197,8 +305,8 @@ function refreshAfterEdit() {
 
 export function initSession() {
   $("r-edit").addEventListener("click", () => s?.word && openWordEditor(s.word, refreshAfterEdit));
-  $("quit").addEventListener("click", () => show("home"));
-  $("done-home").addEventListener("click", () => show("home"));
+  $("quit").addEventListener("click", () => show("deck"));
+  $("done-home").addEventListener("click", () => show("deck"));
   onLeave("session", endSession);
   $("b-hint").addEventListener("click", () => {
     if (!s?.writer || s.ci >= s.chars.length) return;
@@ -229,7 +337,10 @@ export function initSession() {
     if (b) grade(Number(b.dataset.g) as Grade);
   });
   $("r-say").addEventListener("click", () => s?.word && say(s.word.han));
+  $("undo").addEventListener("click", undo);
   document.addEventListener("keydown", (e) => {
+    // Ctrl+Z — отменить последний ответ, как в Anki
+    if (s && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !(e.target as HTMLElement).closest("input,textarea")) { e.preventDefault(); undo(); return; }
     // клавиши 1–4 ставят оценку, но не когда печатаешь в поле (например, в редакторе слова)
     const t = e.target as HTMLElement;
     if (!s?.answered || $("res").hidden || !$("sheet").hidden || t.closest("input,textarea,select")) return;

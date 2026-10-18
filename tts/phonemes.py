@@ -47,6 +47,19 @@ def third_tone_sandhi(tones):
     return t
 
 
+# Слог с нулевой начальной на a/o/e (爱 ài, 安 ān, 饿 è, 二 èr). В начале слова модель иногда «придумывает»
+# согласный (爱好 звучало как «лэй хао»), а в середине слога сливаются (西安 → «сянь»). Поэтому перед таким слогом
+# в начале ставим короткую паузу «,» (тишину потом срезает ffmpeg), в середине — границу слова « », как апостроф в пиньине.
+VOWEL_START = re.compile(r"^[aoe]")
+LEAD = ","
+GAP = " "
+
+
+def needs_fix(py: str) -> bool:
+    """Есть ли в слове слоги a/o/e без начальной — такие слова озвучиваются с паузой (вариант «z»)."""
+    return any(VOWEL_START.match(t) for t in py.split())
+
+
 def to_phonemes(py: str) -> str:
     syls = []
     for tok in py.split():
@@ -60,7 +73,9 @@ def to_phonemes(py: str) -> str:
         syls.append((m.group(1), int(m.group(2))))
     tones = third_tone_sandhi([t for _, t in syls])
     out = []
-    for (s, _), tone in zip(syls, tones):
+    for n, ((s, _), tone) in enumerate(zip(syls, tones)):
+        if VOWEL_START.match(s):
+            out.append(LEAD if n == 0 else GAP)
         erhua = s.endswith("r") and s != "er"
         if erhua:
             s = s[:-1]
@@ -75,5 +90,10 @@ def to_phonemes(py: str) -> str:
 
 
 if __name__ == "__main__":
+    assert to_phonemes("ai4 hao4") == ",ㄞ4ㄏㄠ4", to_phonemes("ai4 hao4")
+    assert to_phonemes("xi1 an1") == "ㄒㄧ1 ㄢ1", to_phonemes("xi1 an1")
+    assert to_phonemes("ni3 hao3") == "ㄋㄧ2ㄏㄠ3"
+    assert needs_fix("an1 quan2") and needs_fix("xi1 an1") and not needs_fix("you3 yi4 si5")
     for t in ["ni3 hao3", "xue2 xi2", "zhang3 da4", "liu4", "gui4", "lun2", "jue2 de5", "nv3 er2", "lve4", "shi4", "zi4", "nar3", "yu2", "yuan2", "wei4", "er4", "zhan3 lan3 guan3", "lv4 se4"]:
         print(t, "→", to_phonemes(t))
+    print("проверки пройдены")

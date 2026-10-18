@@ -26,10 +26,10 @@ export function inkColor(id = ink): string {
 }
 
 /** Выбор пера и чернил для всех полей письма (уже открытые перекрашиваются через recolor). */
-export function setPen(type: PenType, inkId: string, keep: boolean) {
+export function setPen(type: PenType, inkId: string, keep: boolean, size = 1) {
   ink = inkId;
   setKeepUserStrokes(keep);
-  setStrokePainter((points, width) => penShape(type, points, width));
+  setStrokePainter((points, width) => penShape(type, points, width, size));
 }
 
 export function themeColors() {

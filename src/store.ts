@@ -8,7 +8,7 @@
  * Схема версионируется: DB_VERSION + миграции в onupgradeneeded.
  */
 import type { Card, Grade } from "./core/fsrs.ts";
-import { isPen, type PenType } from "./core/pen.ts";
+import { isPen, clampSize, type PenType } from "./core/pen.ts";
 import type { ThemeChoice, CustomTheme } from "./theme.ts";
 import type { WordEdit } from "./core/edits.ts";
 
@@ -26,11 +26,22 @@ export type Settings = {
   ink: string;
   /** Оставлять свои верные черты вместо эталонных. */
   keepStrokes: boolean;
+  /** Толщина пера: множитель 0.5–1.6. */
+  penSize: number;
+  /** Короткая вибрация при неверной черте (если телефон умеет). */
+  vibrate: boolean;
+  /** Цель на день: сколько карточек пройти. */
+  dailyGoal: number;
+  /** Настройки отдельных колод (id → настройки). */
+  deckOpts: Record<string, DeckOpts>;
 };
-export type DayCounter = { day: string; newCount: number };
+/** Счётчик новых слов за день: всего и по колодам (у каждой колоды свой лимит, как в Anki). */
+export type DayCounter = { day: string; newCount: number; byDeck?: Record<string, number> };
+/** Настройки колоды поверх данных: своё название, скрыта из списка, свой лимит новых слов. */
+export type DeckOpts = { title?: string; hidden?: boolean; newPerDay?: number; skills?: string[] };
 export type Review = { id: string; at: number; grade: Grade; state: Card["state"]; mistakes: number };
 
-export const DEFAULT_SETTINGS: Settings = { newPerDay: 10, pinyin: true, voice: true, deck: "hsk3-1", theme: "auto", pen: "brush", ink: "auto", keepStrokes: true };
+export const DEFAULT_SETTINGS: Settings = { newPerDay: 10, pinyin: true, voice: true, deck: "hsk3-1", theme: "auto", pen: "brush", ink: "auto", keepStrokes: true, penSize: 1, vibrate: true, dailyGoal: 30, deckOpts: {} };
 const DB_NAME = "cherta";
 const DB_VERSION = 2;
 const EXPORT_FORMAT = "cherta-progress";
@@ -75,13 +86,30 @@ export async function allCards(): Promise<Map<string, Card>> {
   return new Map(list.map((c) => [c.id, c]));
 }
 
-export async function saveAnswer(card: Card, review: Review, day: DayCounter): Promise<void> {
+/** Сохранить ответ; возвращает ключ записи в журнале (для отмены). */
+export async function saveAnswer(card: Card, review: Review, day: DayCounter): Promise<IDBValidKey> {
   const db = await open();
   const tx = db.transaction(["cards", "reviews", "meta"], "readwrite");
   tx.objectStore("cards").put(card);
-  tx.objectStore("reviews").add(review);
+  const req = tx.objectStore("reviews").add(review);
   tx.objectStore("meta").put(day, "day");
   await txDone(tx);
+  return req.result;
+}
+
+/** Отменить ответ: вернуть карточку (или удалить новую), убрать запись из журнала, вернуть счётчик дня. */
+export async function undoAnswer(id: string, before: Card | undefined, reviewKey: IDBValidKey, day: DayCounter): Promise<void> {
+  const db = await open();
+  const tx = db.transaction(["cards", "reviews", "meta"], "readwrite");
+  if (before) tx.objectStore("cards").put(before); else tx.objectStore("cards").delete(id);
+  tx.objectStore("reviews").delete(reviewKey);
+  tx.objectStore("meta").put(day, "day");
+  await txDone(tx);
+}
+
+export async function allReviews(): Promise<Review[]> {
+  const db = await open();
+  return done(db.transaction("reviews").objectStore("reviews").getAll() as IDBRequest<Review[]>);
 }
 
 export async function getMeta<T>(key: string): Promise<T | undefined> {
@@ -98,6 +126,8 @@ export async function setMeta(key: string, value: unknown): Promise<void> {
 export async function loadSettings(): Promise<Settings> {
   const s: Settings = { ...DEFAULT_SETTINGS, ...((await getMeta<Partial<Settings>>("settings")) ?? {}) };
   if (!isPen(s.pen)) s.pen = DEFAULT_SETTINGS.pen;
+  s.penSize = clampSize(s.penSize);
+  if (!s.deckOpts || typeof s.deckOpts !== "object") s.deckOpts = {};
   return s;
 }
 
@@ -106,15 +136,16 @@ const ALL = ["cards", "reviews", "meta", "edits", "userDecks"] as const;
 export async function exportAll(): Promise<string> {
   const db = await open();
   const tx = db.transaction([...ALL]);
-  const [cards, reviews, settings, day, edits, userDecks] = await Promise.all([
+  const [cards, reviews, settings, day, ex, edits, userDecks] = await Promise.all([
     done(tx.objectStore("cards").getAll()),
     done(tx.objectStore("reviews").getAll()),
     done(tx.objectStore("meta").get("settings")),
     done(tx.objectStore("meta").get("day")),
+    done(tx.objectStore("meta").get("ex")),
     done(tx.objectStore("edits").getAll()),
     done(tx.objectStore("userDecks").getAll()),
   ]);
-  return JSON.stringify({ format: EXPORT_FORMAT, version: DB_VERSION, exportedAt: new Date().toISOString(), cards, reviews, settings, day, edits, userDecks });
+  return JSON.stringify({ format: EXPORT_FORMAT, version: DB_VERSION, exportedAt: new Date().toISOString(), cards, reviews, settings, day, ex, edits, userDecks });
 }
 
 export async function importAll(json: string): Promise<number> {
@@ -129,6 +160,7 @@ export async function importAll(json: string): Promise<number> {
   for (const d of data.userDecks ?? []) tx.objectStore("userDecks").put(d);
   if (data.settings) tx.objectStore("meta").put(data.settings, "settings");
   if (data.day) tx.objectStore("meta").put(data.day, "day");
+  if (data.ex) tx.objectStore("meta").put(data.ex, "ex");
   await txDone(tx);
   return data.cards.length;
 }

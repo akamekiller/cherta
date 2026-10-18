@@ -6,6 +6,10 @@ import { initHome } from "./ui/home.ts";
 import { initSession, sessionWriter } from "./ui/session.ts";
 import { initWords } from "./ui/words.ts";
 import { initEntry, entryWriter } from "./ui/entry.ts";
+import { initBook, bookWriter } from "./ui/book.ts";
+import { initStats } from "./ui/stats.ts";
+import { initExercise } from "./ui/exercise.ts";
+import { initTones } from "./ui/tones.ts";
 import { initSettings, penWriter } from "./ui/settings.ts";
 import { recolor, setPen } from "./ui/writer.ts";
 import { initSheet } from "./ui/sheet.ts";
@@ -20,6 +24,10 @@ async function boot() {
   initSession();
   initWords();
   initEntry();
+  initBook();
+  initStats();
+  initExercise();
+  initTones();
   initSettings();
   try {
     await init();
@@ -29,8 +37,8 @@ async function boot() {
     return;
   }
   setTheme(app.settings.theme, app.settings.custom ?? null);
-  setPen(app.settings.pen, app.settings.ink, app.settings.keepStrokes);
-  onThemeChange(() => recolor([sessionWriter(), entryWriter(), penWriter()]));
+  setPen(app.settings.pen, app.settings.ink, app.settings.keepStrokes, app.settings.penSize);
+  onThemeChange(() => recolor([sessionWriter(), entryWriter(), bookWriter(), penWriter()]));
   show("home");
   requestPersist();
   loadRecorded();

@@ -1,5 +1,5 @@
 /** «Слова»: список колоды с фильтрами и поиск — колода → другие колоды HSK → словарь 大БКРС. */
-import { words } from "../state.ts";
+import { words, isLeech, LEECH } from "../state.ts";
 import { searchDict } from "../core/dict.ts";
 import { searchEntries } from "../core/edits.ts";
 import type { Word } from "../core/deck.ts";
@@ -12,7 +12,7 @@ import { initHandwrite } from "./handwrite.ts";
 import { initVoice } from "./voice.ts";
 import { kind, status, itemHTML, otherWord, fromHit, hskList, loadHskList, dictNow, loadDict, type ViewMode } from "./lookup.ts";
 
-type Filter = "all" | "new" | "learn" | "review" | "hidden";
+type Filter = "all" | "new" | "learn" | "review" | "hidden" | "leech";
 type Sort = "deck" | "pinyin" | "due" | "hard";
 const LS = "cherta.words";
 const ui: { filter: Filter; sort: Sort; view: ViewMode } = { filter: "all", sort: "deck", view: "list" };
@@ -82,9 +82,9 @@ function drawMore() {
 }
 
 function renderControls(all: Word[]) {
-  const n: Record<Filter, number> = { all: all.length, new: 0, learn: 0, review: 0, hidden: 0 };
-  for (const w of all) n[kind(w)]++;
-  const names: [Filter, string][] = [["all", "Все"], ["new", "Новые"], ["learn", "Учу"], ["review", "Повторяю"], ["hidden", "Скрыто"]];
+  const n: Record<Filter, number> = { all: all.length, new: 0, learn: 0, review: 0, hidden: 0, leech: 0 };
+  for (const w of all) { n[kind(w)]++; if (isLeech(w)) n.leech++; }
+  const names: [Filter, string][] = [["all", "Все"], ["new", "Новые"], ["learn", "Учу"], ["review", "Повторяю"], ["leech", "Пиявки"], ["hidden", "Скрыто"]];
   $("w-filters").innerHTML = names.filter(([f]) => f === "all" || n[f] || f === ui.filter)
     .map(([f, t]) => `<button class="chip-btn" data-filter="${f}" aria-pressed="${ui.filter === f}">${t}<b>${n[f]}</b></button>`).join("");
   $<HTMLSelectElement>("w-sort").value = ui.sort;
@@ -159,9 +159,10 @@ function renderList() {
   if (q) { pending = []; renderSearch(q); return; }
   const all = words();
   renderControls(all);
-  const list = ui.filter === "all" ? all : all.filter((w) => kind(w) === ui.filter);
+  const list = ui.filter === "all" ? all : ui.filter === "leech" ? all.filter(isLeech) : all.filter((w) => kind(w) === ui.filter);
   pending = groupWords(list).map((g) => ({ ...g, items: [...g.items], started: false }));
   if (!list.length) $("w-groups").innerHTML = `<p class="empty">${ui.filter === "all" ? "В колоде нет слов." : "Таких слов пока нет."}</p>`;
+  else if (ui.filter === "leech") $("w-groups").insertAdjacentHTML("afterbegin", `<p class="hint">Пиявки — слова, которые забыты ${LEECH} и больше раз. Помогает заметка-мнемоника: откройте слово → «Изменить».</p>`);
   drawMore();
 }
 

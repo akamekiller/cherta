@@ -5,7 +5,7 @@ import { $, esc, plural } from "./dom.ts";
 import { setTheme, type ThemeChoice } from "../theme.ts";
 import { renderThemeChoices, openThemeEditor } from "./themeEditor.ts";
 import { onShow, onLeave } from "./nav.ts";
-import { PENS, isPen } from "../core/pen.ts";
+import { PENS, isPen, clampSize } from "../core/pen.ts";
 import { INKS, inkColor, setPen, createWriter, recolor, type Writer } from "./writer.ts";
 import { sessionWriter } from "./session.ts";
 import { entryWriter } from "./entry.ts";
@@ -17,6 +17,8 @@ function renderPens() {
   const { pen, ink } = app.settings;
   $("pens").innerHTML = PENS.map((p) => `<button class="chip-btn" data-pen="${p.id}" aria-pressed="${p.id === pen}">${p.name}</button>`).join("");
   $<HTMLInputElement>("s-keep").checked = app.settings.keepStrokes;
+  $<HTMLInputElement>("pen-size").value = String(app.settings.penSize);
+  $("pen-size-val").textContent = `${Math.round(app.settings.penSize * 100)}%`;
   $("pen-hint").textContent = PENS.find((p) => p.id === pen)?.hint ?? "";
   const own = !INKS.some((i) => i.id === ink);
   $("inks").innerHTML = INKS.map((i) =>
@@ -32,12 +34,13 @@ function startTry() {
   w.quiz({ onComplete: () => setTimeout(() => { if (tryWriter === w) startTry(); }, 1600) });
 }
 
-async function choosePen(patch: { pen?: string; ink?: string; keep?: boolean }) {
+async function choosePen(patch: { pen?: string; ink?: string; keep?: boolean; size?: number }) {
   const pen = isPen(patch.pen) ? patch.pen : app.settings.pen;
   const ink = patch.ink ?? app.settings.ink;
   const keepStrokes = patch.keep ?? app.settings.keepStrokes;
-  await updateSettings({ pen, ink, keepStrokes });
-  setPen(pen, ink, keepStrokes);
+  const penSize = clampSize(patch.size ?? app.settings.penSize);
+  await updateSettings({ pen, ink, keepStrokes, penSize });
+  setPen(pen, ink, keepStrokes, penSize);
   recolor([sessionWriter(), entryWriter(), tryWriter]);
   renderPens();
 }
@@ -64,6 +67,7 @@ function render() {
   $("n-val").textContent = String(app.settings.newPerDay);
   $<HTMLInputElement>("s-py").checked = app.settings.pinyin;
   $<HTMLInputElement>("s-voice").checked = app.settings.voice;
+  $<HTMLInputElement>("s-vibrate").checked = app.settings.vibrate;
   $("voice-info").textContent = voiceStatus();
   $("progress-info").textContent = `Начато слов: ${app.cards.size}. Прогресс хранится в этом браузере на этом устройстве.`;
 }
@@ -98,6 +102,9 @@ export function initSettings() {
     if (el.id === "ink-own") choosePen({ ink: el.value.toUpperCase() });
   });
   $("pen-again").addEventListener("click", startTry);
+  // толщина: показываем сразу, сохраняем и перерисовываем пробное поле, когда отпустили ползунок
+  $("pen-size").addEventListener("input", (e) => { $("pen-size-val").textContent = `${Math.round(Number((e.target as HTMLInputElement).value) * 100)}%`; });
+  $("pen-size").addEventListener("change", (e) => { choosePen({ size: Number((e.target as HTMLInputElement).value) }).then(startTry); });
   $("s-keep").addEventListener("change", (e) => { choosePen({ keep: (e.target as HTMLInputElement).checked }).then(startTry); });
   $("edits-list").addEventListener("click", async (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-revert]");
@@ -119,6 +126,11 @@ export function initSettings() {
   $("n-plus").addEventListener("click", async () => { await updateSettings({ newPerDay: Math.min(50, app.settings.newPerDay + 5) }); render(); });
   $("s-py").addEventListener("change", (e) => updateSettings({ pinyin: (e.target as HTMLInputElement).checked }));
   $("s-voice").addEventListener("change", (e) => updateSettings({ voice: (e.target as HTMLInputElement).checked }));
+  $("s-vibrate").addEventListener("change", (e) => {
+    const on = (e.target as HTMLInputElement).checked;
+    updateSettings({ vibrate: on });
+    if (on) try { navigator.vibrate?.(35); } catch { /* */ }
+  });
   $("s-test").addEventListener("click", () => say("你好"));
 
   $("export").addEventListener("click", async () => {
@@ -143,7 +155,7 @@ export function initSettings() {
         const n = await store.importAll(text);
         await reloadAll();
         setTheme(app.settings.theme, app.settings.custom ?? null);
-        setPen(app.settings.pen, app.settings.ink, app.settings.keepStrokes);
+        setPen(app.settings.pen, app.settings.ink, app.settings.keepStrokes, app.settings.penSize);
         render();
         note(`Загружено карточек: ${n}.`);
       } catch (err) {

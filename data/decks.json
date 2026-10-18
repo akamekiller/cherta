@@ -4,41 +4,103 @@
     "title": "HSK 1",
     "subtitle": "Новый HSK 3.0, уровень 1",
     "lang": "zh",
-    "file": "hsk3-1.tsv"
+    "file": "hsk3-1.tsv",
+    "group": "HSK 3.0"
   },
   {
     "id": "hsk3-2",
     "title": "HSK 2",
     "subtitle": "Новый HSK 3.0, уровень 2",
     "lang": "zh",
-    "file": "hsk3-2.tsv"
+    "file": "hsk3-2.tsv",
+    "group": "HSK 3.0"
   },
   {
     "id": "hsk3-3",
     "title": "HSK 3",
     "subtitle": "Новый HSK 3.0, уровень 3",
     "lang": "zh",
-    "file": "hsk3-3.tsv"
+    "file": "hsk3-3.tsv",
+    "group": "HSK 3.0"
   },
   {
     "id": "hsk3-4",
     "title": "HSK 4",
     "subtitle": "Новый HSK 3.0, уровень 4",
     "lang": "zh",
-    "file": "hsk3-4.tsv"
+    "file": "hsk3-4.tsv",
+    "group": "HSK 3.0"
   },
   {
     "id": "hsk3-5",
     "title": "HSK 5",
     "subtitle": "Новый HSK 3.0, уровень 5",
     "lang": "zh",
-    "file": "hsk3-5.tsv"
+    "file": "hsk3-5.tsv",
+    "group": "HSK 3.0"
   },
   {
     "id": "hsk3-6",
     "title": "HSK 6",
     "subtitle": "Новый HSK 3.0, уровень 6",
     "lang": "zh",
-    "file": "hsk3-6.tsv"
+    "file": "hsk3-6.tsv",
+    "group": "HSK 3.0"
+  },
+  {
+    "id": "radicals",
+    "title": "Ключи",
+    "subtitle": "Главные ключи (радикалы) и их формы — после них иероглифы запоминаются легче",
+    "lang": "zh",
+    "file": "radicals.tsv",
+    "group": "Основа"
+  },
+  {
+    "id": "life-uni",
+    "title": "Университет",
+    "subtitle": "Жизнь в Китае",
+    "lang": "zh",
+    "file": "life-uni.tsv",
+    "group": "Жизнь в Китае"
+  },
+  {
+    "id": "life-dorm",
+    "title": "Общежитие",
+    "subtitle": "Жизнь в Китае",
+    "lang": "zh",
+    "file": "life-dorm.tsv",
+    "group": "Жизнь в Китае"
+  },
+  {
+    "id": "life-bank",
+    "title": "Банк и деньги",
+    "subtitle": "Жизнь в Китае",
+    "lang": "zh",
+    "file": "life-bank.tsv",
+    "group": "Жизнь в Китае"
+  },
+  {
+    "id": "life-transport",
+    "title": "Транспорт",
+    "subtitle": "Жизнь в Китае",
+    "lang": "zh",
+    "file": "life-transport.tsv",
+    "group": "Жизнь в Китае"
+  },
+  {
+    "id": "life-shop",
+    "title": "Магазин и рынок",
+    "subtitle": "Жизнь в Китае",
+    "lang": "zh",
+    "file": "life-shop.tsv",
+    "group": "Жизнь в Китае"
+  },
+  {
+    "id": "life-doctor",
+    "title": "Врач и аптека",
+    "subtitle": "Жизнь в Китае",
+    "lang": "zh",
+    "file": "life-doctor.tsv",
+    "group": "Жизнь в Китае"
   }
 ]

@@ -10,6 +10,7 @@ import { preload } from "../strokes.ts";
 import { $, esc, pinyinHTML, plural } from "./dom.ts";
 import { createWriter, type Writer } from "./writer.ts";
 import { show, onLeave } from "./nav.ts";
+import { initPyPick, resetPyPick, pyAnswer, pyAnswerShown } from "./pypick.ts";
 
 type Session = {
   word: Word | null;
@@ -63,9 +64,10 @@ function nextQuestion() {
   $("q-meta").textContent = `${s.isNew ? "Новое слово · " : ""}${chars.length} ${plural(chars.length, "иероглиф", "иероглифа", "иероглифов")}`;
   $("ask").hidden = false;
   $("res").hidden = true;
-  const py = $<HTMLInputElement>("py-in");
-  py.value = "";
-  $("py-field").hidden = !app.settings.pinyin;
+  resetPyPick(w.id, w.ref);
+  // пиньинь — после иероглифов: пока пишешь, экран не загромождён
+  $("py-field").hidden = true;
+  $("ask").querySelector<HTMLElement>(".tools")!.hidden = false;
   const check = $<HTMLButtonElement>("b-check");
   check.disabled = true;
   check.textContent = app.settings.pinyin ? "Проверить" : "Сначала напишите иероглифы";
@@ -120,8 +122,11 @@ function charsDone() {
   const check = $<HTMLButtonElement>("b-check");
   check.disabled = false;
   check.textContent = "Проверить";
+  $("ask").querySelector<HTMLElement>(".tools")!.hidden = true;
+  $("py-field").hidden = false;
+  $("b-check").scrollIntoView({ behavior: "smooth", block: "end" });
   const py = $<HTMLInputElement>("py-in");
-  if (!py.value) py.focus({ preventScroll: true });
+  if (!py.hidden && !py.value) py.focus({ preventScroll: true });
 }
 
 function reveal() {
@@ -131,7 +136,8 @@ function reveal() {
   const mistakes = s.miss.reduce((a, b) => a + b, 0);
   const gaveUp = s.gave.some(Boolean);
   const hinted = s.hint.some(Boolean);
-  const typed = $<HTMLInputElement>("py-in").value.trim();
+  const typed = pyAnswer();
+  const shownAnswer = pyAnswerShown();
   const py = app.settings.pinyin ? checkPinyin(typed, w.ref) : null;
   const g = autoGrade({ chars: s.chars.length, mistakes, gaveUp, hinted, isNew: s.isNew, pinyin: py });
 
@@ -148,7 +154,7 @@ function reveal() {
   if (hinted && !gaveUp && !s.isNew) chips.push(`<span class="chip mid">С контуром</span>`);
   if (py) {
     chips.push(py.ok ? `<span class="chip ok">Пиньинь верно</span>`
-      : `<span class="chip no">Пиньинь: ${py.letters ? "тоны" : "ошибка"}${typed ? ` · вы: ${esc(typed)}` : ""}</span>`);
+      : `<span class="chip no">Пиньинь: ${py.letters ? "тоны" : "ошибка"}${typed ? ` · вы: ${esc(shownAnswer)}` : ""}</span>`);
   }
   $("r-verdict").innerHTML = chips.join("");
   const now = Date.now();
@@ -213,6 +219,7 @@ export function initSession() {
       }, 400),
     });
   });
+  initPyPick(() => {});
   $("py-in").addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !$<HTMLButtonElement>("b-check").disabled) { e.preventDefault(); reveal(); }
   });

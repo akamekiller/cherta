@@ -123,3 +123,34 @@ export function searchKey(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/u\u0308/g, "v").replace(/[\u0300-\u036f]/g, "")
     .replace(/u:/g, "v").replace(/[\s\d']/g, "");
 }
+
+const FINALS = "a o e ai ei ao ou an en ang eng er".split(" ");
+/** Все слоги пиньиня (без тонов, ü = v), плюс m, n, ng, hm, hng и r для эризации. */
+export const SYLLABLES = new Set<string>([
+  ...FINALS,
+  ..."yi ya yo ye yai yao you yan yin yang ying yong wu wa wo wai wei wan wen wang weng yu yue yuan yun".split(" "),
+  ...[
+    ["b", "a o ai ei ao an en ang eng i ie iao ian in ing u"],
+    ["p", "a o ai ei ao ou an en ang eng i ie iao ian in ing u"],
+    ["m", "a o e ai ei ao ou an en ang eng i ie iao iu ian in ing u"],
+    ["f", "a o ei ou an en ang eng u"],
+    ["d", "a e ai ei ao ou an en ang eng ong i ia ie iao iu ian ing u uo ui uan un"],
+    ["t", "a e ai ei ao ou an ang eng ong i ie iao ian ing u uo ui uan un"],
+    ["n", "a e ai ei ao ou an en ang eng ong i ie iao iu ian in iang ing u uo uan v ve"],
+    ["l", "a o e ai ei ao ou an ang eng ong i ia ie iao iu ian in iang ing u uo uan un v ve"],
+    ["g", "a e ai ei ao ou an en ang eng ong u ua uo uai ui uan un uang"],
+    ["k", "a e ai ei ao ou an en ang eng ong u ua uo uai ui uan un uang"],
+    ["h", "a e ai ei ao ou an en ang eng ong u ua uo uai ui uan un uang"],
+    ["j", "i ia ie iao iu ian in iang ing iong u ue uan un"],
+    ["q", "i ia ie iao iu ian in iang ing iong u ue uan un"],
+    ["x", "i ia ie iao iu ian in iang ing iong u ue uan un"],
+    ["zh", "a e i ai ei ao ou an en ang eng ong u ua uo uai ui uan un uang"],
+    ["ch", "a e i ai ao ou an en ang eng ong u ua uo uai ui uan un uang"],
+    ["sh", "a e i ai ei ao ou an en ang eng u ua uo uai ui uan un uang"],
+    ["r", "e i ao ou an en ang eng ong u ua uo ui uan un"],
+    ["z", "a e i ai ei ao ou an en ang eng ong u uo ui uan un"],
+    ["c", "a e i ai ao ou an en ang eng ong u uo ui uan un"],
+    ["s", "a e i ai ao ou an en ang eng ong u uo ui uan un"],
+  ].flatMap(([ini, fins]) => fins.split(" ").map((f) => ini + f)),
+  "m", "n", "ng", "hm", "hng", "r",
+]);

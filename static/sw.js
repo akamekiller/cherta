@@ -1,5 +1,7 @@
 // Service worker «Черты»: офлайн-работа.
-// Оболочка приложения кэшируется при установке; данные черт и шрифты — при первом запросе.
+// Оболочка приложения кэшируется при установке; данные черт, словаря и шрифты — при первом запросе.
+// Файлы словаря (репозиторий cherta-dict) запрашиваются с ?v=<версия из meta.json>: после пересборки адрес новый,
+// а старые версии того же файла удаляются из кэша.
 const VERSION = "__VERSION__";
 const SHELL = `cherta-shell-${VERSION}`;
 const DATA = "cherta-data-v1";
@@ -20,14 +22,19 @@ self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
-  const isData = url.pathname.includes("/data/strokes/") || (url.pathname.includes("/audio/") && url.pathname.endsWith(".mp3")) || url.hostname.endsWith("gstatic.com") || url.hostname.endsWith("googleapis.com");
+  const isDict = /\/(cherta-)?dict\//.test(url.pathname) && url.searchParams.has("v");
+  const versioned = isDict || (url.pathname.endsWith("/data/hw.txt") && url.searchParams.has("v"));
+  const isData = versioned || url.pathname.includes("/data/strokes/") || (url.pathname.includes("/audio/") && url.pathname.endsWith(".mp3")) || url.hostname.endsWith("gstatic.com") || url.hostname.endsWith("googleapis.com");
   if (isData) {
     // данные не меняются: сначала кэш, потом сеть
     e.respondWith(caches.open(DATA).then(async (c) => {
       const hit = await c.match(req);
       if (hit) return hit;
       const res = await fetch(req);
-      if (res.ok || res.type === "opaque") await c.put(req, res.clone());
+      if (res.ok || res.type === "opaque") {
+        if (versioned) for (const old of await c.keys(req, { ignoreSearch: true })) if (old.url !== req.url) await c.delete(old);
+        await c.put(req, res.clone());
+      }
       return res;
     }));
     return;

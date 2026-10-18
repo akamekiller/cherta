@@ -1,51 +1,23 @@
-/** Список слов колоды, поиск и карточка слова с порядком черт. */
-import { cardOf, words, isHidden, hskEntries } from "../state.ts";
-import { searchEntries, type DictEntry } from "../core/edits.ts";
-import { loadDeck } from "../core/deck.ts";
-import { openWordEditor, openAddToDeck } from "./editor.ts";
-import { showNote } from "./session.ts";
+/** «Слова»: список колоды с фильтрами и поиск — колода → другие колоды HSK → словарь 大БКРС. */
+import { words } from "../state.ts";
+import { searchDict } from "../core/dict.ts";
+import { searchEntries } from "../core/edits.ts";
 import type { Word } from "../core/deck.ts";
-import { formatGap, DAY } from "../core/fsrs.ts";
-import { say } from "../speech.ts";
-import { $, esc, pinyinHTML } from "./dom.ts";
-import { createWriter, type Writer } from "./writer.ts";
-import { onShow, onLeave, show } from "./nav.ts";
-
-let detailWord: Word | null = null;
-let detailWriter: Writer | null = null;
-export const wordsWriter = () => detailWriter;
+import { DAY } from "../core/fsrs.ts";
+import { cardOf } from "../state.ts";
+import { $, esc } from "./dom.ts";
+import { onShow } from "./nav.ts";
+import { openEntry } from "./entry.ts";
+import { initHandwrite } from "./handwrite.ts";
+import { initVoice } from "./voice.ts";
+import { kind, status, itemHTML, otherWord, fromHit, hskList, loadHskList, dictNow, loadDict, type ViewMode } from "./lookup.ts";
 
 type Filter = "all" | "new" | "learn" | "review" | "hidden";
 type Sort = "deck" | "pinyin" | "due" | "hard";
-type ViewMode = "list" | "grid";
 const LS = "cherta.words";
 const ui: { filter: Filter; sort: Sort; view: ViewMode } = { filter: "all", sort: "deck", view: "list" };
 try { Object.assign(ui, JSON.parse(localStorage.getItem(LS) ?? "{}")); } catch { /* приватный режим */ }
 const saveUi = () => { try { localStorage.setItem(LS, JSON.stringify(ui)); } catch { /* */ } };
-
-function kind(w: Word): Exclude<Filter, "all"> {
-  if (isHidden(w)) return "hidden";
-  const c = cardOf(w);
-  if (!c) return "new";
-  return c.state === "review" ? "review" : "learn";
-}
-
-function status(w: Word): [string, string] {
-  const k = kind(w);
-  if (k === "hidden") return ["скрыто", "hid"];
-  if (k === "new") return ["новое", ""];
-  if (k === "learn") return ["учу", "learn"];
-  const c = cardOf(w)!;
-  return [formatGap(Math.max(DAY, c.due - c.last)), "rev"];
-}
-
-let hsk: DictEntry[] = [];
-type OtherWord = Word & { level: string };
-let others: OtherWord[] = []; // найденные слова из других колод — для открытия карточки
-
-const itemHTML = (w: Word, st: string, cls: string) => ui.view === "grid"
-  ? `<button class="tile ${cls}" data-id="${esc(w.id)}" title="${esc(w.ru)}"><span class="h">${esc(w.han)}</span><span class="py">${pinyinHTML(w.ref)}</span><span class="ru">${esc(w.ru)}</span></button>`
-  : `<button class="item" data-id="${esc(w.id)}"><span class="h">${esc(w.han)}</span><span class="txt"><span class="py">${pinyinHTML(w.ref)}</span><span class="ru">${esc(w.ru)}</span></span><span class="status ${cls}">${st}</span></button>`;
 
 type Group = { title: string; items: Word[] };
 type PendingGroup = Group & { started: boolean };
@@ -102,7 +74,7 @@ function drawMore() {
     html += `<div class="grp ${ui.view}">`;
     const part = g.items.splice(0, budget);
     budget -= part.length;
-    html += part.map((w) => { const [st, cls] = status(w); return itemHTML(w, st, cls); }).join("") + `</div>`;
+    html += part.map((w) => { const [st, cls] = status(w); return itemHTML(w, st, cls, ui.view); }).join("") + `</div>`;
     if (!g.items.length) pending.shift();
   }
   box.insertAdjacentHTML("beforeend", html);
@@ -119,24 +91,72 @@ function renderControls(all: Word[]) {
   document.querySelectorAll<HTMLButtonElement>("[data-view-mode]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.viewMode === ui.view)));
 }
 
-function renderList() {
-  const q = $<HTMLInputElement>("w-search").value.trim();
-  $("w-controls").hidden = !!q;
-  $("w-groups").innerHTML = "";
-  if (q) {
-    const byHan = new Map(words().map((w) => [w.han, w]));
-    const list = searchEntries(words().map((w) => ({ han: w.han, py: w.py, ru: w.ru })), q, 500).map((e) => byHan.get(e.han)!);
-    others = searchEntries(hsk.filter((e) => !byHan.has(e.han)), q, 30).map((e) => ({
-      ...loadDeck({ id: "x", title: "", lang: "zh", words: [[e.han, e.py, e.ru]] }).words[0], level: e.level ?? "",
-    }));
-    pending = [];
-    $("w-groups").innerHTML = `<h3 class="grp-title"><span>В этой колоде</span><span class="grp-n">${list.length}</span></h3>`
-      + (list.length ? `<div class="grp ${ui.view}">${list.map((w) => { const [st, cls] = status(w); return itemHTML(w, st, cls); }).join("")}</div>` : `<p class="empty">Не нашлось.</p>`)
-      + (others.length ? `<h3 class="grp-title"><span>В других колодах</span><span class="grp-n">${others.length}</span></h3><div class="grp ${ui.view}">${others.map((w) => itemHTML(w, w.level, "other")).join("")}</div>` : "")
-      + (!list.length && !others.length ? `<p class="empty">Ищите по иероглифу, пиньиню без тонов или по-русски.</p>` : "");
-    $("w-more").hidden = true;
+/* ---------- поиск ---------- */
+
+/** Сколько показывать в разделе, пока его не раскрыли. */
+const SHOW = { deck: 5, hsk: 5, dict: 12 };
+const DICT_MAX = 300;
+let expanded = new Set<string>();
+let lastQuery = "";
+let dictTimer = 0;
+
+const searchInput = () => $<HTMLInputElement>("w-search");
+
+function section(id: string, title: string, items: [Word, string, string][], total: number, empty?: string): string {
+  if (!items.length && !empty) return "";
+  const open = expanded.has(id);
+  const limit = open ? items.length : SHOW[id as keyof typeof SHOW];
+  const shown = items.slice(0, limit);
+  const n = total > items.length ? `${items.length}+` : String(items.length);
+  return `<section class="res" data-sec="${id}"><h3 class="grp-title"><span>${esc(title)}</span><span class="grp-n">${items.length ? n : ""}</span></h3>`
+    + (shown.length ? `<div class="grp ${ui.view}">${shown.map(([w, st, cls]) => itemHTML(w, st, cls, ui.view)).join("")}</div>` : `<p class="empty">${empty}</p>`)
+    + (items.length > shown.length ? `<button class="btn small ghost more-btn" data-expand="${id}">Показать все ${n}</button>` : "")
+    + `</section>`;
+}
+
+function renderSearch(q: string) {
+  if (q !== lastQuery) { expanded = new Set(); lastQuery = q; }
+  const deck = words();
+  const byHan = new Map(deck.map((w) => [w.han, w]));
+  const inDeck = searchEntries(deck.map((w) => ({ han: w.han, py: w.py, ru: w.ru })), q, 500)
+    .map((e) => byHan.get(e.han)!).map((w): [Word, string, string] => [w, ...status(w)]);
+  const hskFound = searchEntries(hskList().filter((e) => !byHan.has(e.han)), q, 60)
+    .map((e) => otherWord(e.han, e.py, e.ru, e.level)).map((w): [Word, string, string] => [w, w.level ?? "", "other"]);
+  $("w-groups").innerHTML = section("deck", "В этой колоде", inDeck, inDeck.length, "Не нашлось.")
+    + section("hsk", "В других колодах", hskFound, hskFound.length)
+    + `<div id="w-dict"></div>`;
+  $("w-more").hidden = true;
+  renderDictSection(q, new Set([...byHan.keys(), ...hskFound.map(([w]) => w.han)]));
+}
+
+/* Словарь: индекс грузится при первом поиске, раздел дорисовывается ниже. */
+function renderDictSection(q: string, skip: Set<string>) {
+  const box = document.getElementById("w-dict");
+  if (!box) return;
+  const dict = dictNow();
+  if (!dict) {
+    box.innerHTML = `<h3 class="grp-title"><span>В словаре</span></h3><p class="empty">Загружаю словарь…</p>`;
+    loadDict().then(() => { if (searchInput().value.trim() === q) renderDictSection(q, skip); })
+      .catch(() => { box.innerHTML = `<h3 class="grp-title"><span>В словаре</span></h3><p class="empty">Словарь не загрузился. Для первого поиска нужен интернет.</p>`; });
     return;
   }
+  clearTimeout(dictTimer);
+  dictTimer = window.setTimeout(() => {
+    if (searchInput().value.trim() !== q) return;
+    const hits = searchDict(dict, q, DICT_MAX + 1, skip);
+    const items = hits.slice(0, DICT_MAX).map(fromHit).map((w): [Word, string, string] => {
+      const own = cardOf(w);
+      return own ? [w, ...status(w)] : [w, "", "other"];
+    });
+    box.innerHTML = section("dict", "В словаре", items, hits.length, "Не нашлось. Ищите по иероглифу, пиньиню без тонов или по-русски.");
+  }, 100);
+}
+
+function renderList() {
+  const q = searchInput().value.trim();
+  $("w-controls").hidden = !!q;
+  $("w-groups").innerHTML = "";
+  if (q) { pending = []; renderSearch(q); return; }
   const all = words();
   renderControls(all);
   const list = ui.filter === "all" ? all : all.filter((w) => kind(w) === ui.filter);
@@ -145,37 +165,21 @@ function renderList() {
   drawMore();
 }
 
-function openDetail(id: string) {
-  const w = words().find((x) => x.id === id) ?? others.find((x) => x.id === id);
-  if (!w) return;
-  detailWord = w;
-  show("detail");
-  $("d-han").textContent = w.han;
-  $("d-py").innerHTML = pinyinHTML(w.ref);
-  $("d-ru").textContent = w.ru;
-  showNote($("d-note"), w.id);
-  const chars = [...w.han];
-  $("d-chars").innerHTML = chars.length > 1
-    ? chars.map((c, i) => `<button data-c="${esc(c)}" aria-pressed="${i === 0}">${esc(c)}</button>`).join("") : "";
-  const c = cardOf(w);
-  $("d-state").textContent = isHidden(w) ? "Слово скрыто из занятий." : !c ? "Слово ещё не изучалось."
-    : c.state !== "review" ? "Слово на этапе заучивания."
-    : `Следующее повторение через ${formatGap(Math.max(0, c.due - Date.now()))}.`;
-  showChar(chars[0]);
-}
-
-function showChar(ch: string) {
-  try { detailWriter?.cancelQuiz(); } catch { /* */ }
-  detailWriter = createWriter($("d-hw"), ch, { showCharacter: true, showOutline: true });
+/** Подставить текст в поиск (рукописный и голосовой ввод). */
+export function setSearch(text: string, append = false) {
+  const el = searchInput();
+  el.value = append ? el.value + text : text;
+  renderList();
 }
 
 export function initWords() {
   onShow("words", () => {
     renderList();
-    if (!hsk.length) hskEntries().then((e) => { hsk = e; if ($<HTMLInputElement>("w-search").value.trim()) renderList(); });
+    loadHskList().then(() => { if (searchInput().value.trim()) renderList(); });
   });
-  onLeave("detail", () => { try { detailWriter?.cancelQuiz(); } catch { /* */ } });
-  $("w-search").addEventListener("input", renderList);
+  searchInput().addEventListener("input", renderList);
+  initHandwrite((ch) => setSearch(ch, true));
+  initVoice((text) => setSearch(text));
   $("w-filters").addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-filter]");
     if (!b) return;
@@ -191,32 +195,15 @@ export function initWords() {
     observer.observe($("w-more"));
   }
   $("w-groups").addEventListener("click", (e) => {
-    const b = (e.target as HTMLElement).closest<HTMLButtonElement>(".item,.tile");
-    if (b?.dataset.id) openDetail(b.dataset.id);
-  });
-  $("d-chars").addEventListener("click", (e) => {
-    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button");
-    if (!b?.dataset.c) return;
-    $("d-chars").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
-    showChar(b.dataset.c);
-  });
-  $("d-anim").addEventListener("click", () => {
-    if (!detailWriter) return;
-    try { detailWriter.cancelQuiz(); } catch { /* */ }
-    detailWriter.showOutline();
-    detailWriter.animateCharacter();
-  });
-  $("d-try").addEventListener("click", () => {
-    if (!detailWriter) return;
-    detailWriter.hideCharacter();
-    detailWriter.showOutline();
-    detailWriter.quiz();
-  });
-  $("d-say").addEventListener("click", () => detailWord && say(detailWord.han));
-  $("d-back").addEventListener("click", () => show("words"));
-  $("d-todeck").addEventListener("click", () => detailWord && openAddToDeck(detailWord));
-  $("d-edit").addEventListener("click", () => {
-    if (!detailWord) return;
-    openWordEditor(detailWord, () => detailWord && openDetail(detailWord.id));
+    const t = e.target as HTMLElement;
+    const ex = t.closest<HTMLButtonElement>("[data-expand]");
+    if (ex) {
+      expanded.add(ex.dataset.expand!);
+      const q = searchInput().value.trim();
+      renderSearch(q);
+      return;
+    }
+    const b = t.closest<HTMLButtonElement>(".item,.tile");
+    if (b?.dataset.id) openEntry(b.dataset.id, true);
   });
 }

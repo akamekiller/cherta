@@ -7,19 +7,22 @@ import { networkInterfaces } from "node:os";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "site");
+const dictRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "dict");
 const PORT = Number(process.env.PORT) || 5173;
 const TYPES = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
   ".json": "application/json; charset=utf-8", ".webmanifest": "application/manifest+json", ".svg": "image/svg+xml",
-  ".png": "image/png", ".ico": "image/x-icon",
+  ".png": "image/png", ".tsv": "text/tab-separated-values; charset=utf-8", ".mp3": "audio/mpeg", ".ico": "image/x-icon",
 };
 
 createServer(async (req, res) => {
   try {
     let path = decodeURIComponent(new URL(req.url, "http://x").pathname);
     path = normalize(path).replace(/^([/\\])+/, "");
-    let file = join(root, path);
-    if (!file.startsWith(root)) { res.writeHead(403).end(); return; }
+    // dict/ — данные словаря из папки проекта (на сайте они в отдельном репозитории cherta-dict)
+    const base = /^dict([\\/]|$)/.test(path) ? dictRoot : root;
+    let file = join(base, path.replace(/^dict([\\/]|$)/, ""));
+    if (!file.startsWith(base)) { res.writeHead(403).end(); return; }
     if ((await stat(file).catch(() => null))?.isDirectory()) file = join(file, "index.html");
     const body = await readFile(file);
     res.writeHead(200, { "Content-Type": TYPES[extname(file)] ?? "application/octet-stream", "Cache-Control": "no-cache" });

@@ -3,6 +3,7 @@
 import { build } from "esbuild";
 import { readFileSync, writeFileSync, mkdirSync, cpSync, readdirSync, rmSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -14,8 +15,12 @@ const VERSION = `${pkg.version}-${Date.now().toString(36)}`;
 mkdirSync(out, { recursive: true });
 for (const f of readdirSync(out)) if (!["data", "audio"].includes(f)) rmSync(join(out, f), { recursive: true, force: true });
 
-// 2. Код
+// 2. Код. Версия данных рукописного ввода — по содержимому файла (в адресе ?v=, чтобы офлайн-кэш обновлялся)
+const hwFile = join(out, "data/hw.txt");
+const HW_VERSION = existsSync(hwFile) ? createHash("sha1").update(readFileSync(hwFile)).digest("hex").slice(0, 10) : "0";
+if (!existsSync(hwFile)) console.warn("! Нет site/data/hw.txt — запустите: node scripts/build-hw.mjs");
 await build({
+  define: { __HW_VERSION__: JSON.stringify(HW_VERSION) },
   entryPoints: [join(root, "src/main.ts")],
   bundle: true,
   format: "esm",

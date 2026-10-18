@@ -2,6 +2,7 @@
 import { schedule, newCard, type Card, type Grade } from "./core/fsrs.ts";
 import { loadDeck, wordId, type Deck, type DeckFile, type Word } from "./core/deck.ts";
 import { applyEdit, isEmptyEdit, type WordEdit, type DictEntry } from "./core/edits.ts";
+import { parseIndex, dictShardOf, shardFile, type DictIndex, type DictArticle } from "./core/dict.ts";
 import * as store from "./store.ts";
 
 const MIN = 60_000;
@@ -232,4 +233,73 @@ export function nextDueTime(): number | null {
   const now = Date.now();
   const list = active().map(cardOf).filter((c): c is Card => !!c && c.due > now).map((c) => c.due);
   return list.length ? Math.min(...list) : null;
+}
+
+/* ---------- словарь (大БКРС) ---------- */
+
+type DictMeta = { v: string; count: number; shards: number };
+/** Данные словаря лежат в отдельном репозитории (cherta-dict, свой GitHub Pages), чтобы не раздувать историю основного.
+ * Локально (npm start) сначала пробуем папку dict/ рядом с проектом. */
+export const DICT_REMOTE = "https://akamekiller.github.io/cherta-dict/";
+const DICT_BASES = location.hostname.endsWith("github.io") ? [DICT_REMOTE] : ["dict/", DICT_REMOTE];
+const META_LS = "cherta.dictMeta";
+let dictBase = DICT_BASES[0];
+let dictMeta: Promise<DictMeta> | null = null;
+let dictIdx: Promise<DictIndex> | null = null;
+const dictShards = new Map<number, Promise<Record<string, DictArticle>>>();
+
+async function fetchMeta(): Promise<DictMeta> {
+  for (const base of DICT_BASES) {
+    try {
+      const r = await fetch(`${base}meta.json`, { cache: "no-cache" });
+      if (!r.ok) continue;
+      const m: DictMeta = await r.json();
+      dictBase = base;
+      try { localStorage.setItem(META_LS, JSON.stringify({ base, m })); } catch { /* */ }
+      return m;
+    } catch { /* следующий адрес */ }
+  }
+  // офлайн: последняя известная версия — файлы с ней лежат в кэше service worker
+  try {
+    const saved = JSON.parse(localStorage.getItem(META_LS) ?? "null") as { base: string; m: DictMeta } | null;
+    if (saved) { dictBase = saved.base; return saved.m; }
+  } catch { /* */ }
+  throw new Error("Словарь не найден");
+}
+
+function loadDictMeta(): Promise<DictMeta> {
+  if (!dictMeta) {
+    dictMeta = fetchMeta();
+    dictMeta.catch(() => { dictMeta = null; });
+  }
+  return dictMeta;
+}
+
+/** Индекс всего словаря. Грузится один раз по требованию (~3,5 МБ сжатым), офлайн — из кэша SW. */
+export function dictIndex(): Promise<DictIndex> {
+  if (!dictIdx) {
+    dictIdx = loadDictMeta().then(async (m) => {
+      const r = await fetch(`${dictBase}index.tsv?v=${m.v}`);
+      if (!r.ok) throw new Error("Не удалось загрузить словарь");
+      return parseIndex(await r.text());
+    });
+    dictIdx.catch(() => { dictIdx = null; });
+  }
+  return dictIdx;
+}
+
+/** Статья словаря или null, если слова нет. */
+export async function dictArticle(han: string): Promise<DictArticle | null> {
+  const m = await loadDictMeta();
+  const n = dictShardOf(han, m.shards);
+  let p = dictShards.get(n);
+  if (!p) {
+    p = fetch(`${dictBase}${shardFile(n)}?v=${m.v}`).then((r) => {
+      if (!r.ok) throw new Error("Не удалось загрузить статью");
+      return r.json();
+    });
+    p.catch(() => dictShards.delete(n));
+    dictShards.set(n, p);
+  }
+  return (await p)[han] ?? null;
 }

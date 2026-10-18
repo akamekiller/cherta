@@ -8,7 +8,7 @@ import { onShow, onLeave } from "./nav.ts";
 import { PENS, isPen } from "../core/pen.ts";
 import { INKS, inkColor, setPen, createWriter, recolor, type Writer } from "./writer.ts";
 import { sessionWriter } from "./session.ts";
-import { wordsWriter } from "./words.ts";
+import { entryWriter } from "./entry.ts";
 
 let tryWriter: Writer | null = null;
 export const penWriter = () => tryWriter;
@@ -38,7 +38,7 @@ async function choosePen(patch: { pen?: string; ink?: string; keep?: boolean }) 
   const keepStrokes = patch.keep ?? app.settings.keepStrokes;
   await updateSettings({ pen, ink, keepStrokes });
   setPen(pen, ink, keepStrokes);
-  recolor([sessionWriter(), wordsWriter(), tryWriter]);
+  recolor([sessionWriter(), entryWriter(), tryWriter]);
   renderPens();
 }
 

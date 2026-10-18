@@ -27,7 +27,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;700&family=IBM+Plex+Mono:wght@500&display=swap">
-<link rel="stylesheet" href="styles.css?v=0.7.1-mvdigo17">
+<link rel="stylesheet" href="styles.css?v=0.9.0-mvdnc3hi">
 </head>
 <body>
 <div class="scrim" id="scrim" hidden></div>
@@ -35,9 +35,8 @@
   <div class="dr-head"><span class="han">笔</span>Черта</div>
   <nav class="dr-list">
       <button class="dr-item" data-view="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="13" height="15" rx="2"/><path d="M8 3h11a1 1 0 0 1 1 1v13"/></svg><span class="dr-text"><b>Карточки</b><small>Повторение слов с письмом</small></span></button>
-      <button class="dr-item" data-view="words"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.5-4.5"/></svg><span class="dr-text"><b>Слова</b><small>Список и поиск по колоде</small></span></button>
+      <button class="dr-item" data-view="words"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.5-4.5"/></svg><span class="dr-text"><b>Слова</b><small>Колода, HSK и словарь</small></span></button>
       <div class="dr-item soon" aria-disabled="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M9 5v14M15 5v14"/></svg><span class="dr-text"><b>Тетрадь прописей</b><small>Скоро</small></span></div>
-      <div class="dr-item soon" aria-disabled="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg><span class="dr-text"><b>Словарь</b><small>Скоро</small></span></div>
       <div class="dr-item soon" aria-disabled="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h7"/></svg><span class="dr-text"><b>Упражнения</b><small>Скоро</small></span></div>
       <div class="dr-item soon" aria-disabled="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h2l3-7 4 14 3-9 2 2h4"/></svg><span class="dr-text"><b>Тоны и произношение</b><small>Скоро</small></span></div>
       <button class="dr-item" data-view="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span class="dr-text"><b>Настройки</b><small>Тема, лимиты, прогресс</small></span></button>
@@ -106,9 +105,22 @@
         <button class="btn small" id="b-hint">Показать контур</button>
         <button class="btn small" id="b-giveup">Не помню</button>
       </div>
-      <div class="field" id="py-field">
-        <label class="label" for="py-in">Пиньинь</label>
-        <input id="py-in" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="ren2 или rén" enterkeyhint="done">
+      <div class="py-pick" id="py-field">
+        <div class="py-head"><span class="label">Пиньинь</span><button class="link-btn" id="py-mode" type="button">Набрать с клавиатуры</button></div>
+        <div class="py-slots" id="py-slots"></div>
+        <div class="py-tap" id="py-tap">
+          <div class="py-opts" id="py-opts"></div>
+          <div class="tone-pad" id="tone-pad" aria-label="Тон: проведите линию или нажмите знак">
+            <button type="button" class="t1" data-t="1" aria-label="1-й тон"><svg viewBox="0 0 32 20" aria-hidden="true"><path d="M4 6H28" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button type="button" class="t2" data-t="2" aria-label="2-й тон"><svg viewBox="0 0 32 20" aria-hidden="true"><path d="M4 16L28 4" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button type="button" class="t3" data-t="3" aria-label="3-й тон"><svg viewBox="0 0 32 20" aria-hidden="true"><path d="M4 6L14 16L28 4" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button type="button" class="t4" data-t="4" aria-label="4-й тон"><svg viewBox="0 0 32 20" aria-hidden="true"><path d="M4 4L28 16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button type="button" class="t5" data-t="5" aria-label="Лёгкий тон"><svg viewBox="0 0 32 20" aria-hidden="true"><circle cx="16" cy="10" r="3.5" fill="currentColor"/></svg></button>
+            <svg class="tone-trail" id="tone-trail" aria-hidden="true"><path/></svg>
+          </div>
+          <p class="hint tone-hint">Выберите слог, затем проведите тон по полосе или нажмите знак</p>
+        </div>
+        <input id="py-in" hidden autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="ren2 или rén" enterkeyhint="done">
       </div>
       <button class="btn primary wide" id="b-check" disabled>Проверить</button>
     </div>
@@ -138,7 +150,32 @@
 
   <!-- Слова -->
   <section id="words" class="stack" hidden>
-    <div class="field search"><input id="w-search" type="search" placeholder="Поиск: 学, xue, учиться" autocomplete="off" aria-label="Поиск по словам"></div>
+    <div class="search-bar">
+      <div class="field search"><input id="w-search" type="search" placeholder="学, xue или учиться" autocomplete="off" aria-label="Поиск по колоде, HSK и словарю"></div>
+      <button class="icon-btn" id="w-draw" aria-label="Нарисовать иероглиф" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 4 9.5 14.5"/><path d="M9.5 14.5c-2.5-.5-4.5 1-5 3.5L4 20l2-.5c2.5-.5 4-2.5 3.5-5z"/><path d="m14 6 4 4"/></svg></button>
+      <button class="icon-btn" id="w-voice" aria-label="Голосовой поиск" aria-pressed="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+    </div>
+    <div class="voice-bar" id="w-voice-bar" hidden>
+      <span class="voice-dot" aria-hidden="true"></span><span class="voice-msg" id="w-voice-msg"></span>
+      <div class="seg lang" role="group" aria-label="Язык"><button data-lang="zh-CN">中文</button><button data-lang="ru-RU">Рус</button></div>
+      <button class="btn small ghost" id="w-voice-stop">Готово</button>
+    </div>
+    <div class="hw-panel" id="w-hw" hidden>
+      <div class="hw-cands" id="w-hw-cands" aria-live="polite"></div>
+      <div class="hw-pad">
+        <svg class="grid" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <g stroke="currentColor" stroke-width=".5" stroke-dasharray="2 1.6" fill="none">
+            <line x1="50" y1="0" x2="50" y2="100"/><line x1="0" y1="50" x2="100" y2="50"/>
+            <line x1="0" y1="0" x2="100" y2="100"/><line x1="100" y1="0" x2="0" y2="100"/>
+          </g>
+        </svg>
+        <canvas id="w-hw-canvas" aria-label="Поле для рисования иероглифа"></canvas>
+      </div>
+      <div class="hw-tools">
+        <button class="btn small" id="w-hw-undo" disabled>Стереть черту</button>
+        <button class="btn small" id="w-hw-clear" disabled>Очистить</button>
+      </div>
+    </div>
     <div class="w-controls" id="w-controls">
       <div class="chips-row" id="w-filters"></div>
       <div class="row w-tools">
@@ -162,15 +199,43 @@
   <!-- Карточка слова -->
   <section id="detail" class="stack detail" hidden>
     <div class="topbar"><button class="btn ghost small" id="d-back">← К словам</button></div>
-    <div class="panel stack result">
-      <div class="row" style="justify-content:center">
-        <div class="big" id="d-han"></div>
-        <button class="icon-btn" id="d-say" aria-label="Озвучить"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>
+    <div class="entry">
+      <div class="entry-top">
+        <h2 class="entry-han" id="d-han"></h2>
+        <button class="icon-btn" id="d-say" aria-label="Озвучить"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>
       </div>
-      <div class="py" id="d-py"></div>
-      <div class="hint" id="d-ru"></div>
+      <div class="py entry-py" id="d-py"></div>
+      <p class="entry-gloss" id="d-ru"></p>
+      <div class="entry-tags" id="d-tags"></div>
       <p class="word-note" id="d-note" hidden></p>
-      <div class="detail-chars" id="d-chars"></div>
+      <div class="entry-actions">
+        <button class="btn small" id="d-todeck">+ В колоду</button>
+        <button class="btn small" id="d-edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg> Изменить</button>
+      </div>
+    </div>
+    <nav class="tabs" id="d-tabs" role="tablist" aria-label="Разделы статьи">
+      <button role="tab" data-tab="mean" aria-selected="true">Значения</button>
+      <button role="tab" data-tab="ex">Примеры<b id="d-ex-n"></b></button>
+      <button role="tab" data-tab="words">Слова<b id="d-w-n"></b></button>
+      <button role="tab" data-tab="strokes">Черты</button>
+    </nav>
+    <div class="tab-panel" id="tab-mean" role="tabpanel">
+      <div class="art" id="d-art"></div>
+      <button class="btn small ghost more-btn" id="d-art-more" hidden></button>
+      <p class="art-src">Статья из словаря <a id="d-src" target="_blank" rel="noopener">大БКРС</a></p>
+    </div>
+    <div class="tab-panel" id="tab-ex" role="tabpanel" hidden>
+      <div class="ex-list" id="d-ex"></div>
+      <button class="btn small ghost more-btn" id="d-ex-more" hidden></button>
+    </div>
+    <div class="tab-panel" id="tab-words" role="tabpanel" hidden>
+      <div class="char-pick" id="d-wchars"></div>
+      <div class="chips-row" id="d-wfilter"></div>
+      <div class="word-grid" id="d-rel"></div>
+      <button class="btn small wide" id="d-rel-more" hidden>Показать ещё</button>
+    </div>
+    <div class="tab-panel" id="tab-strokes" role="tabpanel" hidden>
+      <div class="char-pick" id="d-chars"></div>
       <div class="pad">
         <svg class="grid" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
           <g stroke="currentColor" stroke-width=".5" stroke-dasharray="2 1.6" fill="none">
@@ -184,8 +249,6 @@
         <button class="btn small" id="d-anim">Порядок черт</button>
         <button class="btn small" id="d-try">Написать</button>
       </div>
-      <p class="hint" id="d-state"></p>
-      <div class="tools"><button class="btn small" id="d-todeck">+ В свою колоду</button><button class="btn small" id="d-edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg> Изменить</button></div>
     </div>
   </section>
 
@@ -251,7 +314,7 @@
       <div class="confirm" id="confirm-box" hidden></div>
       <p class="note" id="io-note"></p>
     </div>
-    <p class="about">Черта 0.7.1-mvdigo17. Данные черт: Make Me a Hanzi (Arphic Public License), библиотека Hanzi Writer (MIT). Планировщик повторений: FSRS-5.</p>
+    <p class="about">Черта 0.9.0-mvdnc3hi. Данные черт: Make Me a Hanzi (Arphic Public License), библиотека Hanzi Writer (MIT). Планировщик повторений: FSRS-5.</p>
   </section>
 </div>
 <div class="sheet-scrim" id="sheet-scrim" hidden></div>
@@ -259,6 +322,6 @@
   <div class="sheet-head"><h2 id="sheet-title"></h2><button class="icon-btn" id="sheet-close" aria-label="Закрыть">✕</button></div>
   <div class="sheet-body stack" id="sheet-body"></div>
 </section>
-<script type="module" src="app.js?v=0.7.1-mvdigo17"></script>
+<script type="module" src="app.js?v=0.9.0-mvdnc3hi"></script>
 </body>
 </html>

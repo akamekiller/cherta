@@ -4,7 +4,8 @@ import { $ } from "./ui/dom.ts";
 import { initNav, show } from "./ui/nav.ts";
 import { initHome } from "./ui/home.ts";
 import { initSession, sessionWriter } from "./ui/session.ts";
-import { initWords, wordsWriter } from "./ui/words.ts";
+import { initWords } from "./ui/words.ts";
+import { initEntry, entryWriter } from "./ui/entry.ts";
 import { initSettings, penWriter } from "./ui/settings.ts";
 import { recolor, setPen } from "./ui/writer.ts";
 import { initSheet } from "./ui/sheet.ts";
@@ -18,6 +19,7 @@ async function boot() {
   initHome();
   initSession();
   initWords();
+  initEntry();
   initSettings();
   try {
     await init();
@@ -28,7 +30,7 @@ async function boot() {
   }
   setTheme(app.settings.theme, app.settings.custom ?? null);
   setPen(app.settings.pen, app.settings.ink, app.settings.keepStrokes);
-  onThemeChange(() => recolor([sessionWriter(), wordsWriter(), penWriter()]));
+  onThemeChange(() => recolor([sessionWriter(), entryWriter(), penWriter()]));
   show("home");
   requestPersist();
   loadRecorded();

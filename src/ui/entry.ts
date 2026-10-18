@@ -1,0 +1,261 @@
+/** Карточка слова: шапка (слово, пиньинь, кратко, статус) и вкладки Значения · Примеры · Слова · Черты. */
+import { cardOf, words, isHidden, dictArticle } from "../state.ts";
+import { splitArticle, wordsWithChar, countWithChar, pyReadings, safeHtml, type ArticleParts, type CharMode } from "../core/dict.ts";
+import type { Word } from "../core/deck.ts";
+import { formatGap } from "../core/fsrs.ts";
+import { say } from "../speech.ts";
+import { $, esc } from "./dom.ts";
+import { createWriter, type Writer } from "./writer.ts";
+import { onLeave, show } from "./nav.ts";
+import { showNote } from "./session.ts";
+import { openWordEditor, openAddToDeck } from "./editor.ts";
+import { findWord, wordByHan, refreshOther, pyHTML, statusAny, itemHTML, fromHit, loadDict, dictNow, type OtherWord } from "./lookup.ts";
+
+type Tab = "mean" | "ex" | "words" | "strokes";
+
+let word: Word | OtherWord | null = null;
+let writer: Writer | null = null;
+let tab: Tab = "mean";
+let parts: ArticleParts | null = null;
+let token = 0;
+/** Откуда пришли по ссылкам «см.» и словам с иероглифом, чтобы «назад» вёл туда. */
+const trail: string[] = [];
+
+export const entryWriter = () => writer;
+
+/* ---------- открыть ---------- */
+
+export function openEntry(id: string, fromList = false) {
+  const w = findWord(id);
+  if (!w) return;
+  if (fromList) trail.length = 0;
+  word = w;
+  show("detail");
+  renderHead(w);
+  wordState = { ch: [...w.han][0], mode: w.han.length > 1 ? "any" : "start", limit: 18 };
+  strokeChar = [...w.han][0];
+  parts = null;
+  $("d-art").innerHTML = `<p class="hint">Загружаю статью…</p>`;
+  $("d-ex").innerHTML = "";
+  $("d-ex-n").textContent = "";
+  $("d-w-n").textContent = "";
+  setTab(tab === "strokes" ? "strokes" : "mean");
+  loadArticle(w);
+  loadWordCount(w);
+}
+
+async function openByHan(han: string) {
+  const w = await wordByHan(han);
+  if (word) trail.push(word.id);
+  openEntry(w.id);
+}
+
+function renderHead(w: Word | OtherWord) {
+  $("d-back").textContent = trail.length ? "← Назад" : "← К словам";
+  $("d-han").textContent = w.han;
+  $("d-han").classList.toggle("long", [...w.han].length > 3);
+  $("d-py").innerHTML = pyHTML(w);
+  $("d-ru").textContent = w.ru;
+  $("d-ru").hidden = !w.ru;
+  showNote($("d-note"), w.id);
+  const tags: string[] = [];
+  const inDeck = words().some((x) => x.id === w.id);
+  const level = (w as OtherWord).level;
+  if (level) tags.push(`<span class="tag">${esc(level)}</span>`);
+  const c = cardOf(w);
+  if (isHidden(w)) tags.push(`<span class="tag">скрыто из занятий</span>`);
+  else if (c) tags.push(c.state === "review"
+    ? `<span class="tag ok">повторение через ${esc(formatGap(Math.max(0, c.due - Date.now())))}</span>`
+    : `<span class="tag mid">учу</span>`);
+  else if (inDeck) tags.push(`<span class="tag">в колоде, новое</span>`);
+  $("d-tags").innerHTML = tags.join("");
+  $("d-tags").hidden = !tags.length;
+}
+
+/* ---------- вкладки ---------- */
+
+function setTab(t: Tab) {
+  tab = t;
+  document.querySelectorAll<HTMLButtonElement>("#d-tabs [data-tab]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === t)));
+  for (const x of ["mean", "ex", "words", "strokes"] as Tab[]) $(`tab-${x}`).hidden = x !== t;
+  if (t === "strokes") renderStrokes();
+  else { try { writer?.cancelQuiz(); } catch { /* */ } }
+  if (t === "words") renderWords();
+}
+
+/* ---------- значения и примеры ---------- */
+
+const SENSES_SHOWN = 12;
+const EX_SHOWN = 8;
+
+async function loadArticle(w: Word) {
+  const my = ++token;
+  $("d-src").setAttribute("href", `https://bkrs.info/slovo.php?ch=${encodeURIComponent(w.han)}`);
+  let art = null;
+  try { art = await dictArticle(w.han); } catch { /* офлайн, шард не в кэше */ }
+  if (my !== token) return;
+  $("d-art-more").hidden = true;
+  $("d-ex-more").hidden = true;
+  if (!art) {
+    $("d-art").innerHTML = `<p class="hint">${navigator.onLine ? "В словаре этого слова нет." : "Статья недоступна офлайн: её ещё не открывали с интернетом."}</p>`;
+    $("d-ex").innerHTML = `<p class="hint">Примеров нет.</p>`;
+    return;
+  }
+  // другие чтения 多音字 — рядом с пиньинем
+  const readings = pyReadings(art.p);
+  if (readings.length > 1 && w.ref.length) $("d-py").insertAdjacentHTML("beforeend", ` <span class="alt-py">также ${esc(readings.slice(1).join(", "))}</span>`);
+  if (!w.ru) {
+    const d = dictNow();
+    const i = d ? d.han.indexOf(w.han) : -1;
+    if (i >= 0 && d!.ru[i]) { $("d-ru").textContent = d!.ru[i]; $("d-ru").hidden = false; }
+  }
+  parts = splitArticle(art.r);
+  renderSenses(false);
+  renderExamples(false);
+  $("d-ex-n").textContent = parts.exampleCount ? String(parts.exampleCount) : "";
+}
+
+const senseHTML = (r: ArticleParts["senses"][number]) => `<div class="ar l${Math.min(r[0], 3)}">${safeHtml(r[1])}</div>`;
+
+function renderSenses(all: boolean) {
+  if (!parts) return;
+  const list = parts.senses;
+  $("d-art").innerHTML = list.length ? (all ? list : list.slice(0, SENSES_SHOWN)).map(senseHTML).join("")
+    : `<p class="hint">Только примеры — откройте вкладку «Примеры».</p>`;
+  const more = $("d-art-more");
+  more.hidden = all || list.length <= SENSES_SHOWN;
+  more.textContent = `Показать всю статью (ещё ${list.length - SENSES_SHOWN})`;
+}
+
+function renderExamples(all: boolean) {
+  if (!parts) return;
+  let left = all ? Infinity : EX_SHOWN;
+  let html = "";
+  for (const g of parts.examples) {
+    if (left <= 0) break;
+    const items = g.items.slice(0, left);
+    left -= items.length;
+    html += `<div class="ex-group">${g.sense ? `<div class="ex-sense">${safeHtml(g.sense)}</div>` : ""}`
+      + items.map((x) => `<div class="ex"><div class="ex-zh">${esc(x.zh)}</div><div class="ex-tr">${safeHtml(x.tr)}</div></div>`).join("") + `</div>`;
+  }
+  $("d-ex").innerHTML = html || `<p class="hint">Примеров в словаре нет.</p>`;
+  const more = $("d-ex-more");
+  more.hidden = all || parts.exampleCount <= EX_SHOWN;
+  more.textContent = `Все примеры (${parts.exampleCount})`;
+}
+
+/* ---------- слова с иероглифом ---------- */
+
+let wordState: { ch: string; mode: CharMode; limit: number } = { ch: "", mode: "any", limit: 18 };
+
+async function loadWordCount(w: Word) {
+  try { await loadDict(); } catch { return; }
+  if (word !== w) return;
+  const n = [...new Set(w.han)].reduce((s, ch) => s + countWithChar(dictNow()!, ch, w.han).any, 0);
+  $("d-w-n").textContent = n ? (n > 999 ? "999+" : String(n)) : "";
+}
+
+async function renderWords() {
+  const w = word;
+  if (!w) return;
+  const chars = [...new Set(w.han)];
+  $("d-wchars").innerHTML = chars.length > 1
+    ? chars.map((c) => `<button data-c="${esc(c)}" aria-pressed="${c === wordState.ch}">${esc(c)}</button>`).join("") : "";
+  $("d-wchars").hidden = chars.length < 2;
+  let d;
+  try { d = await loadDict(); } catch {
+    $("d-rel").innerHTML = `<p class="hint">Словарь не загрузился. Нужен интернет.</p>`;
+    return;
+  }
+  if (word !== w) return;
+  const { ch, mode, limit } = wordState;
+  const n = countWithChar(d, ch, w.han);
+  $("d-wfilter").innerHTML = `<button class="chip-btn" data-mode="start" aria-pressed="${mode === "start"}">Начинаются с ${esc(ch)}<b>${n.start}</b></button>`
+    + `<button class="chip-btn" data-mode="any" aria-pressed="${mode === "any"}">Все с ${esc(ch)}<b>${n.any}</b></button>`;
+  const hits = wordsWithChar(d, ch, limit + 1, w.han, mode);
+  $("d-rel").innerHTML = hits.length ? hits.slice(0, limit).map(fromHit).map((x) => {
+    const own = words().find((y) => y.id === x.id) ?? x;
+    const [st, cls] = statusAny(own);
+    return itemHTML(own, st, cls, "grid");
+  }).join("") : `<p class="hint">Других слов с ${esc(ch)} в словаре нет.</p>`;
+  $("d-rel-more").hidden = hits.length <= limit;
+}
+
+/* ---------- черты ---------- */
+
+let strokeChar = "";
+function renderStrokes() {
+  const w = word;
+  if (!w) return;
+  const chars = [...w.han];
+  $("d-chars").innerHTML = chars.length > 1
+    ? chars.map((c) => `<button data-c="${esc(c)}" aria-pressed="${c === strokeChar}">${esc(c)}</button>`).join("") : "";
+  $("d-chars").hidden = chars.length < 2;
+  try { writer?.cancelQuiz(); } catch { /* */ }
+  // поле создаётся, когда вкладка видна: иначе у него нулевая ширина
+  requestAnimationFrame(() => { writer = createWriter($("d-hw"), strokeChar, { showCharacter: true, showOutline: true }); });
+}
+
+/* ---------- обработчики ---------- */
+
+export function initEntry() {
+  onLeave("detail", () => { try { writer?.cancelQuiz(); } catch { /* */ } });
+  $("d-tabs").addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-tab]");
+    if (b) setTab(b.dataset.tab as Tab);
+  });
+  $("d-art-more").addEventListener("click", () => renderSenses(true));
+  $("d-ex-more").addEventListener("click", () => renderExamples(true));
+  // ссылки «см. …» в статье и примерах
+  for (const id of ["d-art", "d-ex"]) $(id).addEventListener("click", (e) => {
+    const a = (e.target as HTMLElement).closest<HTMLElement>("a[data-w]");
+    if (a?.dataset.w) { e.preventDefault(); openByHan(a.dataset.w); }
+  });
+  $("d-wchars").addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-c]");
+    if (!b) return;
+    wordState = { ...wordState, ch: b.dataset.c!, limit: 18 };
+    renderWords();
+  });
+  $("d-wfilter").addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-mode]");
+    if (!b) return;
+    wordState = { ...wordState, mode: b.dataset.mode as CharMode, limit: 18 };
+    renderWords();
+  });
+  $("d-rel").addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-id]");
+    const w = b?.dataset.id ? findWord(b.dataset.id) : undefined;
+    if (w) openByHan(w.han);
+  });
+  $("d-rel-more").addEventListener("click", () => { wordState = { ...wordState, limit: wordState.limit + 36 }; renderWords(); });
+  $("d-chars").addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-c]");
+    if (!b) return;
+    strokeChar = b.dataset.c!;
+    renderStrokes();
+  });
+  $("d-anim").addEventListener("click", () => {
+    if (!writer) return;
+    try { writer.cancelQuiz(); } catch { /* */ }
+    writer.showOutline();
+    writer.animateCharacter();
+  });
+  $("d-try").addEventListener("click", () => {
+    if (!writer) return;
+    writer.hideCharacter();
+    writer.showOutline();
+    writer.quiz();
+  });
+  $("d-say").addEventListener("click", () => word && say(word.han));
+  $("d-back").addEventListener("click", () => {
+    const prev = trail.pop();
+    if (prev && findWord(prev)) openEntry(prev); else { trail.length = 0; show("words"); }
+  });
+  $("d-todeck").addEventListener("click", () => word && openAddToDeck(word, () => word && renderHead(word)));
+  $("d-edit").addEventListener("click", () => {
+    const w = word;
+    if (!w) return;
+    openWordEditor(w, () => { refreshOther(w.id); const x = findWord(w.id); if (x) { word = x; renderHead(x); } }, (w as OtherWord).base);
+  });
+}

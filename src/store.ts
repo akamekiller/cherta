@@ -8,6 +8,7 @@
  * Схема версионируется: DB_VERSION + миграции в onupgradeneeded.
  */
 import type { Card, Grade } from "./core/fsrs.ts";
+import { isPen, type PenType } from "./core/pen.ts";
 import type { ThemeChoice, CustomTheme } from "./theme.ts";
 import type { WordEdit } from "./core/edits.ts";
 
@@ -20,11 +21,16 @@ export type Settings = {
   deck: string;
   theme: ThemeChoice;
   custom?: CustomTheme | null;
+  /** Перо для письма и цвет чернил ("auto" — цвет текста темы). */
+  pen: PenType;
+  ink: string;
+  /** Оставлять свои верные черты вместо эталонных. */
+  keepStrokes: boolean;
 };
 export type DayCounter = { day: string; newCount: number };
 export type Review = { id: string; at: number; grade: Grade; state: Card["state"]; mistakes: number };
 
-export const DEFAULT_SETTINGS: Settings = { newPerDay: 10, pinyin: true, voice: true, deck: "hsk3-1", theme: "auto" };
+export const DEFAULT_SETTINGS: Settings = { newPerDay: 10, pinyin: true, voice: true, deck: "hsk3-1", theme: "auto", pen: "brush", ink: "auto", keepStrokes: true };
 const DB_NAME = "cherta";
 const DB_VERSION = 2;
 const EXPORT_FORMAT = "cherta-progress";
@@ -90,7 +96,9 @@ export async function setMeta(key: string, value: unknown): Promise<void> {
 }
 
 export async function loadSettings(): Promise<Settings> {
-  return { ...DEFAULT_SETTINGS, ...((await getMeta<Partial<Settings>>("settings")) ?? {}) };
+  const s: Settings = { ...DEFAULT_SETTINGS, ...((await getMeta<Partial<Settings>>("settings")) ?? {}) };
+  if (!isPen(s.pen)) s.pen = DEFAULT_SETTINGS.pen;
+  return s;
 }
 
 const ALL = ["cards", "reviews", "meta", "edits", "userDecks"] as const;

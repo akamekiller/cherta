@@ -27,7 +27,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;700&family=IBM+Plex+Mono:wght@500&display=swap">
-<link rel="stylesheet" href="styles.css?v=0.7.1-mvdhqxhn">
+<link rel="stylesheet" href="styles.css?v=0.7.1-mvdigo17">
 </head>
 <body>
 <div class="scrim" id="scrim" hidden></div>
@@ -197,6 +197,26 @@
         <div class="themes" id="themes"></div>
         <button class="btn small" id="theme-edit">Настроить цвета…</button>
       </div>
+      <div class="set-row pen-row">
+        <div class="t"><div>Перо</div><div id="pen-hint">Чем писать иероглифы в карточках и словаре</div></div>
+        <div class="chips-row" id="pens"></div>
+        <div class="t"><div>Чернила</div></div>
+        <div class="inks" id="inks"></div>
+        <label class="pen-keep"><span class="t"><div>Оставлять мои черты</div><div>Иначе верная черта заменяется эталонной</div></span>
+          <input type="checkbox" class="switch" id="s-keep"></label>
+        <div class="pen-try">
+          <div class="pad pen-pad">
+            <svg class="grid" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <g stroke="currentColor" stroke-width=".5" stroke-dasharray="2 1.6" fill="none">
+                <line x1="50" y1="0" x2="50" y2="100"/><line x1="0" y1="50" x2="100" y2="50"/>
+                <line x1="0" y1="0" x2="100" y2="100"/><line x1="100" y1="0" x2="0" y2="100"/>
+              </g>
+            </svg>
+            <div class="hw" id="pen-hw" aria-label="Попробовать перо: напишите 永"></div>
+          </div>
+          <div class="pen-side"><small class="hint">Попробуйте: 永 — в нём все основные черты.</small><button class="btn small" id="pen-again">Ещё раз</button></div>
+        </div>
+      </div>
       <div class="set-row">
         <div class="t"><div>Новых слов в день</div><div>Сколько новых карточек добавлять за день</div></div>
         <div class="stepper"><button class="icon-btn" id="n-minus" aria-label="Меньше">−</button><output id="n-val">10</output><button class="icon-btn" id="n-plus" aria-label="Больше">+</button></div>
@@ -231,7 +251,7 @@
       <div class="confirm" id="confirm-box" hidden></div>
       <p class="note" id="io-note"></p>
     </div>
-    <p class="about">Черта 0.7.1-mvdhqxhn. Данные черт: Make Me a Hanzi (Arphic Public License), библиотека Hanzi Writer (MIT). Планировщик повторений: FSRS-5.</p>
+    <p class="about">Черта 0.7.1-mvdigo17. Данные черт: Make Me a Hanzi (Arphic Public License), библиотека Hanzi Writer (MIT). Планировщик повторений: FSRS-5.</p>
   </section>
 </div>
 <div class="sheet-scrim" id="sheet-scrim" hidden></div>
@@ -239,6 +259,6 @@
   <div class="sheet-head"><h2 id="sheet-title"></h2><button class="icon-btn" id="sheet-close" aria-label="Закрыть">✕</button></div>
   <div class="sheet-body stack" id="sheet-body"></div>
 </section>
-<script type="module" src="app.js?v=0.7.1-mvdhqxhn"></script>
+<script type="module" src="app.js?v=0.7.1-mvdigo17"></script>
 </body>
 </html>

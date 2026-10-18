@@ -50,6 +50,6 @@ export default class Positioner {
   convertExternalPoint(point: Point) {
     const x = (point.x - this.xOffset) / this.scale;
     const y = (this.height - this.yOffset - point.y) / this.scale;
-    return { x, y };
+    return { x, y, t: point.t, p: point.p };
   }
 }

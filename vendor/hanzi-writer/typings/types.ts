@@ -16,7 +16,8 @@ export type CharDataLoaderFn = (
   onError: (err?: any) => void,
 ) => Promise<CharacterJson> | CharacterJson | void;
 
-export type Point = { x: number; y: number };
+/** t — время события (мс), p — нажим стилуса 0..1: нужны перу «кисть» (правка для Черты). */
+export type Point = { x: number; y: number; t?: number; p?: number };
 
 export type ColorObject = { r: number; g: number; b: number; a: number };
 

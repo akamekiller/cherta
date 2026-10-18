@@ -14,9 +14,17 @@ export default class RenderTargetBase<
     | HTMLCanvasElement = HTMLElement
 > {
   node: TElement;
+  /** Нажим стилуса из pointer-событий (они приходят раньше mouse/touch). Правка для Черты. */
+  _penPressure: number | undefined;
 
   constructor(node: TElement) {
     this.node = node;
+    const track = (evt: Event) => {
+      const e = evt as PointerEvent;
+      this._penPressure = e.pointerType === 'pen' && e.pressure > 0 ? e.pressure : undefined;
+    };
+    this.node.addEventListener('pointerdown', track);
+    this.node.addEventListener('pointermove', track);
   }
 
   addPointerStartListener(callback: (arg: BoundEvent) => void) {
@@ -63,13 +71,15 @@ export default class RenderTargetBase<
     const { left, top } = this.getBoundingClientRect();
     const x = evt.clientX - left;
     const y = evt.clientY - top;
-    return { x, y };
+    return { x, y, t: evt.timeStamp, p: this._penPressure };
   }
 
   _getTouchPoint(evt: TouchEvent): Point {
     const { left, top } = this.getBoundingClientRect();
-    const x = evt.touches[0].clientX - left;
-    const y = evt.touches[0].clientY - top;
-    return { x, y };
+    const touch = evt.touches[0];
+    const x = touch.clientX - left;
+    const y = touch.clientY - top;
+    // force: нажим стилуса (0, если устройство его не сообщает)
+    return { x, y, t: evt.timeStamp, p: this._penPressure ?? (touch.force || undefined) };
   }
 }

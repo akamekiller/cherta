@@ -15,6 +15,15 @@ const getDrawnPath = (userStroke: UserStroke) => ({
   points: userStroke.points.map((point) => geometry.round(point)),
 });
 
+/**
+ * Правка для Черты: оставлять верно написанную черту пользователя (как «raw squigs» в Skritter)
+ * вместо того, чтобы стирать её и рисовать эталонную.
+ */
+let keepUserStrokes = false;
+export function setKeepUserStrokes(on: boolean) {
+  keepUserStrokes = on;
+}
+
 export default class Quiz {
   _character: Character;
   _renderState: RenderState;
@@ -96,15 +105,17 @@ export default class Quiz {
   endUserStroke() {
     if (!this._userStroke) return;
 
-    this._renderState.run(
-      quizActions.hideUserStroke(
-        this._userStroke.id,
-        this._options!.drawingFadeDuration ?? 300,
-      ),
-    );
+    const hide = () =>
+      this._renderState.run(
+        quizActions.hideUserStroke(
+          this._userStroke!.id,
+          this._options!.drawingFadeDuration ?? 300,
+        ),
+      );
 
     // skip single-point strokes
     if (this._userStroke.points.length === 1) {
+      hide();
       this._userStroke = undefined;
       return;
     }
@@ -132,8 +143,10 @@ export default class Quiz {
       isMatch || isForceAccepted || (meta.isStrokeBackwards && acceptBackwardsStrokes);
 
     if (isAccepted) {
+      if (!keepUserStrokes) hide();
       this._handleSuccess(meta);
     } else {
+      hide();
       this._handleFailure(meta);
 
       const {
@@ -187,7 +200,7 @@ export default class Quiz {
     };
   }
 
-  nextStroke() {
+  nextStroke(drawnByUser = false) {
     if (!this._options) return;
 
     const { strokes, symbol } = this._character;
@@ -201,11 +214,9 @@ export default class Quiz {
       strokeHighlightDuration,
     } = this._options;
 
-    let animation: GenericMutation[] = characterActions.showStroke(
-      'main',
-      this._currentStrokeIndex,
-      strokeFadeDuration,
-    );
+    let animation: GenericMutation[] = keepUserStrokes && drawnByUser
+      ? []
+      : characterActions.showStroke('main', this._currentStrokeIndex, strokeFadeDuration);
 
     this._mistakesOnStroke = 0;
     this._currentStrokeIndex += 1;
@@ -241,7 +252,7 @@ export default class Quiz {
       ...this._getStrokeData({ isCorrect: true, meta }),
     });
 
-    this.nextStroke();
+    this.nextStroke(true);
   }
 
   _handleFailure(meta: StrokeMatchResultMeta) {

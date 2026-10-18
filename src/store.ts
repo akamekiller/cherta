@@ -8,7 +8,7 @@
  * Схема версионируется: DB_VERSION + миграции в onupgradeneeded.
  */
 import type { Card, Grade } from "./core/fsrs.ts";
-import type { ThemeChoice } from "./theme.ts";
+import type { ThemeChoice, CustomTheme } from "./theme.ts";
 import type { WordEdit } from "./core/edits.ts";
 
 export type UserDeck = { id: string; title: string; words: [string, string, string][]; createdAt: number };
@@ -19,6 +19,7 @@ export type Settings = {
   voice: boolean;
   deck: string;
   theme: ThemeChoice;
+  custom?: CustomTheme | null;
 };
 export type DayCounter = { day: string; newCount: number };
 export type Review = { id: string; at: number; grade: Grade; state: Card["state"]; mistakes: number };

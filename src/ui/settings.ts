@@ -3,12 +3,12 @@ import { plural } from "./dom.ts";
 import * as store from "../store.ts";
 import { say, voiceStatus, onVoices } from "../speech.ts";
 import { $, esc } from "./dom.ts";
-import { THEMES, setTheme, type ThemeChoice } from "../theme.ts";
+import { setTheme, type ThemeChoice } from "../theme.ts";
+import { renderThemeChoices, openThemeEditor } from "./themeEditor.ts";
 import { onShow } from "./nav.ts";
 
 function renderThemes() {
-  $("themes").innerHTML = THEMES.map((t) => `<button class="theme-opt" data-theme-id="${t.id}" aria-pressed="${app.settings.theme === t.id}">
-    <span class="swatch" aria-hidden="true">${t.swatch.map((c) => `<i style="background:${c}"></i>`).join("")}</span>${t.name}</button>`).join("");
+  renderThemeChoices($("themes"));
 }
 
 function renderEdits() {
@@ -58,10 +58,11 @@ export function initSettings() {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>(".theme-opt");
     if (!b) return;
     const id = b.dataset.themeId as ThemeChoice;
-    setTheme(id);
+    setTheme(id, app.settings.custom ?? null);
     await updateSettings({ theme: id });
     renderThemes();
   });
+  $("theme-edit").addEventListener("click", () => openThemeEditor(renderThemes));
   onVoices(() => { const el = document.getElementById("voice-info"); if (el) el.textContent = voiceStatus(); });
   $("n-minus").addEventListener("click", async () => { await updateSettings({ newPerDay: Math.max(0, app.settings.newPerDay - 5) }); render(); });
   $("n-plus").addEventListener("click", async () => { await updateSettings({ newPerDay: Math.min(50, app.settings.newPerDay + 5) }); render(); });

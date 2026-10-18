@@ -26,7 +26,7 @@ async function boot() {
     $("boot-error").textContent = `Не удалось запустить: ${e instanceof Error ? e.message : e}. Обновите страницу.`;
     return;
   }
-  setTheme(app.settings.theme);
+  setTheme(app.settings.theme, app.settings.custom ?? null);
   onThemeChange(() => recolor([sessionWriter(), wordsWriter()]));
   show("home");
   requestPersist();

@@ -1,0 +1,41 @@
+# Озвучка слов моделью Kokoro (запускается вручную или при изменении списка слов).
+name: Озвучка слов
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["tts/sample.tsv", "tts/generate.py", "tts/phonemes.py"]
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  tts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Установка
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          pip install --quiet torch --index-url https://download.pytorch.org/whl/cpu
+          pip install --quiet -r tts/requirements.txt
+      - name: Озвучка
+        run: python tts/generate.py tts/sample.tsv site/audio-test
+      - name: Сохранить в репозиторий
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898733+github-actions[bot]@users.noreply.github.com"
+          git add site/audio-test
+          git commit -m "Пробная озвучка" || echo "нет изменений"
+          git pull --rebase
+          git push
+      - name: Обновить сайт
+        run: gh workflow run pages.yml
+        env:
+          GH_TOKEN: ${{ github.token }}

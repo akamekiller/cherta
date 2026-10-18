@@ -35,7 +35,8 @@ self.addEventListener("fetch", (e) => {
   if (url.origin !== location.origin) return;
   // оболочка: сначала сеть (чтобы обновления приходили сразу), без сети — кэш
   e.respondWith(
-    fetch(req).then((res) => {
+    // cache: "no-cache" — не брать страницу из HTTP-кэша браузера (GitHub Pages держит его 10 минут)
+    fetch(req, { cache: "no-cache" }).then((res) => {
       if (res.ok) { const copy = res.clone(); caches.open(SHELL).then((c) => c.put(req, copy)); }
       return res;
     }).catch(async () => (await caches.match(req, { ignoreSearch: true })) ?? caches.match("./index.html")),

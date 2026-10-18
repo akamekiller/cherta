@@ -140,7 +140,7 @@ async function pickSource() {
     `<button class="deck-opt" data-pick="${esc(key)}" aria-current="${key === ui.src}"><span>${esc(name)}<small>${esc(sub)}</small></span>${key === ui.src ? `<span class="pick-btn on">✓</span>` : ""}</button>`;
   const groups = new Map<string, string[]>();
   for (const d of app.decks.filter((x) => !x.hidden)) {
-    const g = d.user ? "Свои колоды" : d.group || "Колоды";
+    const g = d.group || (d.user ? "Свои колоды" : "Колоды");
     (groups.get(g) ?? groups.set(g, []).get(g)!).push(row(`deck:${d.id}`, d.title, `${d.count} ${plural(d.count, "слово", "слова", "слов")} — предложения с этими словами`));
   }
   const body = (sets.length ? `<h3 class="grp-title"><span>Мои наборы</span></h3><div class="deck-list">${sets.map((s) => row(`set:${s.id}`, s.title, "из файла")).join("")}</div>` : "")
@@ -181,8 +181,12 @@ async function renderSetup() {
   const [kind, ...rest] = ui.src.split(":");
   const set = kind === "set" ? setOf(rest.join(":")) : null;
   $("ex-lessons").hidden = !set || set.lessons.length < 2;
-  if (set) $("ex-lessons").innerHTML = [`<button class="chip-btn" data-lesson="-1" aria-pressed="${ui.lesson < 0}">Все уроки</button>`,
-    ...set.lessons.map((l, i) => `<button class="chip-btn" data-lesson="${i}" aria-pressed="${ui.lesson === i}">${esc(l.title)}</button>`)].join("");
+  if (set && ui.lesson >= set.lessons.length) ui.lesson = -1;
+  // много уроков — одна кнопка со списком в панели, иначе чипы
+  if (set) $("ex-lessons").innerHTML = set.lessons.length > 6
+    ? `<button class="src-pick" id="ex-lesson-pick" data-lesson-pick><span>${esc(ui.lesson < 0 ? `Все уроки (${set.lessons.length})` : set.lessons[ui.lesson].title)}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>`
+    : [`<button class="chip-btn" data-lesson="-1" aria-pressed="${ui.lesson < 0}">Все уроки</button>`,
+      ...set.lessons.map((l, i) => `<button class="chip-btn" data-lesson="${i}" aria-pressed="${ui.lesson === i}">${esc(l.title)}</button>`)].join("");
   $("ex-src-info").textContent = "Подбираю задания…";
   $<HTMLButtonElement>("ex-start").disabled = true;
   try {
@@ -423,11 +427,30 @@ async function gloss(w: string) {
 
 /* ---------- обработчики ---------- */
 
+/** Выбор урока из длинного набора: список в панели снизу. */
+function pickLesson() {
+  const [, ...rest] = ui.src.split(":");
+  const set = setOf(rest.join(":"));
+  if (!set) return;
+  const row = (i: number, name: string, sub: string) =>
+    `<button class="deck-opt" data-pick="${i}" aria-current="${ui.lesson === i}"><span>${esc(name)}<small>${esc(sub)}</small></span>${ui.lesson === i ? `<span class="pick-btn on">✓</span>` : ""}</button>`;
+  const all = set.lessons.reduce((a, l) => a + l.sents.length, 0);
+  openSheet("Урок", `<div class="pick-decks"><div class="deck-list">${row(-1, "Все уроки", `${all} предл.`)}${set.lessons.map((l, i) => row(i, l.title, `${l.sents.length} предл.${l.dialogs.length ? ` · диалогов: ${l.dialogs.length}` : ""}`)).join("")}</div></div>`, (root) => {
+    root.addEventListener("click", (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-pick]");
+      if (!b) return;
+      closeSheet();
+      ui.lesson = Number(b.dataset.pick); save(); renderSetup();
+    });
+  });
+}
+
 export function initExercise() {
   onShow("ex", async () => { sets = await loadExSets(); parsedSets = new Map(); renderSetup(); });
   onLeave("ex", () => { try { speechSynthesis.cancel(); } catch { /* */ } });
   $("ex-src").addEventListener("click", pickSource);
   $("ex-lessons").addEventListener("click", (e) => {
+    if ((e.target as HTMLElement).closest("[data-lesson-pick]")) { pickLesson(); return; }
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-lesson]");
     if (!b) return;
     ui.lesson = Number(b.dataset.lesson); save(); renderSetup();

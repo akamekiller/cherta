@@ -65,3 +65,16 @@ test("мелочи", () => {
   assert.equal(stripHtml("a&nbsp;<i>b</i>"), "a b");
   assert.equal(fileName('HSK: 1/2', "txt"), "HSK 1 2.txt");
 });
+
+test("файл с несколькими колодами: разделы ## и группа", async () => {
+  const { parseImportAll } = await import("../src/core/importer.ts");
+  const r = parseImportAll("#separator:tab\n#group:Учебник\n## Урок 1\n你\tnǐ\tты\n好\thǎo\tхороший\n## Урок 2\n我\twǒ\tя\n", "x.txt");
+  assert.equal(r.length, 2);
+  assert.equal(r[0].title, "Урок 1");
+  assert.equal(r[0].group, "Учебник");
+  assert.equal(r[0].rows.length, 2);
+  assert.equal(r[1].rows[0].py, "wo3");
+  const one = parseImportAll("你\tnǐ\tты\n", "Мои слова.txt");
+  assert.equal(one.length, 1);
+  assert.equal(one[0].title, "Мои слова");
+});

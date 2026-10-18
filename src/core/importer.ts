@@ -9,7 +9,7 @@ import { toNumeric, parseRef, toMarked } from "./pinyin.ts";
 import { dictPyToNumeric } from "./dict.ts";
 
 export type ImportRow = { han: string; py: string | null; ru: string };
-export type ImportResult = { title: string; rows: ImportRow[]; skipped: string[]; format: string };
+export type ImportResult = { title: string; rows: ImportRow[]; skipped: string[]; format: string; group?: string };
 
 const HAN = /\p{Script=Han}/u;
 const HAN_ONLY = /^[\p{Script=Han}\u3007·・]+$/u;
@@ -133,3 +133,32 @@ export function exportDeckText(title: string, rows: [string, string, string][]):
 
 /** Безопасное имя файла. */
 export const fileName = (title: string, ext: string) => `${title.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim() || "колода"}.${ext}`;
+
+/**
+ * Файл с несколькими колодами: разделы «## Название» (или категории Pleco «//Название») — каждая своя колода.
+ * Заголовок «#group:Название» задаёт группу, под которой колоды встанут в списке. Без разделов — одна колода.
+ */
+export function parseImportAll(text: string, filename = ""): ImportResult[] {
+  const lines = text.replace(/^\uFEFF/, "").replace(/\r/g, "").split("\n");
+  const head: string[] = [];
+  const parts: { title: string; lines: string[] }[] = [];
+  let group = "";
+  for (const l of lines) {
+    const g = /^#group:(.*)$/i.exec(l);
+    if (g) { group = g[1].trim(); continue; }
+    const pleco = /^\/\/(.+)$/.exec(l);
+    const sec = /^##\s+(.+)$/.exec(l)?.[1] ?? (pleco ? pleco[1].split("/").filter(Boolean).pop() : undefined);
+    if (sec) { parts.push({ title: sec.trim(), lines: [] }); continue; }
+    if (!parts.length) head.push(l); else parts[parts.length - 1].lines.push(l);
+  }
+  if (parts.length < 2) {
+    const r = parseImport(text.split("\n").filter((l) => !/^#group:/i.test(l.replace(/\r/g, ""))).join("\n"), filename);
+    if (parts.length === 1 && !/^#deck:/im.test(text)) r.title = parts[0].title;
+    return [{ ...r, group: group || undefined }];
+  }
+  const meta = head.filter((l) => /^#\w[\w ]*:/.test(l) && !/^#deck:/i.test(l));
+  return parts.map((p) => {
+    const r = parseImport([...meta, ...p.lines].join("\n"), "");
+    return { ...r, title: p.title, group: group || undefined };
+  }).filter((r) => r.rows.length || r.skipped.length);
+}

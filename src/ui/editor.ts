@@ -180,7 +180,7 @@ export function openDeckEditor(deck?: UserDeck, saved?: (id: string | null) => v
     q("dk-save").addEventListener("click", async () => {
       if (!selected.length) { info("Добавьте хотя бы одно слово.", true); return; }
       const title = q<HTMLInputElement>("dk-title").value.trim() || "Моя колода";
-      const d: UserDeck = { id: deck?.id ?? `u-${Date.now().toString(36)}`, title, words: selected, createdAt: deck?.createdAt ?? Date.now() };
+      const d: UserDeck = { id: deck?.id ?? `u-${Date.now().toString(36)}`, title, words: selected, createdAt: deck?.createdAt ?? Date.now(), ...(deck?.group ? { group: deck.group } : {}) };
       await saveUserDeck(d);
       closeSheet();
       saved?.(d.id);

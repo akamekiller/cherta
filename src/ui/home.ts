@@ -6,7 +6,7 @@ import { app, counts, countsFor, deckById, visibleDecks, nextDueTime, words, swi
   saveUserDeck, hskLookup, dictIndex, type DeckInfo } from "../state.ts";
 import { countChars } from "../core/deck.ts";
 import { formatGap } from "../core/fsrs.ts";
-import { parseImport, exportDeckText, fileName, type ImportRow } from "../core/importer.ts";
+import { parseImportAll, exportDeckText, fileName, type ImportRow } from "../core/importer.ts";
 import { dictPyToNumeric } from "../core/dict.ts";
 import { $, esc, plural, downloadText } from "./dom.ts";
 import { onShow, show } from "./nav.ts";
@@ -28,11 +28,15 @@ export async function renderHome() {
   // сначала строки без чисел, потом числа по мере загрузки колод
   // заголовки групп (HSK, основа, жизнь в Китае, свои), как вложенные колоды в Anki
   let group = "";
+  const fold = folded();
   $("decks").innerHTML = decks.map((d) => {
     const g = d.group ?? "";
-    const head = g && g !== group ? `<div class="dt-group">${esc(g)}</div>` : "";
+    const n = decks.filter((x) => (x.group ?? "") === g).length;
+    const head = g && g !== group
+      ? `<button class="dt-group" data-fold="${esc(g)}" aria-expanded="${!fold.has(g)}"><span>${esc(g)}</span><small>${fold.has(g) ? `${n} ${plural(n, "колода", "колоды", "колод")}` : ""}</small><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>`
+      : "";
     group = g;
-    return head + rowHTML(d, null);
+    return head + rowHTML(d, null).replace("<div ", `<div ${g && fold.has(g) ? "hidden " : ""}`);
   }).join("");
   const hidden = app.decks.filter((d) => d.hidden && d.id !== app.deck?.id);
   $("decks-hidden").hidden = !hidden.length;
@@ -44,13 +48,25 @@ export async function renderHome() {
       if (my !== listToken) return;
       due += c.due + c.learning; fresh += c.newLeft;
       const row = document.querySelector<HTMLElement>(`#decks [data-id="${CSS.escape(d.id)}"]`);
-      if (row) row.outerHTML = rowHTML(d, c);
+      if (row) { const h = row.hidden; row.outerHTML = rowHTML(d, c); if (h) document.querySelector<HTMLElement>(`#decks [data-id="${CSS.escape(d.id)}"]`)!.hidden = true; }
     } catch { /* колода не загрузилась — строка без чисел */ }
   }
   if (my !== listToken) return;
   $("today-line").textContent = due + fresh
     ? `На сегодня: ${due} ${plural(due, "повторение", "повторения", "повторений")} и ${fresh} ${plural(fresh, "новое слово", "новых слова", "новых слов")}.`
     : "На сегодня всё повторено.";
+}
+
+/** Свёрнутые группы колод (хранятся только на этом устройстве). */
+const FOLD_KEY = "cherta.fold";
+function folded(): Set<string> {
+  try { return new Set(JSON.parse(localStorage.getItem(FOLD_KEY) || "[]")); } catch { return new Set(); }
+}
+function toggleFold(g: string) {
+  const f = folded();
+  if (f.has(g)) f.delete(g); else f.add(g);
+  try { localStorage.setItem(FOLD_KEY, JSON.stringify([...f])); } catch { /* приватный режим */ }
+  renderHome();
 }
 
 function rowHTML(d: DeckInfo, c: { newLeft: number; learning: number; due: number } | null): string {
@@ -175,36 +191,55 @@ function openHiddenDecks() {
 
 /* ---------- импорт ---------- */
 
-async function importFile(file: File) {
-  const text = await file.text();
-  const res = parseImport(text, file.name);
-  // недостающее: HSK, затем словарь
+/** Недостающие пиньинь и значение — из HSK, затем из словаря. */
+async function fillRows(rows: ImportRow[]): Promise<{ ok: [string, string, string][]; bad: string[] }> {
   const hsk = await hskLookup();
   let dict: Awaited<ReturnType<typeof dictIndex>> | null = null;
-  if (res.rows.some((r) => !r.py || !r.ru)) { try { dict = await dictIndex(); } catch { /* офлайн */ } }
-  const filled: ImportRow[] = res.rows.map((r) => {
-    if (r.py && r.ru) return r;
-    const h = hsk(r.han);
-    if (h) return { han: r.han, py: r.py ?? h.py, ru: r.ru || h.ru };
-    const i = dict ? dict.han.indexOf(r.han) : -1;
-    if (i >= 0) return { han: r.han, py: r.py ?? dictPyToNumeric(dict!.py[i], r.han), ru: r.ru || dict!.ru[i] };
-    return r;
-  });
-  const ok = filled.filter((r): r is ImportRow & { py: string } => !!r.py && !!r.ru);
-  const bad = filled.filter((r) => !r.py || !r.ru).map((r) => r.han);
-  const skipped = [...res.skipped, ...bad];
+  if (rows.some((r) => !r.py || !r.ru)) { try { dict = await dictIndex(); } catch { /* офлайн */ } }
+  const ok: [string, string, string][] = [];
+  const bad: string[] = [];
+  for (const r of rows) {
+    let { py, ru } = r;
+    if (!py || !ru) {
+      const h = hsk(r.han);
+      if (h) { py ??= h.py; ru ||= h.ru; }
+      else {
+        const i = dict ? dict.han.indexOf(r.han) : -1;
+        if (i >= 0) { py ??= dictPyToNumeric(dict!.py[i], r.han); ru ||= dict!.ru[i]; }
+      }
+    }
+    if (py && ru) ok.push([r.han, py, ru]); else bad.push(r.han);
+  }
+  return { ok, bad };
+}
+
+async function importFile(file: File) {
+  const text = await file.text();
+  const parts = parseImportAll(text, file.name);
+  const filled = await Promise.all(parts.map(async (p) => ({ ...p, ...(await fillRows(p.rows)) })));
+  const total = filled.reduce((a, p) => a + p.ok.length, 0);
+  const skipped = filled.flatMap((p) => [...p.skipped, ...p.bad]);
+  const many = filled.length > 1;
   const body = `
-    <p class="hint">Формат: ${esc(res.format)}. Найдено слов: <b>${ok.length}</b>${skipped.length ? `, пропущено: ${skipped.length}` : ""}.</p>
-    <label class="field"><span class="label">Название колоды</span><input id="im-title" value="${esc(res.title)}" autocomplete="off"></label>
-    <div class="pick-list">${ok.slice(0, 8).map((r) => `<div class="pick"><span class="h">${esc(r.han)}</span><span class="t"><span class="ru">${esc(r.ru)}</span></span></div>`).join("")}</div>
-    ${ok.length > 8 ? `<p class="hint">…и ещё ${ok.length - 8}</p>` : ""}
+    <p class="hint">Формат: ${esc(parts[0]?.format ?? "")}. ${many ? `Колод: <b>${filled.length}</b>, слов` : "Найдено слов"}: <b>${total}</b>${skipped.length ? `, пропущено: ${skipped.length}` : ""}.</p>
+    ${many
+      ? `<label class="field"><span class="label">Группа в списке колод</span><input id="im-group" value="${esc(parts[0].group ?? file.name.replace(/\.[^.]+$/, ""))}" autocomplete="off"></label>
+         <div class="deck-list">${filled.map((p) => `<div class="deck-opt"><span>${esc(p.title)}<small>${p.ok.length} ${plural(p.ok.length, "слово", "слова", "слов")}</small></span></div>`).join("")}</div>`
+      : `<label class="field"><span class="label">Название колоды</span><input id="im-title" value="${esc(filled[0]?.title ?? "Импорт")}" autocomplete="off"></label>
+         <div class="pick-list">${(filled[0]?.ok ?? []).slice(0, 8).map((r) => `<div class="pick"><span class="h">${esc(r[0])}</span><span class="t"><span class="ru">${esc(r[2])}</span></span></div>`).join("")}</div>
+         ${(filled[0]?.ok.length ?? 0) > 8 ? `<p class="hint">…и ещё ${filled[0].ok.length - 8}</p>` : ""}`}
     ${skipped.length ? `<details class="paste"><summary>Пропущено: ${skipped.length}</summary><p class="hint">${esc(skipped.slice(0, 60).join(", "))}${skipped.length > 60 ? "…" : ""}</p><p class="hint">Нет иероглифов, пиньиня или значения — их не нашлось ни в HSK, ни в словаре. Слова можно добавить вручную в редакторе колоды.</p></details>` : ""}
-    <button class="btn primary wide" id="im-go" ${ok.length ? "" : "disabled"}>Создать колоду</button>`;
+    <button class="btn primary wide" id="im-go" ${total ? "" : "disabled"}>${many ? `Создать ${filled.length} ${plural(filled.length, "колоду", "колоды", "колод")}` : "Создать колоду"}</button>`;
   openSheet("Импорт", body, (root) => {
     root.querySelector("#im-go")!.addEventListener("click", async () => {
-      const title = root.querySelector<HTMLInputElement>("#im-title")!.value.trim() || res.title;
-      const id = `u-${Date.now().toString(36)}`;
-      await saveUserDeck({ id, title, words: ok.map((r) => [r.han, r.py, r.ru]), createdAt: Date.now() });
+      const t0 = Date.now();
+      if (many) {
+        const group = root.querySelector<HTMLInputElement>("#im-group")!.value.trim() || undefined;
+        for (const [k, p] of filled.entries()) if (p.ok.length) await saveUserDeck({ id: `u-${(t0 + k).toString(36)}`, title: p.title, words: p.ok, createdAt: t0 + k, ...(group ? { group } : {}) });
+      } else {
+        const title = root.querySelector<HTMLInputElement>("#im-title")!.value.trim() || filled[0].title;
+        await saveUserDeck({ id: `u-${t0.toString(36)}`, title, words: filled[0].ok, createdAt: t0, ...(filled[0].group ? { group: filled[0].group } : {}) });
+      }
       closeSheet();
       renderHome();
     });
@@ -219,6 +254,8 @@ export function initHome() {
   $("start").addEventListener("click", startSession);
   $("decks").addEventListener("click", (e) => {
     const t = e.target as HTMLElement;
+    const fg = t.closest<HTMLButtonElement>("[data-fold]");
+    if (fg) { toggleFold(fg.dataset.fold!); return; }
     const m = t.closest<HTMLButtonElement>("[data-menu]");
     if (m) { openDeckMenu(m.dataset.menu!); return; }
     const o = t.closest<HTMLElement>("[data-id]");

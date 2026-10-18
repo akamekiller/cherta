@@ -444,7 +444,11 @@ input[type=range]{width:100%;accent-color:var(--jade)}
 .q-py.q-tr{font-size:16px;font-weight:500;color:var(--muted)}
 .chip.leech{cursor:pointer;font:inherit;font-size:12.5px;font-weight:600}
 .chips-row.wrapped{flex-wrap:wrap;overflow:visible}
-.dt-group{padding:14px 16px 6px;font:600 12.5px var(--f-ui);color:var(--muted);border-top:1px solid var(--line);background:var(--paper)}
+.dt-group{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:14px 16px 6px;font:600 12.5px var(--f-ui);color:var(--muted);border:0;border-top:1px solid var(--line);background:var(--paper);cursor:pointer}
+.dt-group span{flex:1}.dt-group small{font:500 12px var(--f-ui)}
+.dt-group svg{width:16px;height:16px;flex:none;transition:transform .15s}
+.dt-group[aria-expanded="false"] svg{transform:rotate(-90deg)}
+.dt-row[hidden]{display:none}
 .dt-group:first-child{border-top:0}
 .dt-group+.dt-row{border-top:1px solid var(--line)}
 /* Почерк: своё письмо рядом с образцом */

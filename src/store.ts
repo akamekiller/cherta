@@ -12,7 +12,8 @@ import { isPen, clampSize, type PenType } from "./core/pen.ts";
 import type { ThemeChoice, CustomTheme } from "./theme.ts";
 import type { WordEdit } from "./core/edits.ts";
 
-export type UserDeck = { id: string; title: string; words: [string, string, string][]; createdAt: number };
+/** Своя колода. group — заголовок группы в списке колод (например, «Standard Course HSK 1» для колод по урокам). */
+export type UserDeck = { id: string; title: string; words: [string, string, string][]; createdAt: number; group?: string };
 
 export type Settings = {
   newPerDay: number;

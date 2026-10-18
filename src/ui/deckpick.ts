@@ -18,7 +18,7 @@ export function pickDeck(title: string, current: string, onPick: (id: string) =>
   const decks = app.decks.filter((d) => !d.hidden || d.id === current);
   const groups = new Map<string, typeof decks>();
   for (const d of decks) {
-    const g = d.user ? "Свои колоды" : d.group ?? "Колоды";
+    const g = d.group || (d.user ? "Свои колоды" : "Колоды");
     (groups.get(g) ?? groups.set(g, []).get(g)!).push(d);
   }
   const row = (id: string, name: string, sub: string) =>

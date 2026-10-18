@@ -136,7 +136,9 @@ function rebuildDeckList() {
   const opts = app.settings.deckOpts ?? {};
   app.decks = [
     ...app.builtinDecks.map((d) => ({ ...d, baseTitle: d.baseTitle ?? d.title, title: opts[d.id]?.title || d.baseTitle || d.title, hidden: !!opts[d.id]?.hidden })),
-    ...app.userDecks.map((d) => ({ id: d.id, title: d.title, baseTitle: d.title, subtitle: "Своя колода", group: "Свои колоды", lang: "zh", count: d.words.length, user: true, hidden: !!opts[d.id]?.hidden })),
+    // свои колоды — группами: сначала без группы («Свои колоды»), затем по названию группы, внутри — по времени создания
+    ...[...app.userDecks].sort((a, b) => (a.group ?? "").localeCompare(b.group ?? "") || a.createdAt - b.createdAt)
+      .map((d) => ({ id: d.id, title: d.title, baseTitle: d.title, subtitle: "Своя колода", group: d.group || "Свои колоды", lang: "zh", count: d.words.length, user: true, hidden: !!opts[d.id]?.hidden })),
   ];
 }
 

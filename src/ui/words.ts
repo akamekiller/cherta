@@ -1,6 +1,6 @@
 /** Список слов колоды, поиск и карточка слова с порядком черт. */
 import { cardOf, words, isHidden } from "../state.ts";
-import { openWordEditor } from "./editor.ts";
+import { openWordEditor, openAddToDeck } from "./editor.ts";
 import { showNote } from "./session.ts";
 import type { Word } from "../core/deck.ts";
 import { formatGap, DAY } from "../core/fsrs.ts";
@@ -87,6 +87,7 @@ export function initWords() {
   });
   $("d-say").addEventListener("click", () => detailWord && say(detailWord.han));
   $("d-back").addEventListener("click", () => show("words"));
+  $("d-todeck").addEventListener("click", () => detailWord && openAddToDeck(detailWord));
   $("d-edit").addEventListener("click", () => {
     if (!detailWord) return;
     openWordEditor(detailWord, () => detailWord && openDetail(detailWord.id));

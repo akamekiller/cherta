@@ -131,3 +131,21 @@ test("своя колода: из HSK, со своими полями, проп�
   assert.deepEqual(r.rows, [["学习", "xue2 xi2", "учиться"], ["人", "ren2", "человек"], ["飞船", "fei1 chuan2", "космический корабль"]]);
   assert.deepEqual(r.skipped, ["大", "猫", "hello"]);
 });
+
+import { searchEntries } from "../src/core/edits.ts";
+
+test("поиск слов для колоды", () => {
+  const E = [
+    { han: "学生", py: "xue2 sheng5", ru: "ученик, студент" },
+    { han: "学", py: "xue2", ru: "учиться" },
+    { han: "学习", py: "xue2 xi2", ru: "учиться, изучать" },
+    { han: "大学", py: "da4 xue2", ru: "университет" },
+    { han: "女儿", py: "nv3 er2", ru: "дочь" },
+  ];
+  assert.deepEqual(searchEntries(E, "学").map((e) => e.han), ["学", "学生", "学习", "大学"]);
+  assert.deepEqual(searchEntries(E, "xuexi").map((e) => e.han), ["学习"]);
+  assert.deepEqual(searchEntries(E, "xué").map((e) => e.han)[0], "学");
+  assert.deepEqual(searchEntries(E, "учиться").map((e) => e.han), ["学", "学习"]);
+  assert.deepEqual(searchEntries(E, "nü").map((e) => e.han), ["女儿"]);
+  assert.deepEqual(searchEntries(E, "  "), []);
+});

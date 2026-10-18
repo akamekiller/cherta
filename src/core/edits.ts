@@ -56,3 +56,35 @@ export function parseUserDeck(text: string, lookup: Lookup): ParsedDeck {
   }
   return { rows, skipped };
 }
+
+export type DictEntry = { han: string; py: string; ru: string; level?: string };
+
+/**
+ * Поиск по словам для добавления в колоду: иероглифы, пиньинь (с тонами или без), русский.
+ * Точные совпадения выше, затем начинающиеся с запроса, затем содержащие.
+ */
+export function searchEntries(entries: DictEntry[], query: string, limit = 40): DictEntry[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  const isHan = /\p{Script=Han}/u.test(q);
+  const qk = q.normalize("NFD").replace(/u\u0308/g, "v").replace(/[\u0300-\u036f]/g, "").replace(/[\s\d']/g, "");
+  const scored: [number, number, DictEntry][] = [];
+  entries.forEach((e, i) => {
+    let score = -1;
+    if (isHan) {
+      if (e.han === q) score = 0; else if (e.han.startsWith(q)) score = 1; else if (e.han.includes(q)) score = 2;
+    } else {
+      const pk = e.py.replace(/[\d\s/]/g, "");
+      const ru = e.ru.toLowerCase();
+      const words = ru.split(/[^\p{L}-]+/u);
+      if (qk && pk === qk) score = 0;
+      else if (words.includes(q)) score = 1;
+      else if (qk && pk.startsWith(qk)) score = 2;
+      else if (words.some((w) => w.startsWith(q))) score = 3;
+      else if (ru.includes(q)) score = 4;
+    }
+    if (score >= 0) scored.push([score, i, e]);
+  });
+  scored.sort((a, b) => a[0] - b[0] || a[2].han.length - b[2].han.length || a[1] - b[1]);
+  return scored.slice(0, limit).map((x) => x[2]);
+}

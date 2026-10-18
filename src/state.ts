@@ -1,7 +1,7 @@
 /** Состояние приложения: колоды, карточки, правки, настройки, очередь занятия. */
 import { schedule, newCard, type Card, type Grade } from "./core/fsrs.ts";
 import { loadDeck, wordId, type Deck, type DeckFile, type Word } from "./core/deck.ts";
-import { applyEdit, isEmptyEdit, type WordEdit } from "./core/edits.ts";
+import { applyEdit, isEmptyEdit, type WordEdit, type DictEntry } from "./core/edits.ts";
 import * as store from "./store.ts";
 
 const MIN = 60_000;
@@ -117,22 +117,42 @@ export async function revertEdit(id: string) {
 
 /* ---------- свои колоды ---------- */
 
-let hskIndex: Map<string, { py: string; ru: string }> | null = null;
-/** Слово → пиньинь и значение по всем встроенным колодам (с учётом правок). Грузится по требованию. */
-export async function hskLookup() {
-  if (!hskIndex) {
-    hskIndex = new Map();
+let hskAll: DictEntry[] | null = null;
+/** Все слова встроенных колод (HSK) — для поиска при составлении своих колод. Грузится по требованию. */
+async function loadHsk(): Promise<DictEntry[]> {
+  if (!hskAll) {
+    const seen = new Set<string>();
+    const all: DictEntry[] = [];
     for (const d of app.builtinDecks) {
       const f: DeckFile = await (await fetch(`data/decks/${d.id}.json`)).json();
-      for (const [han, py, ru] of f.words) if (!hskIndex.has(han)) hskIndex.set(han, { py, ru });
+      for (const [han, py, ru] of f.words) if (!seen.has(han)) { seen.add(han); all.push({ han, py, ru, level: d.title }); }
     }
+    hskAll = all;
   }
-  return (han: string) => {
-    const base = hskIndex!.get(han);
-    const e = app.edits.get(wordId("zh", han));
-    if (!base) return undefined;
-    return { py: e?.py || base.py, ru: e?.ru || base.ru };
-  };
+  return hskAll;
+}
+
+/** Слова HSK с учётом правок пользователя. */
+export async function hskEntries(): Promise<DictEntry[]> {
+  const all = await loadHsk();
+  return all.map((e) => {
+    const ed = app.edits.get(wordId("zh", e.han));
+    return ed && (ed.py || ed.ru) ? { ...e, py: ed.py || e.py, ru: ed.ru || e.ru } : e;
+  });
+}
+
+/** Слово → пиньинь и значение по HSK (с учётом правок). */
+export async function hskLookup() {
+  const map = new Map((await hskEntries()).map((e) => [e.han, e]));
+  return (han: string) => map.get(han);
+}
+
+/** Добавить или убрать слово из своей колоды. */
+export async function toggleInUserDeck(deckId: string, row: [string, string, string]) {
+  const d = app.userDecks.find((x) => x.id === deckId);
+  if (!d) return;
+  const has = d.words.some((w) => w[0] === row[0]);
+  await saveUserDeck({ ...d, words: has ? d.words.filter((w) => w[0] !== row[0]) : [...d.words, row] });
 }
 
 export async function saveUserDeck(d: store.UserDeck) {

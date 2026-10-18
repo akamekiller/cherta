@@ -18,7 +18,7 @@ export type Settings = {
 export type DayCounter = { day: string; newCount: number };
 export type Review = { id: string; at: number; grade: Grade; state: Card["state"]; mistakes: number };
 
-export const DEFAULT_SETTINGS: Settings = { newPerDay: 10, pinyin: true, voice: true, deck: "hsk1", theme: "auto" };
+export const DEFAULT_SETTINGS: Settings = { newPerDay: 10, pinyin: true, voice: true, deck: "hsk3-1", theme: "auto" };
 const DB_NAME = "cherta";
 const DB_VERSION = 1;
 const EXPORT_FORMAT = "cherta-progress";

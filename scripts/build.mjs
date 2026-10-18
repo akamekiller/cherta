@@ -36,11 +36,14 @@ writeFileSync(join(out, "index.html"), readFileSync(join(root, "static/index.htm
 const decksOut = join(out, "data/decks");
 mkdirSync(decksOut, { recursive: true });
 const decks = JSON.parse(readFileSync(join(root, "data/decks.json"), "utf8"));
+const index = [];
 for (const d of decks) {
   const rows = readFileSync(join(root, "data", d.file), "utf8").replace(/\r/g, "").split("\n").slice(1)
     .map((l) => l.trim()).filter(Boolean).map((l) => l.split("\t").map((x) => x.trim()));
   writeFileSync(join(decksOut, `${d.id}.json`), JSON.stringify({ id: d.id, title: d.title, lang: d.lang, words: rows }));
+  index.push({ id: d.id, title: d.title, subtitle: d.subtitle ?? "", lang: d.lang, count: rows.length });
 }
+writeFileSync(join(decksOut, "index.json"), JSON.stringify(index));
 
 // 5. Данные черт должны быть собраны заранее (scripts/build-strokes.mjs)
 if (!existsSync(join(out, "data/strokes/00.json"))) {
@@ -49,7 +52,7 @@ if (!existsSync(join(out, "data/strokes/00.json"))) {
 
 // 6. Service worker со списком файлов оболочки
 const shell = ["./", "index.html", "app.js", "styles.css", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png",
-  ...decks.map((d) => `data/decks/${d.id}.json`)];
+  "data/decks/index.json", ...decks.map((d) => `data/decks/${d.id}.json`)];
 writeFileSync(join(out, "sw.js"), readFileSync(join(root, "static/sw.js"), "utf8")
   .replace("__VERSION__", VERSION).replace("__SHELL_FILES__", JSON.stringify(shell)));
 writeFileSync(join(out, ".nojekyll"), "");

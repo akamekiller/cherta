@@ -1,3 +1,5 @@
 [
-  { "id": "hsk1", "title": "HSK 1", "lang": "zh", "file": "hsk1.tsv" }
+  { "id": "hsk3-1", "title": "HSK 1", "subtitle": "Новый HSK 3.0, уровень 1", "lang": "zh", "file": "hsk3-1.tsv" },
+  { "id": "hsk3-2", "title": "HSK 2", "subtitle": "Новый HSK 3.0, уровень 2", "lang": "zh", "file": "hsk3-2.tsv" },
+  { "id": "hsk3-3", "title": "HSK 3", "subtitle": "Новый HSK 3.0, уровень 3", "lang": "zh", "file": "hsk3-3.tsv" }
 ]

@@ -6,7 +6,10 @@ import * as store from "./store.ts";
 const MIN = 60_000;
 const LEARN_AHEAD = 20 * MIN; // как в Anki: шаги заучивания показываем чуть раньше срока
 
+export type DeckInfo = { id: string; title: string; subtitle: string; lang: string; count: number };
+
 export const app = {
+  decks: [] as DeckInfo[],
   deck: null as Deck | null,
   cards: new Map<string, Card>(),
   settings: { ...store.DEFAULT_SETTINGS } as store.Settings,
@@ -29,9 +32,29 @@ export async function init() {
   app.cards = cards;
   if (day) app.day = day;
   rollDay();
-  const res = await fetch(`data/decks/${settings.deck}.json`);
+  const idx = await fetch("data/decks/index.json");
+  if (!idx.ok) throw new Error("Не удалось загрузить список колод");
+  app.decks = await idx.json();
+  const id = app.decks.some((d) => d.id === settings.deck) ? settings.deck : app.decks[0].id;
+  await loadDeckById(id);
+}
+
+async function loadDeckById(id: string) {
+  const res = await fetch(`data/decks/${id}.json`);
   if (!res.ok) throw new Error("Не удалось загрузить колоду");
   app.deck = loadDeck((await res.json()) as DeckFile);
+}
+
+export async function switchDeck(id: string) {
+  await loadDeckById(id);
+  await updateSettings({ deck: id });
+}
+
+/** Сколько слов колоды уже начато — для списка колод. */
+export function startedIn(ids: Set<string>) {
+  let n = 0;
+  for (const id of ids) if (app.cards.has(id)) n++;
+  return n;
 }
 
 export async function reloadCards() {

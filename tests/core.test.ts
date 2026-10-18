@@ -149,3 +149,12 @@ test("поиск слов для колоды", () => {
   assert.deepEqual(searchEntries(E, "nü").map((e) => e.han), ["女儿"]);
   assert.deepEqual(searchEntries(E, "  "), []);
 });
+
+test("эризация отдельным слогом r5", () => {
+  const ref = parseRef("na3 r5");
+  assert.equal(ref.length, 1);
+  assert.equal(toMarked(ref), "nǎr");
+  assert.equal(checkPinyin("nar3", ref).ok, true);
+  assert.equal(checkPinyin("nǎr", ref).ok, true);
+  assert.equal(toMarked(parseRef("yi4/1/2 dian3 r5")), "yì diǎnr");
+});

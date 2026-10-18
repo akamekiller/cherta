@@ -20,7 +20,7 @@ self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
-  const isData = url.pathname.includes("/data/strokes/") || url.hostname.endsWith("gstatic.com") || url.hostname.endsWith("googleapis.com");
+  const isData = url.pathname.includes("/data/strokes/") || (url.pathname.includes("/audio/") && url.pathname.endsWith(".mp3")) || url.hostname.endsWith("gstatic.com") || url.hostname.endsWith("googleapis.com");
   if (isData) {
     // данные не меняются: сначала кэш, потом сеть
     e.respondWith(caches.open(DATA).then(async (c) => {

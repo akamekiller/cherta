@@ -10,6 +10,7 @@ import { recolor } from "./ui/writer.ts";
 import { initSheet } from "./ui/sheet.ts";
 import { setTheme, onThemeChange } from "./theme.ts";
 import { app } from "./state.ts";
+import { loadRecorded } from "./speech.ts";
 
 async function boot() {
   initNav();
@@ -29,6 +30,7 @@ async function boot() {
   onThemeChange(() => recolor([sessionWriter(), wordsWriter()]));
   show("home");
   requestPersist();
+  loadRecorded();
   if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
     navigator.serviceWorker.register("sw.js").catch(() => { /* офлайн необязателен */ });
   }

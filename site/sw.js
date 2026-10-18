@@ -1,6 +1,6 @@
 // Service worker «Черты»: офлайн-работа.
 // Оболочка приложения кэшируется при установке; данные черт и шрифты — при первом запросе.
-const VERSION = "0.5.0-mvdgfztc";
+const VERSION = "0.6.0-mvdh28xm";
 const SHELL = `cherta-shell-${VERSION}`;
 const DATA = "cherta-data-v1";
 const SHELL_FILES = ["./","index.html","app.js","styles.css","manifest.webmanifest","icons/icon.svg","icons/icon-192.png","data/decks/index.json","data/decks/hsk3-1.json","data/decks/hsk3-2.json","data/decks/hsk3-3.json","data/decks/hsk3-4.json","data/decks/hsk3-5.json","data/decks/hsk3-6.json"];
@@ -20,7 +20,7 @@ self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
-  const isData = url.pathname.includes("/data/strokes/") || url.hostname.endsWith("gstatic.com") || url.hostname.endsWith("googleapis.com");
+  const isData = url.pathname.includes("/data/strokes/") || (url.pathname.includes("/audio/") && url.pathname.endsWith(".mp3")) || url.hostname.endsWith("gstatic.com") || url.hostname.endsWith("googleapis.com");
   if (isData) {
     // данные не меняются: сначала кэш, потом сеть
     e.respondWith(caches.open(DATA).then(async (c) => {

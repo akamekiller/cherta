@@ -1,6 +1,14 @@
-/** Озвучка через синтезатор речи системы (Web Speech API). */
+/**
+ * Озвучка слов.
+ * 1) Готовые записи нейросетевым голосом (Kokoro, голос zf_047): site/audio/zh/<слово>.mp3,
+ *    список есть в site/audio/zh/index.json. Офлайн их кэширует service worker после первого прослушивания.
+ * 2) Если записи нет (своё слово, не из колод) — синтезатор речи устройства (Web Speech API).
+ */
 let voice: SpeechSynthesisVoice | null = null;
 let listeners: (() => void)[] = [];
+let recorded: Set<string> | null = null;
+let recordedLoading: Promise<void> | null = null;
+const player = typeof Audio !== "undefined" ? new Audio() : null;
 
 const supported = () => typeof window !== "undefined" && "speechSynthesis" in window;
 
@@ -12,17 +20,32 @@ function pick() {
 }
 if (supported()) { pick(); speechSynthesis.addEventListener?.("voiceschanged", pick); }
 
+/** Загружаем список озвученных слов (один раз, в фоне). */
+export function loadRecorded(): Promise<void> {
+  if (!recordedLoading) {
+    recordedLoading = fetch("audio/zh/index.json")
+      .then((r) => (r.ok ? r.json() : { words: [] }))
+      .then((d: { words: string[] }) => { recorded = new Set(d.words); listeners.forEach((f) => f()); })
+      .catch(() => { recorded = new Set(); });
+  }
+  return recordedLoading;
+}
+
+export const hasRecording = (text: string) => !!recorded?.has(text);
+
 export function onVoices(f: () => void) { listeners.push(f); }
 
 export function voiceStatus(): string {
-  if (!supported()) return "Браузер не поддерживает озвучку";
-  if (voice) return `Голос: ${voice.name}`;
+  const n = recorded?.size ?? 0;
+  if (n) return `Нейросетевой голос, озвучено слов: ${n}. Для остальных — голос устройства${voice ? "" : " (китайский голос не установлен)"}.`;
+  if (!supported()) return "Озвучка недоступна в этом браузере";
+  if (voice) return `Голос устройства: ${voice.name}`;
   return speechSynthesis.getVoices().length
     ? "Китайский голос не найден. Установите его в настройках речи телефона или Windows"
     : "Ищем китайский голос…";
 }
 
-export function say(text: string, rate = 0.85) {
+function speakDevice(text: string, rate: number) {
   if (!supported()) return;
   try {
     speechSynthesis.cancel();
@@ -32,4 +55,14 @@ export function say(text: string, rate = 0.85) {
     u.rate = rate;
     speechSynthesis.speak(u);
   } catch { /* озвучка необязательна */ }
+}
+
+export function say(text: string, rate = 0.85) {
+  if (player && hasRecording(text)) {
+    try { speechSynthesis?.cancel(); } catch { /* */ }
+    player.src = `audio/zh/${encodeURIComponent(text)}.mp3`;
+    player.play().catch(() => speakDevice(text, rate));
+    return;
+  }
+  speakDevice(text, rate);
 }

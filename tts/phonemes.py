@@ -53,6 +53,10 @@ def to_phonemes(py: str) -> str:
         m = re.match(r"^([a-zv]+?)([1-5])", tok)
         if not m:
             raise ValueError(tok)
+        # эризация отдельным слогом «r5» (哪儿 = na3 r5) — присоединяем к предыдущему слогу
+        if m.group(1) == "r" and syls:
+            syls[-1] = (syls[-1][0] + "r", syls[-1][1])
+            continue
         syls.append((m.group(1), int(m.group(2))))
     tones = third_tone_sandhi([t for _, t in syls])
     out = []
@@ -61,7 +65,8 @@ def to_phonemes(py: str) -> str:
         if erhua:
             s = s[:-1]
         ini, fin = split(s)
-        parts = ([ini] if ini else []) + [fin, str(tone)] + (["R"] if erhua else [])
+        # как в misaki: эризация «R» стоит перед цифрой тона (ㄋㄚR3)
+        parts = ([ini] if ini else []) + [fin] + (["R"] if erhua else []) + [str(tone)]
         for p in parts:
             if p not in ZH_MAP:
                 raise ValueError(f"нет фонемы для {p!r} в {py!r}")

@@ -15,6 +15,16 @@ const MARKS: Record<string, string> = {
 const TONE_COMBINING: Record<string, number> = { "\u0304": 1, "\u0301": 2, "\u030C": 3, "\u0300": 4 };
 
 export function parseRef(str: string): Syllable[] {
+  const out: Syllable[] = [];
+  for (const syl of parseTokens(str)) {
+    // эризация записана отдельным слогом «r5» (哪儿 = na3 r5) — присоединяем к предыдущему: nǎr
+    if (syl.s === "r" && out.length) { out[out.length - 1].s += "r"; continue; }
+    out.push(syl);
+  }
+  return out;
+}
+
+function parseTokens(str: string): Syllable[] {
   return str.trim().split(/\s+/).map((tok) => {
     const m = tok.match(/^([a-zü]+?)([1-5])((?:\/[1-5])*)$/i);
     if (!m) throw new Error(`Неверный слог пиньиня в колоде: "${tok}"`);

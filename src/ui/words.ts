@@ -1,10 +1,11 @@
 /** Список слов колоды, поиск и карточка слова с порядком черт. */
-import { cardOf, words, isHidden } from "../state.ts";
+import { cardOf, words, isHidden, hskEntries } from "../state.ts";
+import { searchEntries, type DictEntry } from "../core/edits.ts";
+import { loadDeck } from "../core/deck.ts";
 import { openWordEditor, openAddToDeck } from "./editor.ts";
 import { showNote } from "./session.ts";
 import type { Word } from "../core/deck.ts";
 import { formatGap, DAY } from "../core/fsrs.ts";
-import { plain, searchKey } from "../core/pinyin.ts";
 import { say } from "../speech.ts";
 import { $, esc, pinyinHTML } from "./dom.ts";
 import { createWriter, type Writer } from "./writer.ts";
@@ -22,21 +23,31 @@ function status(w: Word): [string, string] {
   return [formatGap(Math.max(DAY, c.due - c.last)), "rev"];
 }
 
+let hsk: DictEntry[] = [];
+let others: Word[] = []; // найденные слова из других колод — для открытия карточки
+
+const itemHTML = (w: Word, st: string, cls: string) =>
+  `<button class="item" data-id="${esc(w.id)}"><span class="h">${esc(w.han)}</span><span class="txt"><span class="py">${pinyinHTML(w.ref)}</span><span class="ru">${esc(w.ru)}</span></span><span class="status ${cls}">${st}</span></button>`;
+
 function renderList() {
   const q = $<HTMLInputElement>("w-search").value.trim();
-  const qk = searchKey(q), ql = q.toLowerCase();
-  const list = words().filter((w) => !q || w.han.includes(q) || (qk && plain(w.ref).includes(qk)) || w.ru.toLowerCase().includes(ql));
-  $("w-count").textContent = q ? `Найдено: ${list.length}` : `Всего: ${list.length}`;
-  $("w-list").innerHTML = list.length
-    ? list.map((w) => {
-      const [st, cls] = status(w);
-      return `<button class="item" data-id="${esc(w.id)}"><span class="h">${esc(w.han)}</span><span class="txt"><span class="py">${pinyinHTML(w.ref)}</span><span class="ru">${esc(w.ru)}</span></span><span class="status ${cls}">${st}</span></button>`;
-    }).join("")
-    : `<p class="empty">Ничего не нашлось. Ищите по иероглифу, пиньиню без тонов или по-русски.</p>`;
+  const list = q ? searchEntries(words().map((w) => ({ han: w.han, py: w.py, ru: w.ru })), q, 500).map((e) => words().find((w) => w.han === e.han)!) : words();
+  const inDeck = new Set(words().map((w) => w.han));
+  others = q ? searchEntries(hsk.filter((e) => !inDeck.has(e.han)), q, 30).map((e) => {
+    const w = loadDeck({ id: "x", title: "", lang: "zh", words: [[e.han, e.py, e.ru]] }).words[0];
+    (w as Word & { level?: string }).level = e.level;
+    return w;
+  }) : [];
+  $("w-count").textContent = q ? `В этой колоде: ${list.length}` : `Всего: ${list.length}`;
+  $("w-list").innerHTML = (list.length
+    ? list.map((w) => { const [st, cls] = status(w); return itemHTML(w, st, cls); }).join("")
+    : `<p class="empty">${q ? "В этой колоде не нашлось." : "В колоде нет слов."}</p>`)
+    + (others.length ? `<div class="list-sep">В других колодах</div>` + others.map((w) => itemHTML(w, (w as Word & { level?: string }).level ?? "", "other")).join("") : "")
+    + (q && !list.length && !others.length ? `<p class="empty">Ищите по иероглифу, пиньиню без тонов или по-русски.</p>` : "");
 }
 
 function openDetail(id: string) {
-  const w = words().find((x) => x.id === id);
+  const w = words().find((x) => x.id === id) ?? others.find((x) => x.id === id);
   if (!w) return;
   detailWord = w;
   show("detail");
@@ -60,7 +71,10 @@ function showChar(ch: string) {
 }
 
 export function initWords() {
-  onShow("words", renderList);
+  onShow("words", () => {
+    renderList();
+    if (!hsk.length) hskEntries().then((e) => { hsk = e; if ($<HTMLInputElement>("w-search").value.trim()) renderList(); });
+  });
   onLeave("detail", () => { try { detailWriter?.cancelQuiz(); } catch { /* */ } });
   $("w-search").addEventListener("input", renderList);
   $("w-list").addEventListener("click", (e) => {

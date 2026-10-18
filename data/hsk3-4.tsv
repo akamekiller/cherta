@@ -19,7 +19,7 @@ word	pinyin	meaning_ru
 包裹	bao1 guo3	посылка
 包含	bao1 han2	содержать, включать
 包括	bao1 kuo4	включать
-薄	bo2	тонкий
+薄	bao2	тонкий
 宝	bao3	сокровище
 宝宝	bao3 bao5	малыш
 宝贝	bao3 bei4	сокровище; малыш, дорогой
@@ -65,7 +65,7 @@ word	pinyin	meaning_ru
 测	ce4	измерять
 测量	ce4 liang2	измерять
 测试	ce4 shi4	тест; тестировать
-曾	zeng1	когда-то
+曾	ceng2	когда-то
 茶叶	cha2 ye4	чайный лист
 产品	chan3 pin3	продукт
 常识	chang2 shi2	здравый смысл; общие знания
@@ -89,7 +89,7 @@ word	pinyin	meaning_ru
 程序	cheng2 xu4	программа; процедура
 吃惊	chi1 jing1	удивиться
 迟到	chi2 dao4	опаздывать
-尺	che3	чи (≈33 см); линейка
+尺	chi3	чи (≈33 см); линейка
 尺寸	chi3 cun5	размер
 尺子	chi3 zi5	линейка
 充电	chong1 dian4	заряжать
@@ -103,7 +103,7 @@ word	pinyin	meaning_ru
 出色	chu1 se4	выдающийся
 出售	chu1 shou4	продавать
 出席	chu1 xi2	присутствовать
-处	chu3	место; отдел
+处	chu4	место; отдел
 处于	chu3 yu2	находиться (в состоянии)
 穿上	chuan1 shang5	надеть
 传统	chuan2 tong3	традиция
@@ -116,7 +116,7 @@ word	pinyin	meaning_ru
 词汇	ci2 hui4	лексика
 此	ci3	это, этот
 此外	ci3 wai4	кроме того
-刺	ci1	колоть; шип
+刺	ci4	колоть; шип
 刺激	ci4 ji1	стимулировать; раздражать
 从此	cong2 ci3	с тех пор
 粗	cu1	толстый, грубый
@@ -133,7 +133,7 @@ word	pinyin	meaning_ru
 打针	da3 zhen1	делать укол
 大巴	da4 ba1	большой автобус
 大多	da4 duo1	в большинстве
-大方	da4 fang1	щедрый; естественный
+大方	da4 fang5	щедрый; естественный
 大哥	da4 ge1	старший брат
 大规模	da4 gui1 mo2	крупномасштабный
 大会	da4 hui4	собрание, съезд
@@ -142,13 +142,13 @@ word	pinyin	meaning_ru
 大陆	da4 lu4	материк; материковый Китай
 大妈	da4 ma1	тётушка
 大型	da4 xing2	крупный
-大爷	da4 ye2	дедушка (обращение)
+大爷	da4 ye5	дедушка (обращение)
 大众	da4 zhong4	массы
 代替	dai4 ti4	заменять
 待遇	dai4 yu4	обращение; условия (зарплата)
 袋	dai4	мешок, пакет
 戴	dai4	носить (очки, шапку)
-单	shan4	одиночный; список
+单	dan1	одиночный; список
 单纯	dan1 chun2	простой, наивный
 单调	dan1 diao4	однообразный
 单独	dan1 du2	отдельно, в одиночку
@@ -159,7 +159,7 @@ word	pinyin	meaning_ru
 导游	dao3 you2	гид
 导致	dao3 zhi4	приводить к
 倒闭	dao3 bi4	обанкротиться
-倒车	dao3 che1	сдавать назад
+倒车	dao4 che1	сдавать назад
 地面	di4 mian4	поверхность земли
 地位	di4 wei4	положение, статус
 地下	di4 xia4	подземный
@@ -172,7 +172,7 @@ word	pinyin	meaning_ru
 登录	deng1 lu4	входить (в систему)
 登山	deng1 shan1	восхождение в горы
 敌人	di2 ren2	враг
-底	de5	дно
+底	di3	дно
 典型	dian3 xing2	типичный
 点名	dian3 ming2	перекличка
 电灯	dian4 deng1	электрическая лампа
@@ -249,7 +249,7 @@ word	pinyin	meaning_ru
 夫人	fu1 ren5	супруга, госпожа
 改善	gai3 shan4	улучшать
 改正	gai3 zheng4	исправлять
-盖	ge3	крышка; накрывать; строить
+盖	gai4	крышка; накрывать; строить
 概括	gai4 kuo4	обобщать
 感兴趣	gan3 xing4 qu4	интересоваться
 高潮	gao1 chao2	кульминация
@@ -385,7 +385,7 @@ word	pinyin	meaning_ru
 阶段	jie1 duan4	этап
 街道	jie1 dao4	улица
 节省	jie2 sheng3	экономить
-结	jie1	завязывать
+结	jie2	завязывать
 结构	jie2 gou4	структура
 结论	jie2 lun4	вывод
 解释	jie3 shi4	объяснять
@@ -460,7 +460,7 @@ word	pinyin	meaning_ru
 良好	liang2 hao3	хороший
 粮食	liang2 shi5	зерно, продовольствие
 两边	liang3 bian5	обе стороны
-量	liang2	количество
+量	liang4	количество
 疗养	liao2 yang3	лечиться в санатории
 列	lie4	ряд; перечислять
 列车	lie4 che1	поезд
@@ -480,7 +480,7 @@ word	pinyin	meaning_ru
 轮椅	lun2 yi3	инвалидное кресло
 轮子	lun2 zi5	колесо
 论文	lun4 wen2	диссертация, статья
-落	la4	падать
+落	luo4	падать
 毛巾	mao2 jin1	полотенце
 毛衣	mao2 yi1	свитер
 帽子	mao4 zi5	шапка
@@ -543,7 +543,7 @@ word	pinyin	meaning_ru
 平稳	ping2 wen3	стабильный
 迫切	po4 qie4	неотложный
 破产	po4 chan3	банкротство
-妻子	qi1 zi3	жена
+妻子	qi1 zi5	жена
 期待	qi1 dai4	ожидать
 期间	qi1 jian1	период
 期末	qi1 mo4	конец семестра
@@ -557,7 +557,7 @@ word	pinyin	meaning_ru
 器官	qi4 guan1	орган (тела)
 前头	qian2 tou5	впереди
 前途	qian2 tu2	будущее, перспективы
-浅	jian1	мелкий; светлый
+浅	qian3	мелкий; светлый
 巧克力	qiao3 ke4 li4	шоколад
 切	qie1	резать
 亲爱	qin1 ai4	дорогой
@@ -571,7 +571,7 @@ word	pinyin	meaning_ru
 穷人	qiong2 ren2	бедняк
 秋季	qiu1 ji4	осень (сезон)
 趋势	qu1 shi4	тенденция
-圈	juan1	круг
+圈	quan1	круг
 权利	quan2 li4	право
 却	que4	однако
 确认	que4 ren4	подтверждать
@@ -580,7 +580,7 @@ word	pinyin	meaning_ru
 燃烧	ran2 shao1	гореть
 热闹	re4 nao5	оживлённый
 热心	re4 xin1	отзывчивый
-人家	ren2 jia1	другие; люди
+人家	ren2 jia5	другие; люди
 日记	ri4 ji4	дневник
 日历	ri4 li4	календарь
 如今	ru2 jin1	в наши дни
@@ -667,7 +667,7 @@ word	pinyin	meaning_ru
 酸奶	suan1 nai3	йогурт
 随手	sui2 shou3	мимоходом
 孙女	sun1 nv3	внучка
-孙子	sun1 zi3	внук
+孙子	sun1 zi5	внук
 缩短	suo1 duan3	сокращать
 缩小	suo1 xiao3	уменьшать
 台阶	tai2 jie1	ступени
@@ -762,7 +762,7 @@ word	pinyin	meaning_ru
 下楼	xia4 lou2	спускаться вниз
 下载	xia4 zai3	скачивать
 夏季	xia4 ji4	лето (сезон)
-鲜	xian3	свежий
+鲜	xian1	свежий
 鲜花	xian1 hua1	живые цветы
 鲜明	xian1 ming2	яркий
 咸	xian2	солёный
@@ -909,7 +909,7 @@ word	pinyin	meaning_ru
 丈夫	zhang4 fu5	муж
 招呼	zhao1 hu5	окликать, здороваться
 召开	zhao4 kai1	созывать
-折	she2	ломать; скидка
+折	zhe2	ломать; скидка
 着火	zhao2 huo3	загореться
 着急	zhao2 ji2	волноваться
 著名	zhu4 ming2	знаменитый

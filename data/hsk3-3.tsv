@@ -30,7 +30,7 @@ word	pinyin	meaning_ru
 被子	bei4 zi5	одеяло
 本来	ben3 lai2	изначально, собственно
 本领	ben3 ling3	умение, мастерство
-本事	ben3 shi4	способности
+本事	ben3 shi5	способности
 比较	bi3 jiao4	сравнительно; сравнивать
 比例	bi3 li4	пропорция
 比赛	bi3 sai4	соревнование, матч
@@ -70,7 +70,7 @@ word	pinyin	meaning_ru
 彩色	cai3 se4	цветной
 曾经	ceng2 jing1	когда-то, уже
 产生	chan3 sheng1	возникать, порождать
-厂	han3	фабрика
+厂	chang3	фабрика
 场合	chang3 he2	ситуация, обстановка
 场所	chang3 suo3	место, помещение
 超级	chao1 ji2	супер-
@@ -117,7 +117,7 @@ word	pinyin	meaning_ru
 达到	da2 dao4	достигать
 打破	da3 po4	разбить; побить (рекорд)
 打听	da3 ting5	расспрашивать
-大夫	da4 fu1	врач
+大夫	dai4 fu5	врач
 大概	da4 gai4	примерно, вероятно
 大使馆	da4 shi3 guan3	посольство
 大约	da4 yue1	приблизительно
@@ -233,7 +233,7 @@ word	pinyin	meaning_ru
 更加	geng4 jia1	ещё более
 工厂	gong1 chang3	завод
 工程师	gong1 cheng2 shi1	инженер
-工夫	gong1 fu1	время; усилия
+工夫	gong1 fu5	время; усилия
 工具	gong1 ju4	инструмент
 工业	gong1 ye4	промышленность
 工资	gong1 zi1	зарплата
@@ -276,7 +276,7 @@ word	pinyin	meaning_ru
 害怕	hai4 pa4	бояться
 好好	hao3 hao3	как следует
 好奇	hao4 qi2	любопытный
-合	ge3	смыкать; объединять
+合	he2	смыкать; объединять
 合法	he2 fa3	законный
 合格	he2 ge2	соответствующий требованиям
 合理	he2 li3	разумный
@@ -290,7 +290,7 @@ word	pinyin	meaning_ru
 互联网	hu4 lian2 wang3	интернет
 互相	hu4 xiang1	взаимно
 华人	hua2 ren2	этнический китаец
-化	hua1	превращаться; химия
+化	hua4	превращаться; химия
 划船	hua2 chuan2	грести на лодке
 话剧	hua4 ju4	драматический спектакль
 话题	hua4 ti2	тема разговора
@@ -354,7 +354,7 @@ word	pinyin	meaning_ru
 节约	jie2 yue1	экономить
 结合	jie2 he2	сочетать
 结婚	jie2 hun1	жениться, выходить замуж
-结实	jie1 shi2	крепкий
+结实	jie1 shi5	крепкий
 结束	jie2 shu4	заканчиваться
 解决	jie3 jue2	решать
 解开	jie3 kai1	развязывать
@@ -513,7 +513,7 @@ word	pinyin	meaning_ru
 牌子	pai2 zi5	табличка; марка
 派	pai4	посылать
 判断	pan4 duan4	судить, оценивать
-胖	pan2	толстый
+胖	pang4	толстый
 跑步	pao3 bu4	бегать
 配	pei4	сочетать
 配合	pei4 he2	координировать
@@ -555,7 +555,7 @@ word	pinyin	meaning_ru
 请教	qing3 jiao4	просить совета
 庆祝	qing4 zhu4	праздновать
 球迷	qiu2 mi2	болельщик
-区	ou1	район
+区	qu1	район
 区别	qu1 bie2	различие
 取消	qu3 xiao1	отменять
 去世	qu4 shi4	скончаться
@@ -583,7 +583,7 @@ word	pinyin	meaning_ru
 认出	ren4 chu1	узнать
 认得	ren4 de5	знать, узнавать
 认可	ren4 ke3	признавать, одобрять
-任	ren2	назначать; любой
+任	ren4	назначать; любой
 任何	ren4 he2	любой
 任务	ren4 wu5	задача
 仍	reng2	по-прежнему
@@ -616,7 +616,7 @@ word	pinyin	meaning_ru
 生存	sheng1 cun2	выживать
 生动	sheng1 dong4	живой, яркий
 生命	sheng1 ming4	жизнь
-生意	sheng1 yi4	бизнес
+生意	sheng1 yi5	бизнес
 生长	sheng1 zhang3	расти
 声明	sheng1 ming2	заявление
 胜	sheng4	побеждать
@@ -675,7 +675,7 @@ word	pinyin	meaning_ru
 速度	su4 du4	скорость
 随	sui2	следовать за
 所	suo3	учреждение; счётное слово для зданий
-所长	suo3 chang2	директор (института)
+所长	suo3 zhang3	директор (института)
 台	tai2	платформа; счётное слово для техники
 谈	tan2	беседовать
 谈话	tan2 hua4	беседа
@@ -850,7 +850,7 @@ word	pinyin	meaning_ru
 员	yuan2	сотрудник, член
 员工	yuan2 gong1	персонал
 愿望	yuan4 wang4	желание
-约	yao1	договариваться; примерно
+约	yue1	договариваться; примерно
 运输	yun4 shu1	перевозить
 杂志	za2 zhi4	журнал
 早已	zao3 yi3	уже давно
@@ -927,11 +927,11 @@ word	pinyin	meaning_ru
 专门	zhuan1 men2	специально
 专题	zhuan1 ti2	специальная тема
 专业	zhuan1 ye4	специальность
-转	zhuai3	поворачивать; передавать
+转	zhuan3	поворачивать; передавать
 转变	zhuan3 bian4	изменение
 状况	zhuang4 kuang4	положение
 状态	zhuang4 tai4	состояние
-追	dui1	догонять
+追	zhui1	догонять
 准	zhun3	точный; разрешать
 资格	zi1 ge2	квалификация
 资金	zi1 jin1	средства, капитал

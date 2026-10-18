@@ -158,3 +158,8 @@ test("эризация отдельным слогом r5", () => {
   assert.equal(checkPinyin("nǎr", ref).ok, true);
   assert.equal(toMarked(parseRef("yi4/1/2 dian3 r5")), "yì diǎnr");
 });
+
+test("поиск по-русски не находит слово внутри другого", () => {
+  const E = [{ han: "学", py: "xue2", ru: "учиться" }, { han: "出事", py: "chu1 shi4", ru: "случиться (беде)" }];
+  assert.deepEqual(searchEntries(E, "учиться").map((e) => e.han), ["学"]);
+});

@@ -81,7 +81,7 @@ export function searchEntries(entries: DictEntry[], query: string, limit = 40): 
       else if (words.includes(q)) score = 1;
       else if (qk && pk.startsWith(qk)) score = 2;
       else if (words.some((w) => w.startsWith(q))) score = 3;
-      else if (ru.includes(q)) score = 4;
+      else if (q.includes(" ") && ru.includes(q)) score = 4; // фразу ищем целиком; одно слово — только с начала слова («учиться» ≠ «сл-учиться»)
     }
     if (score >= 0) scored.push([score, i, e]);
   });

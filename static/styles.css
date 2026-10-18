@@ -228,3 +228,5 @@ header{justify-content:flex-start}
 .paste textarea{font:400 15px var(--f-ui);padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);width:100%;box-sizing:border-box}
 .sticky-actions{position:sticky;bottom:calc(-20px - env(safe-area-inset-bottom,0px));background:var(--sheet);padding-block:10px}
 .deck-opt[aria-pressed] .pick-btn{pointer-events:none}
+.list-sep{padding:10px 14px 6px;font:500 11px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--paper);border-top:1px solid var(--line)}
+.status.other{color:var(--muted)}

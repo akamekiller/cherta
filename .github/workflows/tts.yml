@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ["data/*.tsv", "data/decks.json", "tts/generate_all.py", "tts/phonemes.py"]
+    paths: ["data/*.tsv", "data/decks.json", "tts/generate_all.py", "tts/phonemes.py", "tts/redo.txt"]
 
 permissions:
   contents: write

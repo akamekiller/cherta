@@ -146,7 +146,7 @@ word	pinyin	meaning_ru
 存款	cun2 kuan3	сбережения
 寸	cun4	цунь (≈3,3 см)
 达成	da2 cheng2	достигать (соглашения)
-答	da1	отвечать
+答	da2	отвечать
 答复	da2 fu4	ответ
 打扮	da3 ban5	наряжаться
 打包	da3 bao1	упаковывать
@@ -154,7 +154,7 @@ word	pinyin	meaning_ru
 打架	da3 jia4	драться
 打扰	da3 rao3	беспокоить
 大胆	da4 dan3	смелый
-大都	da4 du1	в основном
+大都	da4 dou1	в основном
 大纲	da4 gang1	программа, план
 大伙儿	da4 huo3 r5	все
 大奖赛	da4 jiang3 sai4	гран-при
@@ -169,12 +169,12 @@ word	pinyin	meaning_ru
 代价	dai4 jia4	цена (жертва)
 代理	dai4 li3	агент; замещать
 带有	dai4 you3	содержать
-待	dai1	ждать; относиться
+待	dai4	ждать; относиться
 贷款	dai4 kuan3	кредит
 单一	dan1 yi1/2/4	единственный
 胆	dan3	смелость; желчный пузырь
 胆小	dan3 xiao3	трусливый
-弹	dan4	играть (на инструменте)
+弹	tan2	играть (на инструменте)
 蛋糕	dan4 gao1	торт
 当场	dang1 chang3	на месте
 当代	dang1 dai4	современный
@@ -297,7 +297,7 @@ word	pinyin	meaning_ru
 冠军	guan4 jun1	чемпион
 光荣	guang1 rong2	почётный
 光线	guang1 xian4	свет
-广	yan3	широкий
+广	guang3	широкий
 广泛	guang3 fan4	широкий, обширный
 规划	gui1 hua4	планирование
 鬼	gui3	призрак
@@ -309,9 +309,9 @@ word	pinyin	meaning_ru
 过度	guo4 du4	чрезмерный
 过敏	guo4 min3	аллергия
 过于	guo4 yu2	слишком
-咳	hai1	кашлять
+咳	ke2	кашлять
 害	hai4	вредить
-汗	han2	пот
+汗	han4	пот
 好运	hao3 yun4	удача
 号召	hao4 zhao4	призывать
 合并	he2 bing4	объединять
@@ -476,7 +476,7 @@ word	pinyin	meaning_ru
 铃	ling2	звонок
 铃声	ling2 sheng1	звонок, мелодия
 领带	ling3 dai4	галстук
-令	ling2	заставлять; приказ
+令	ling4	заставлять; приказ
 流动	liu2 dong4	течь, двигаться
 流通	liu2 tong1	обращение (денег)
 漏	lou4	протекать
@@ -546,7 +546,7 @@ word	pinyin	meaning_ru
 皮肤	pi2 fu1	кожа
 皮鞋	pi2 xie2	кожаная обувь
 脾气	pi2 qi5	характер, нрав
-匹	pi1	счётное слово для лошадей
+匹	pi3	счётное слово для лошадей
 骗	pian4	обманывать
 骗子	pian4 zi5	мошенник
 拼	pin1	складывать; бороться
@@ -585,7 +585,7 @@ word	pinyin	meaning_ru
 强度	qiang2 du4	интенсивность
 强迫	qiang3 po4	принуждать
 墙壁	qiang2 bi4	стена
-抢	qiang1	отнимать, хватать
+抢	qiang3	отнимать, хватать
 抢救	qiang3 jiu4	спасать
 悄悄	qiao1 qiao1	тихонько
 敲	qiao1	стучать
@@ -636,7 +636,7 @@ word	pinyin	meaning_ru
 沙漠	sha1 mo4	пустыня
 傻	sha3	глупый
 山区	shan1 qu1	горный район
-扇	shan1	веер; счётное слово для дверей
+扇	shan4	веер; счётное слово для дверей
 扇子	shan4 zi5	веер
 商标	shang1 biao1	торговая марка
 上级	shang4 ji2	начальство
@@ -685,7 +685,7 @@ word	pinyin	meaning_ru
 视频	shi4 pin2	видео
 视为	shi4 wei2	рассматривать как
 试图	shi4 tu2	пытаться
-拾	she4	поднимать; десять (формально)
+拾	shi2	поднимать; десять (формально)
 收购	shou1 gou4	скупать
 收集	shou1 ji2	собирать
 收拾	shou1 shi5	убирать
@@ -711,7 +711,7 @@ word	pinyin	meaning_ru
 水库	shui3 ku4	водохранилище
 水灾	shui3 zai1	наводнение
 睡眠	shui4 mian2	сон
-说法	shuo1 fa3	формулировка, мнение
+说法	shuo1 fa5	формулировка, мнение
 硕士	shuo4 shi4	магистр
 私人	si1 ren2	частный
 思维	si1 wei2	мышление
@@ -799,7 +799,7 @@ word	pinyin	meaning_ru
 戏剧	xi4 ju4	драма, театр
 西红柿	xi1 hong2 shi4	помидор
 西装	xi1 zhuang1	костюм
-吓	he4	пугать
+吓	xia4	пугать
 先后	xian1 hou4	один за другим
 先前	xian1 qian2	раньше
 鲜艳	xian1 yan4	яркий
@@ -977,7 +977,7 @@ word	pinyin	meaning_ru
 振动	zhen4 dong4	вибрация
 震惊	zhen4 jing1	потрясение
 争议	zheng1 yi4	спор
-挣	zheng1	зарабатывать
+挣	zheng4	зарабатывать
 挣钱	zheng4 qian2	зарабатывать деньги
 正版	zheng4 ban3	лицензионный
 正规	zheng4 gui1	официальный, регулярный

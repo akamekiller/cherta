@@ -58,7 +58,21 @@ def main():
     args = ap.parse_args()
     os.makedirs(OUT, exist_ok=True)
     words = deck_words()
-    todo = [(h, p) for h, p in words.items() if not os.path.exists(os.path.join(OUT, h + ".mp3"))]
+    # Какой пиньинь озвучен в каждом файле. Если пиньинь в колоде поменялся — слово переозвучивается.
+    idx_path = os.path.join(OUT, "index.json")
+    old = json.load(open(idx_path, encoding="utf8")) if os.path.exists(idx_path) else {}
+    voiced = dict(old.get("py", {}))
+    redo_path = os.path.join(os.path.dirname(__file__), "redo.txt")
+    redo = set(open(redo_path, encoding="utf8").read().split()) if os.path.exists(redo_path) else set()
+
+    def stale(h, p):
+        if not os.path.exists(os.path.join(OUT, h + ".mp3")):
+            return True
+        if h in voiced:
+            return voiced[h] != p
+        return h in redo  # файлы первого запуска без записи пиньиня: переделываем только слова из redo.txt
+
+    todo = [(h, p) for h, p in words.items() if stale(h, p)]
     if args.limit:
         todo = todo[: args.limit]
     print(f"Слов в колодах: {len(words)}, озвучить сейчас: {len(todo)}", flush=True)
@@ -73,13 +87,17 @@ def main():
                 with torch.no_grad():
                     o = KPipeline.infer(model, ps, pack, SPEED)
                 to_mp3(o.audio.numpy(), os.path.join(OUT, han + ".mp3"))
+                voiced[han] = py
             except Exception as e:  # одно слово не должно ронять всю озвучку
                 print("ОШИБКА", han, py, e, flush=True)
             if n % 100 == 0:
                 print(f"{n}/{len(todo)} за {time.time() - t0:.0f} с", flush=True)
     done = sorted(f[:-4] for f in os.listdir(OUT) if f.endswith(".mp3"))
-    json.dump({"voice": VOICE, "words": done}, open(os.path.join(OUT, "index.json"), "w", encoding="utf8"), ensure_ascii=False)
-    left = sum(1 for h in words if h not in set(done))
+    for h in done:  # старые файлы, которые не пришлось переделывать, считаем озвученными по текущему пиньиню
+        if h not in voiced and h in words and h not in redo:
+            voiced[h] = words[h]
+    json.dump({"voice": VOICE, "words": done, "py": voiced}, open(idx_path, "w", encoding="utf8"), ensure_ascii=False)
+    left = sum(1 for h, p in words.items() if stale(h, p))
     print(f"Готово файлов: {len(done)}, осталось: {left}", flush=True)
     with open(os.environ.get("GITHUB_OUTPUT", os.devnull), "a") as f:
         f.write(f"left={left}\n")

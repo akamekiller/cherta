@@ -1,8 +1,7 @@
 import { app, updateSettings, reloadAll, revertEdit } from "../state.ts";
-import { plural } from "./dom.ts";
 import * as store from "../store.ts";
 import { say, voiceStatus, onVoices } from "../speech.ts";
-import { $, esc } from "./dom.ts";
+import { $, esc, plural } from "./dom.ts";
 import { setTheme, type ThemeChoice } from "../theme.ts";
 import { renderThemeChoices, openThemeEditor } from "./themeEditor.ts";
 import { onShow } from "./nav.ts";
@@ -91,7 +90,7 @@ export function initSettings() {
       try {
         const n = await store.importAll(text);
         await reloadAll();
-        app.settings = await store.loadSettings();
+        setTheme(app.settings.theme, app.settings.custom ?? null);
         render();
         note(`Загружено карточек: ${n}.`);
       } catch (err) {

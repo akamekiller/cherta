@@ -44,8 +44,14 @@ function open(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains("edits")) db.createObjectStore("edits", { keyPath: "id" });
       if (!db.objectStoreNames.contains("userDecks")) db.createObjectStore("userDecks", { keyPath: "id" });
     };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      const db = req.result;
+      // другая вкладка обновляет схему — закрываемся, чтобы не мешать
+      db.onversionchange = () => { db.close(); dbp = null; };
+      resolve(db);
+    };
+    req.onerror = () => { dbp = null; reject(req.error); };
+    req.onblocked = () => { dbp = null; reject(new Error("Закройте другие вкладки с «Чертой» и обновите страницу")); };
   });
   return dbp;
 }

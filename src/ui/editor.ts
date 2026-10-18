@@ -96,11 +96,12 @@ export function openDeckEditor(deck?: UserDeck, saved?: (id: string | null) => v
       : `<button class="pick-btn${on ? " on" : ""}" data-${action}="${esc(e[0])}" aria-label="${on ? "Убрать" : "Добавить"}">${on ? "✓" : "+"}</button>`}</div>`;
 
   function renderResults() {
+    if (!root?.querySelector("#dk-q")) return; // панель уже закрыта или заменена другой
     const query = q<HTMLInputElement>("dk-q").value;
     const found = searchEntries(entries, query, 30);
-    q("dk-results").innerHTML = query.trim() && !entries.length ? `<p class="hint pad">Загружаю слова HSK…</p>`
+    q("dk-results").innerHTML = query.trim() && !entries.length ? `<p class="hint pad-msg">Загружаю слова HSK…</p>`
       : found.map((e) => row([e.han, e.py, e.ru], has(e.han), "toggle")).join("")
-        || (query.trim() ? `<p class="hint pad">В HSK не нашлось.</p>` : "");
+        || (query.trim() ? `<p class="hint pad-msg">В HSK не нашлось.</p>` : "");
     const han = query.trim();
     const own = q("dk-own");
     const canOwn = /^\p{Script=Han}+$/u.test(han) && !found.some((e) => e.han === han) && !has(han);

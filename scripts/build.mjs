@@ -12,7 +12,7 @@ const VERSION = `${pkg.version}-${Date.now().toString(36)}`;
 
 // 1. Чистим всё, кроме данных черт (они тяжёлые и меняются редко)
 mkdirSync(out, { recursive: true });
-for (const f of readdirSync(out)) if (!["data", "audio", "audio-test"].includes(f)) rmSync(join(out, f), { recursive: true, force: true });
+for (const f of readdirSync(out)) if (!["data", "audio"].includes(f)) rmSync(join(out, f), { recursive: true, force: true });
 
 // 2. Код
 await build({

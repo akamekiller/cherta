@@ -50,6 +50,9 @@ export function initHome() {
     $("deck-list").hidden = !open;
     $("deck-btn").setAttribute("aria-expanded", String(open));
   });
+  $("deck-list").addEventListener("keydown", (e) => {
+    if ((e.key === "Enter" || e.key === " ") && (e.target as HTMLElement).classList.contains("deck-opt")) { e.preventDefault(); (e.target as HTMLElement).click(); }
+  });
   $("deck-list").addEventListener("click", async (e) => {
     const t = e.target as HTMLElement;
     const after = async (id: string | null) => { if (id && id !== app.deck?.id) await switchDeck(id); renderHome(); };

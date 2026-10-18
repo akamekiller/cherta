@@ -134,7 +134,6 @@ export function previewCustom(t: CustomTheme) {
 }
 export const restoreTheme = () => apply();
 
-export const themeChoice = () => choice;
 export const customTheme = () => custom;
 export function currentPreset(): Preset {
   const r = resolved();

@@ -12,7 +12,7 @@ import { createWriter, type Writer } from "./writer.ts";
 import { show, onLeave } from "./nav.ts";
 
 type Session = {
-  word: Word;
+  word: Word | null;
   chars: string[];
   ci: number;
   miss: number[];
@@ -21,6 +21,8 @@ type Session = {
   isNew: boolean;
   writer: Writer | null;
   answered: boolean;
+  grading: boolean;  // идёт сохранение оценки — повторные нажатия игнорируются
+  mistakes: number;
   done: number;
 };
 let s: Session | null = null;
@@ -29,7 +31,7 @@ export const sessionWriter = () => s?.writer ?? null;
 const GRADE_NAMES = ["Снова", "Трудно", "Хорошо", "Легко"];
 
 export function startSession() {
-  s = { done: 0 } as Session;
+  s = { word: null, chars: [], ci: 0, miss: [], gave: [], hint: [], isNew: false, writer: null, answered: false, grading: false, mistakes: 0, done: 0 };
   show("session");
   nextQuestion();
 }
@@ -55,7 +57,7 @@ function nextQuestion() {
   const c = counts();
   $("left").textContent = `осталось ${c.total}`;
   const chars = [...w.han];
-  Object.assign(s, { word: w, chars, ci: 0, miss: chars.map(() => 0), gave: chars.map(() => false), hint: chars.map(() => false), isNew: !cardOf(w), answered: false });
+  Object.assign(s, { word: w, chars, ci: 0, miss: chars.map(() => 0), gave: chars.map(() => false), hint: chars.map(() => false), isNew: !cardOf(w), answered: false, grading: false, mistakes: 0 });
   preload(w.han);
   $("q-ru").textContent = w.ru;
   $("q-meta").textContent = `${s.isNew ? "Новое слово · " : ""}${chars.length} ${plural(chars.length, "иероглиф", "иероглифа", "иероглифов")}`;
@@ -123,7 +125,7 @@ function charsDone() {
 }
 
 function reveal() {
-  if (!s || s.answered) return;
+  if (!s?.word || s.answered) return;
   s.answered = true;
   const w = s.word;
   const mistakes = s.miss.reduce((a, b) => a + b, 0);
@@ -155,15 +157,16 @@ function reveal() {
     const gap = preview(w, gr, now).due - now;
     return `<button class="grade${gr === g ? " suggest" : ""}" data-g="${gr}">${name}<small>${formatGap(gap)}</small></button>`;
   }).join("");
-  (s as Session & { mistakes: number }).mistakes = mistakes;
+  s.mistakes = mistakes;
   if (app.settings.voice) say(w.han);
   ($("grades").querySelector(".suggest") as HTMLButtonElement | null)?.focus({ preventScroll: true });
 }
 
 async function grade(g: Grade) {
-  if (!s) return;
+  if (!s?.word || !s.answered || s.grading) return;
   const cur = s;
-  await answer(cur.word, g, (cur as Session & { mistakes?: number }).mistakes ?? 0);
+  cur.grading = true;
+  await answer(cur.word!, g, cur.mistakes);
   if (s !== cur) return;
   cur.done++;
   nextQuestion();
@@ -178,7 +181,7 @@ export function showNote(el: HTMLElement, id: string) {
 /** После правки обновляем показанный ответ: значение, пиньинь, заметку. */
 function refreshAfterEdit() {
   if (!s) return;
-  const fresh = words().find((x) => x.id === s!.word.id);
+  const fresh = words().find((x) => x.id === s!.word?.id);
   if (!fresh) return;
   s.word = fresh;
   $("r-py").innerHTML = pinyinHTML(fresh.ref);
@@ -187,7 +190,7 @@ function refreshAfterEdit() {
 }
 
 export function initSession() {
-  $("r-edit").addEventListener("click", () => s && openWordEditor(s.word, refreshAfterEdit));
+  $("r-edit").addEventListener("click", () => s?.word && openWordEditor(s.word, refreshAfterEdit));
   $("quit").addEventListener("click", () => show("home"));
   $("done-home").addEventListener("click", () => show("home"));
   onLeave("session", endSession);
@@ -218,9 +221,11 @@ export function initSession() {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>(".grade");
     if (b) grade(Number(b.dataset.g) as Grade);
   });
-  $("r-say").addEventListener("click", () => s && say(s.word.han));
+  $("r-say").addEventListener("click", () => s?.word && say(s.word.han));
   document.addEventListener("keydown", (e) => {
-    if (!s?.answered || $("res").hidden) return;
+    // клавиши 1–4 ставят оценку, но не когда печатаешь в поле (например, в редакторе слова)
+    const t = e.target as HTMLElement;
+    if (!s?.answered || $("res").hidden || !$("sheet").hidden || t.closest("input,textarea,select")) return;
     if (["1", "2", "3", "4"].includes(e.key)) grade(Number(e.key) as Grade);
   });
 }

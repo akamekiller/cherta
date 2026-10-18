@@ -165,12 +165,9 @@ function afterLearningStep(c: Card, from: CardState, step: number, g: Grade, now
     c.due = now + Math.round(mins) * MIN;
     return c;
   }
-  // g === 3
-  const nextStep = from === "new" ? 0 : step + 1;
-  if (from === "new" && steps.length > 1) {
-    c.state = learnState; c.step = 1; c.due = now + steps[1] * MIN; return c;
-  }
-  if (nextStep >= steps.length || from === "new") return graduate();
+  // g === 3: следующий шаг; новая карточка сразу переходит на второй шаг (как в Anki)
+  const nextStep = from === "new" ? 1 : step + 1;
+  if (nextStep >= steps.length) return graduate();
   c.state = learnState; c.step = nextStep; c.due = now + steps[nextStep] * MIN;
   return c;
 }

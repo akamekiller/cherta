@@ -24,8 +24,6 @@ export function show(v: View) {
   handlers[v]?.();
 }
 
-export const currentView = () => current;
-
 const drawer = () => document.getElementById("drawer")!;
 const scrim = () => document.getElementById("scrim")!;
 const menuBtn = () => document.getElementById("menu-btn")!;

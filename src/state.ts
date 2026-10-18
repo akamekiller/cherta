@@ -79,7 +79,9 @@ export async function switchDeck(id: string) {
   await updateSettings({ deck: id });
 }
 
+/** Перечитать всё из хранилища (после импорта или сброса). */
 export async function reloadAll() {
+  app.settings = await store.loadSettings();
   app.cards = await store.allCards();
   app.edits = await store.allEdits();
   app.userDecks = await store.allUserDecks();
@@ -184,7 +186,7 @@ export function counts() {
   }
   const unseen = list.filter((w) => !cardOf(w)).length;
   const newLeft = Math.min(unseen, Math.max(0, app.settings.newPerDay - app.day.newCount));
-  return { due, learning, review, newLeft, unseen, total: due + learning + newLeft, hidden: words().length - list.length };
+  return { due, learning, review, newLeft, unseen, total: due + learning + newLeft };
 }
 
 /** Следующее слово: просроченные шаги → повторения → новые → шаги заранее. */

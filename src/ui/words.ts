@@ -40,13 +40,15 @@ function status(w: Word): [string, string] {
 }
 
 let hsk: DictEntry[] = [];
-let others: Word[] = []; // найденные слова из других колод — для открытия карточки
+type OtherWord = Word & { level: string };
+let others: OtherWord[] = []; // найденные слова из других колод — для открытия карточки
 
 const itemHTML = (w: Word, st: string, cls: string) => ui.view === "grid"
   ? `<button class="tile ${cls}" data-id="${esc(w.id)}" title="${esc(w.ru)}"><span class="h">${esc(w.han)}</span><span class="py">${pinyinHTML(w.ref)}</span><span class="ru">${esc(w.ru)}</span></button>`
   : `<button class="item" data-id="${esc(w.id)}"><span class="h">${esc(w.han)}</span><span class="txt"><span class="py">${pinyinHTML(w.ref)}</span><span class="ru">${esc(w.ru)}</span></span><span class="status ${cls}">${st}</span></button>`;
 
 type Group = { title: string; items: Word[] };
+type PendingGroup = Group & { started: boolean };
 
 function groupWords(list: Word[]): Group[] {
   const now = Date.now();
@@ -82,7 +84,7 @@ function groupWords(list: Word[]): Group[] {
 }
 
 /* Постепенная отрисовка: длинный список дорисовывается по мере прокрутки. */
-let pending: Group[] = [];
+let pending: PendingGroup[] = [];
 let observer: IntersectionObserver | null = null;
 const CHUNK = 100;
 
@@ -93,10 +95,11 @@ function drawMore() {
   while (pending.length && budget > 0) {
     const g = pending[0];
     if (!g.items.length) { pending.shift(); continue; }
-    if (!(g as Group & { started?: boolean }).started) {
-      html += `<h3 class="grp-title"><span>${esc(g.title)}</span><span class="grp-n">${g.items.length}</span></h3><div class="grp ${ui.view}">`;
-      (g as Group & { started?: boolean }).started = true;
-    } else html += `<div class="grp ${ui.view}">`;
+    if (!g.started) {
+      html += `<h3 class="grp-title"><span>${esc(g.title)}</span><span class="grp-n">${g.items.length}</span></h3>`;
+      g.started = true;
+    }
+    html += `<div class="grp ${ui.view}">`;
     const part = g.items.splice(0, budget);
     budget -= part.length;
     html += part.map((w) => { const [st, cls] = status(w); return itemHTML(w, st, cls); }).join("") + `</div>`;
@@ -121,17 +124,15 @@ function renderList() {
   $("w-controls").hidden = !!q;
   $("w-groups").innerHTML = "";
   if (q) {
-    const list = searchEntries(words().map((w) => ({ han: w.han, py: w.py, ru: w.ru })), q, 500).map((e) => words().find((w) => w.han === e.han)!);
-    const inDeck = new Set(words().map((w) => w.han));
-    others = searchEntries(hsk.filter((e) => !inDeck.has(e.han)), q, 30).map((e) => {
-      const w = loadDeck({ id: "x", title: "", lang: "zh", words: [[e.han, e.py, e.ru]] }).words[0];
-      (w as Word & { level?: string }).level = e.level;
-      return w;
-    });
+    const byHan = new Map(words().map((w) => [w.han, w]));
+    const list = searchEntries(words().map((w) => ({ han: w.han, py: w.py, ru: w.ru })), q, 500).map((e) => byHan.get(e.han)!);
+    others = searchEntries(hsk.filter((e) => !byHan.has(e.han)), q, 30).map((e) => ({
+      ...loadDeck({ id: "x", title: "", lang: "zh", words: [[e.han, e.py, e.ru]] }).words[0], level: e.level ?? "",
+    }));
     pending = [];
     $("w-groups").innerHTML = `<h3 class="grp-title"><span>В этой колоде</span><span class="grp-n">${list.length}</span></h3>`
       + (list.length ? `<div class="grp ${ui.view}">${list.map((w) => { const [st, cls] = status(w); return itemHTML(w, st, cls); }).join("")}</div>` : `<p class="empty">Не нашлось.</p>`)
-      + (others.length ? `<h3 class="grp-title"><span>В других колодах</span><span class="grp-n">${others.length}</span></h3><div class="grp ${ui.view}">${others.map((w) => itemHTML(w, (w as Word & { level?: string }).level ?? "", "other")).join("")}</div>` : "")
+      + (others.length ? `<h3 class="grp-title"><span>В других колодах</span><span class="grp-n">${others.length}</span></h3><div class="grp ${ui.view}">${others.map((w) => itemHTML(w, w.level, "other")).join("")}</div>` : "")
       + (!list.length && !others.length ? `<p class="empty">Ищите по иероглифу, пиньиню без тонов или по-русски.</p>` : "");
     $("w-more").hidden = true;
     return;
@@ -139,7 +140,7 @@ function renderList() {
   const all = words();
   renderControls(all);
   const list = ui.filter === "all" ? all : all.filter((w) => kind(w) === ui.filter);
-  pending = groupWords(list).map((g) => ({ ...g, items: [...g.items] }));
+  pending = groupWords(list).map((g) => ({ ...g, items: [...g.items], started: false }));
   if (!list.length) $("w-groups").innerHTML = `<p class="empty">${ui.filter === "all" ? "В колоде нет слов." : "Таких слов пока нет."}</p>`;
   drawMore();
 }

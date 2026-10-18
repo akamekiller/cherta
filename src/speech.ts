@@ -6,7 +6,7 @@
  */
 let voice: SpeechSynthesisVoice | null = null;
 let listeners: (() => void)[] = [];
-let recorded: Set<string> | null = null;
+let recorded: Map<string, string> | null = null; // слово → пиньинь, по которому сделана запись (метка версии)
 let recordedLoading: Promise<void> | null = null;
 const player = typeof Audio !== "undefined" ? new Audio() : null;
 
@@ -25,8 +25,11 @@ export function loadRecorded(): Promise<void> {
   if (!recordedLoading) {
     recordedLoading = fetch("audio/zh/index.json")
       .then((r) => (r.ok ? r.json() : { words: [] }))
-      .then((d: { words: string[] }) => { recorded = new Set(d.words); listeners.forEach((f) => f()); })
-      .catch(() => { recorded = new Set(); });
+      .then((d: { words: string[]; py?: Record<string, string> }) => {
+        recorded = new Map(d.words.map((w) => [w, d.py?.[w] ?? ""]));
+        listeners.forEach((f) => f());
+      })
+      .catch(() => { recorded = new Map(); });
   }
   return recordedLoading;
 }
@@ -60,7 +63,9 @@ function speakDevice(text: string, rate: number) {
 export function say(text: string, rate = 0.85) {
   if (player && hasRecording(text)) {
     try { speechSynthesis?.cancel(); } catch { /* */ }
-    player.src = `audio/zh/${encodeURIComponent(text)}.mp3`;
+    // ?v= меняется, когда слово переозвучено — иначе офлайн-кэш играл бы старую запись
+    const v = recorded!.get(text);
+    player.src = `audio/zh/${encodeURIComponent(text)}.mp3${v ? `?v=${encodeURIComponent(v)}` : ""}`;
     player.play().catch(() => speakDevice(text, rate));
     return;
   }

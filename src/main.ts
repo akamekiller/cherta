@@ -7,6 +7,8 @@ import { initSession, sessionWriter } from "./ui/session.ts";
 import { initWords, wordsWriter } from "./ui/words.ts";
 import { initSettings } from "./ui/settings.ts";
 import { recolor } from "./ui/writer.ts";
+import { setTheme, onThemeChange } from "./theme.ts";
+import { app } from "./state.ts";
 
 async function boot() {
   initNav();
@@ -21,9 +23,10 @@ async function boot() {
     $("boot-error").textContent = `Не удалось запустить: ${e instanceof Error ? e.message : e}. Обновите страницу.`;
     return;
   }
+  setTheme(app.settings.theme);
+  onThemeChange(() => recolor([sessionWriter(), wordsWriter()]));
   show("home");
   requestPersist();
-  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => recolor([sessionWriter(), wordsWriter()]));
   if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
     navigator.serviceWorker.register("sw.js").catch(() => { /* офлайн необязателен */ });
   }

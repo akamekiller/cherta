@@ -7,6 +7,14 @@
 <meta name="description" content="Прописи китайских иероглифов с проверкой черт и интервальными повторениями">
 <meta name="theme-color" content="#F2F4F2" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#111615" media="(prefers-color-scheme: dark)">
+<script>
+  // тема до отрисовки, чтобы не было вспышки
+  try {
+    var t = localStorage.getItem("cherta.theme") || "auto";
+    if (t === "auto") t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
@@ -14,7 +22,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;700&family=IBM+Plex+Mono:wght@500&display=swap">
-<link rel="stylesheet" href="styles.css?v=0.2.0-mvddc8b4">
+<link rel="stylesheet" href="styles.css?v=0.3.0-mvdesaha">
 </head>
 <body>
 <div class="wrap">
@@ -146,6 +154,10 @@
   <!-- Настройки -->
   <section id="settings" class="stack" hidden>
     <div class="panel">
+      <div class="set-row theme-row">
+        <div class="t"><div>Тема</div><div>Авто следует за настройкой телефона</div></div>
+        <div class="themes" id="themes"></div>
+      </div>
       <div class="set-row">
         <div class="t"><div>Новых слов в день</div><div>Сколько новых карточек добавлять за день</div></div>
         <div class="stepper"><button class="icon-btn" id="n-minus" aria-label="Меньше">−</button><output id="n-val">10</output><button class="icon-btn" id="n-plus" aria-label="Больше">+</button></div>
@@ -175,9 +187,9 @@
       <div class="confirm" id="confirm-box" hidden></div>
       <p class="note" id="io-note"></p>
     </div>
-    <p class="about">Черта 0.2.0-mvddc8b4. Данные черт: Make Me a Hanzi (Arphic Public License), библиотека Hanzi Writer (MIT). Планировщик повторений: FSRS-5.</p>
+    <p class="about">Черта 0.3.0-mvdesaha. Данные черт: Make Me a Hanzi (Arphic Public License), библиотека Hanzi Writer (MIT). Планировщик повторений: FSRS-5.</p>
   </section>
 </div>
-<script type="module" src="app.js?v=0.2.0-mvddc8b4"></script>
+<script type="module" src="app.js?v=0.3.0-mvdesaha"></script>
 </body>
 </html>

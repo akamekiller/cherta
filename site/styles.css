@@ -1,20 +1,25 @@
+/* Темы: data-theme на <html> ставит src/theme.ts (light | dark | black). */
 :root{
   --paper:#F2F4F2; --sheet:#FFFFFF; --ink:#18201E; --muted:#5E6A66; --line:#DCE2DF; --outline:#E3E8E6;
-  --jade:#1E7A60; --jade-soft:#E1F0EA; --grid:#D9705F; --good:#1E7A60; --warn:#B7791F; --bad:#C2413A;
+  --jade:#1E7A60; --jade-soft:#E1F0EA; --on-accent:#FFFFFF; --grid:#D9705F; --good:#1E7A60; --warn:#B7791F; --bad:#C2413A;
   --t1:#D23B33; --t2:#D98A12; --t3:#2E9447; --t4:#2F6FD1; --t5:#8A938F;
   --f-ui:"Golos Text",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-han:"Noto Serif SC","Songti SC","SimSun",serif;
   --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
   --r:14px;
 }
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+@media (prefers-color-scheme: dark){:root:not([data-theme]){
   --paper:#111615; --sheet:#1A2120; --ink:#E7ECEA; --muted:#97A39F; --line:#2B3533; --outline:#28312F;
-  --jade:#4CC59E; --jade-soft:#18342C; --grid:#B55A4C; --good:#4CC59E; --warn:#E3A848; --bad:#EE6B62;
+  --jade:#4CC59E; --jade-soft:#18342C; --on-accent:#0D1513; --grid:#B55A4C; --good:#4CC59E; --warn:#E3A848; --bad:#EE6B62;
   --t1:#F0625A; --t2:#F0A940; --t3:#54C06E; --t4:#6F9FF0; --t5:#7F8A86; color-scheme:dark}}
 :root[data-theme="dark"]{
   --paper:#111615; --sheet:#1A2120; --ink:#E7ECEA; --muted:#97A39F; --line:#2B3533; --outline:#28312F;
-  --jade:#4CC59E; --jade-soft:#18342C; --grid:#B55A4C; --good:#4CC59E; --warn:#E3A848; --bad:#EE6B62;
+  --jade:#4CC59E; --jade-soft:#18342C; --on-accent:#0D1513; --grid:#B55A4C; --good:#4CC59E; --warn:#E3A848; --bad:#EE6B62;
   --t1:#F0625A; --t2:#F0A940; --t3:#54C06E; --t4:#6F9FF0; --t5:#7F8A86; color-scheme:dark}
+:root[data-theme="black"]{
+  --paper:#000000; --sheet:#0E0E0E; --ink:#F2F2F2; --muted:#8C8C8C; --line:#262626; --outline:#2C2C2C;
+  --jade:#EDEDED; --jade-soft:#1F1F1F; --on-accent:#000000; --grid:#4A4A4A; --good:#6FCF9C; --warn:#E3A848; --bad:#EF6A62;
+  --t1:#F0625A; --t2:#F0A940; --t3:#54C06E; --t4:#6F9FF0; --t5:#808080; color-scheme:dark}
 html,body{background:var(--paper);color:var(--ink);margin:0}
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 [hidden]{display:none!important}
@@ -35,9 +40,7 @@ h2{font-size:22px;line-height:1.25;margin:0;text-wrap:balance}
 .stack{display:flex;flex-direction:column;gap:14px}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .btn{border:1px solid var(--line);background:var(--sheet);color:var(--ink);font:600 15px var(--f-ui);padding:12px 16px;border-radius:12px;cursor:pointer;min-height:46px}
-.btn.primary{background:var(--jade);border-color:var(--jade);color:#fff}
-:root[data-theme="dark"] .btn.primary{color:#0D1513}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn.primary{color:#0D1513}}
+.btn.primary{background:var(--jade);border-color:var(--jade);color:var(--on-accent)}
 .btn:disabled{opacity:.45;cursor:default}
 .btn.ghost{background:none}
 .btn.small{min-height:38px;padding:8px 12px;font-size:14px}
@@ -131,3 +134,9 @@ h2{font-size:22px;line-height:1.25;margin:0;text-wrap:balance}
 .note.danger{color:var(--bad)}
 .about{font-size:12.5px;color:var(--muted);margin:0}
 .about a{color:inherit}
+.themes{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.theme-opt{border:1px solid var(--line);background:var(--sheet);color:var(--ink);border-radius:12px;padding:8px 4px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;font:500 13px var(--f-ui)}
+.theme-opt[aria-pressed="true"]{border-color:var(--jade);box-shadow:0 0 0 1px var(--jade)}
+.swatch{width:100%;max-width:56px;height:30px;border-radius:7px;border:1px solid var(--line);display:flex;overflow:hidden}
+.swatch i{flex:1}
+.theme-row{flex-direction:column;align-items:stretch}

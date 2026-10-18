@@ -1,6 +1,6 @@
 // Service worker «Черты»: офлайн-работа.
 // Оболочка приложения кэшируется при установке; данные черт и шрифты — при первом запросе.
-const VERSION = "0.2.0-mvddc8b4";
+const VERSION = "0.3.0-mvdesaha";
 const SHELL = `cherta-shell-${VERSION}`;
 const DATA = "cherta-data-v1";
 const SHELL_FILES = ["./","index.html","app.js","styles.css","manifest.webmanifest","icons/icon.svg","icons/icon-192.png","data/decks/hsk1.json"];

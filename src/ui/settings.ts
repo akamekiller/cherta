@@ -2,9 +2,16 @@ import { app, updateSettings, reloadCards } from "../state.ts";
 import * as store from "../store.ts";
 import { say, voiceStatus, onVoices } from "../speech.ts";
 import { $, esc } from "./dom.ts";
+import { THEMES, setTheme, type ThemeChoice } from "../theme.ts";
 import { onShow } from "./nav.ts";
 
+function renderThemes() {
+  $("themes").innerHTML = THEMES.map((t) => `<button class="theme-opt" data-theme-id="${t.id}" aria-pressed="${app.settings.theme === t.id}">
+    <span class="swatch" aria-hidden="true">${t.swatch.map((c) => `<i style="background:${c}"></i>`).join("")}</span>${t.name}</button>`).join("");
+}
+
 function render() {
+  renderThemes();
   $("n-val").textContent = String(app.settings.newPerDay);
   $<HTMLInputElement>("s-py").checked = app.settings.pinyin;
   $<HTMLInputElement>("s-voice").checked = app.settings.voice;
@@ -28,6 +35,14 @@ function confirmBox(question: string, yes: string, onYes: () => void) {
 
 export function initSettings() {
   onShow("settings", render);
+  $("themes").addEventListener("click", async (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>(".theme-opt");
+    if (!b) return;
+    const id = b.dataset.themeId as ThemeChoice;
+    setTheme(id);
+    await updateSettings({ theme: id });
+    renderThemes();
+  });
   onVoices(() => { const el = document.getElementById("voice-info"); if (el) el.textContent = voiceStatus(); });
   $("n-minus").addEventListener("click", async () => { await updateSettings({ newPerDay: Math.max(0, app.settings.newPerDay - 5) }); render(); });
   $("n-plus").addEventListener("click", async () => { await updateSettings({ newPerDay: Math.min(50, app.settings.newPerDay + 5) }); render(); });

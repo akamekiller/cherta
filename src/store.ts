@@ -6,17 +6,19 @@
  * Схема версионируется: DB_VERSION + миграции в onupgradeneeded.
  */
 import type { Card, Grade } from "./core/fsrs.ts";
+import type { ThemeChoice } from "./theme.ts";
 
 export type Settings = {
   newPerDay: number;
   pinyin: boolean;
   voice: boolean;
   deck: string;
+  theme: ThemeChoice;
 };
 export type DayCounter = { day: string; newCount: number };
 export type Review = { id: string; at: number; grade: Grade; state: Card["state"]; mistakes: number };
 
-export const DEFAULT_SETTINGS: Settings = { newPerDay: 10, pinyin: true, voice: true, deck: "hsk1" };
+export const DEFAULT_SETTINGS: Settings = { newPerDay: 10, pinyin: true, voice: true, deck: "hsk1", theme: "auto" };
 const DB_NAME = "cherta";
 const DB_VERSION = 1;
 const EXPORT_FORMAT = "cherta-progress";

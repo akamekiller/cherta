@@ -48,6 +48,8 @@ export type QOpts = {
   learnAhead: number;
   /** Вперемешку: новые слова — в случайном порядке, постоянном в течение дня (seed — например, дата). Без seed — по порядку колоды. */
   seed?: string;
+  /** Только повторения: без новых слов и новых навыков (план «Сегодня»). */
+  reviewOnly?: boolean;
   /** Случайность для выбора среди повторений и навыков (без неё — самое просроченное и первый навык). */
   rnd?: () => number;
 };
@@ -97,7 +99,7 @@ export function pickNext(words: QWord[], card: (id: string) => Card | undefined,
     }
     // карточки других навыков (не из списка колоды) тоже считают слово начатым
     if (!started && ["write", "read", "tone", "def"].some((sk) => card(cardId(w.id, sk as Skill)))) started = true;
-    if (!missing.length) return;
+    if (!missing.length || o.reviewOnly) return;
     if (started) {
       nNewSkill++;
       if (!newSkill || (rnd && rnd() * nNewSkill < 1)) newSkill = { word: wi, skill: pickSkill(missing), fresh: "skill" };
@@ -107,6 +109,7 @@ export function pickNext(words: QWord[], card: (id: string) => Card | undefined,
     }
   });
   const pick = (x: [number, QPick] | null) => (x ? x[1] : null);
+  if (o.reviewOnly) return pick(learnNow) ?? pick(review);
   return pick(learnNow) ?? pick(review) ?? pick(newWord) ?? newSkill ?? pick(ahead) ?? pick(aheadSame);
 }
 

@@ -367,11 +367,15 @@ export function counts(): DeckCounts {
 
 /** Следующая карточка текущей колоды: слово и навык. */
 export type NextCard = { word: Word; skill: Skill; fresh: QPick["fresh"] };
+/** Режим занятия «только повторения» (план «Сегодня»): новые слова не начинаются. */
+let reviewOnly = false;
+export const setReviewOnly = (on: boolean) => { reviewOnly = on; };
+
 export function nextCard(excludeCardId?: string): NextCard | null {
   rollDay();
   const d = app.deck;
   if (!d) return null;
-  const p = pickNext(qWords(d), getCard, qOpts(d.id, excludeCardId, Math.random));
+  const p = pickNext(qWords(d), getCard, { ...qOpts(d.id, excludeCardId, Math.random), reviewOnly });
   return p ? { word: d.words[p.word], skill: p.skill, fresh: p.fresh } : null;
 }
 

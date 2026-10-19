@@ -291,7 +291,7 @@ async function importFile(file: File) {
 export function initHome() {
   onShow("home", renderHome);
   onShow("deck", renderDeck);
-  $("start").addEventListener("click", startSession);
+  $("start").addEventListener("click", () => startSession());
   $("decks").addEventListener("click", (e) => {
     const t = e.target as HTMLElement;
     const fg = t.closest<HTMLButtonElement>("[data-fold]");

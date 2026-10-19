@@ -168,8 +168,13 @@ async function renderHome() {
     const g = lvlName(c.set.level);
     (groups.get(g) ?? groups.set(g, []).get(g)!).push(c);
   }
+  // по умолчанию открыты только уровни с начатыми курсами (если ничего не начато — первый); мало курсов — всё открыто
+  const begun = (c: Course) => doneLessons(c) > 0 || startedLessons(c).length > 0;
+  const anyBegun = courses.some(begun);
+  const firstG = [...groups.keys()][0];
   $("ex-courses").innerHTML = [...groups].map(([g, list]) => {
-    const open = isOpen(`lvl:${g}`, true);
+    const dflt = courses.length <= 3 || (anyBegun ? list.some(begun) : g === firstG);
+    const open = isOpen(`lvl:${g}`, dflt);
     return `<button class="fold-head" data-fold="lvl:${esc(g)}" aria-expanded="${open}"><span>${esc(g)}</span><small>${list.length} ${plural(list.length, "курс", "курса", "курсов")}</small>${CHEV}</button>`
       + `<div class="fold-body stack" ${open ? "" : "hidden"}>${list.map(courseCard).join("")}</div>`;
   }).join("");
@@ -280,9 +285,12 @@ function openCourse(key: string) {
       <span class="lp">${steps.map((s0) => `<i class="${(best[s0] ?? 0) >= PASS ? "on" : ""}"></i>`).join("")}</span></span></button>`;
   };
   // разделы (темы): раздел с текущим уроком открыт, остальные свёрнуты — пока не раскрыть вручную
+  // в файле нет разделов, а уроков много — режем по 5, чтобы список не вываливался целиком
+  const auto = c.set.lessons.length > 6 && !c.set.lessons.some((l) => l.section);
+  const n5 = c.set.lessons.length;
   const secs: { name: string; idx: number[] }[] = [];
   c.set.lessons.forEach((l, i) => {
-    const name = l.section ?? "";
+    const name = auto ? `Уроки ${Math.floor(i / 5) * 5 + 1}–${Math.min(n5, Math.floor(i / 5) * 5 + 5)}` : l.section ?? "";
     if (!secs.length || secs[secs.length - 1].name !== name) secs.push({ name, idx: [] });
     secs[secs.length - 1].idx.push(i);
   });

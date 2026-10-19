@@ -2,7 +2,7 @@
  * Занятие. Навыки слова (как в Skritter): написание (значение → иероглифы → пиньинь, оценка сама),
  * чтение и значение (иероглифы → вспомнить → показать ответ → оценить себя), тоны (иероглифы → тоны жестом → оценка сама).
  */
-import { app, counts, nextCard, preview, answer, undoAnswer, skillCard, editOf, words, lapsesOf, LEECH, type UndoInfo, type NextCard } from "../state.ts";
+import { app, counts, nextCard, setReviewOnly, preview, answer, undoAnswer, skillCard, editOf, words, lapsesOf, LEECH, type UndoInfo, type NextCard } from "../state.ts";
 import { SKILLS, cardId, type Skill } from "../core/skills.ts";
 import type { P } from "../core/beauty.ts";
 import { handResult, beautyLabel } from "./handview.ts";
@@ -48,7 +48,8 @@ export const sessionWriter = () => s?.writer ?? null;
 
 const GRADE_NAMES = ["Снова", "Трудно", "Хорошо", "Легко"];
 
-export function startSession() {
+export function startSession(opts: { reviewOnly?: boolean } = {}) {
+  setReviewOnly(!!opts.reviewOnly);
   s = { word: null, skill: "write", fresh: null, undo: null, chars: [], ci: 0, miss: [], gave: [], hint: [], isNew: false, writer: null, answered: false, grading: false, mistakes: 0, done: 0, drawn: [] };
   show("session");
   nextQuestion();

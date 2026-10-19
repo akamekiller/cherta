@@ -46,16 +46,32 @@ export type QOpts = {
   exclude?: string;
   /** Шаги заучивания показываем чуть раньше срока. */
   learnAhead: number;
+  /** Вперемешку: новые слова — в случайном порядке, постоянном в течение дня (seed — например, дата). Без seed — по порядку колоды. */
+  seed?: string;
+  /** Случайность для выбора среди повторений и навыков (без неё — самое просроченное и первый навык). */
+  rnd?: () => number;
 };
+
+/** Хэш строки (FNV-1a) — для стабильного случайного порядка новых слов. */
+export function hashStr(s: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return h >>> 0;
+}
 
 /**
  * Следующая карточка: просроченные шаги заучивания → повторения → новое слово (по лимиту, первый навык) →
  * новый навык уже начатого слова → шаги заранее. Внутри группы — по сроку, новые — в порядке колоды.
  */
 export function pickNext(words: QWord[], card: (id: string) => Card | undefined, o: QOpts): QPick | null {
-  let learnNow: [number, QPick] | null = null, review: [number, QPick] | null = null, ahead: [number, QPick] | null = null;
+  let learnNow: [number, QPick] | null = null, ahead: [number, QPick] | null = null;
   let aheadSame: [number, QPick] | null = null;
-  let newWord: QPick | null = null, newSkill: QPick | null = null;
+  let review: [number, QPick] | null = null;
+  let nReview = 0;
+  let newWord: [number, QPick] | null = null, newSkill: QPick | null = null;
+  let nNewSkill = 0;
+  const rnd = o.rnd;
+  const pickSkill = (missing: Skill[]) => (rnd ? missing[Math.floor(rnd() * missing.length)] : missing[0]);
   words.forEach((w, wi) => {
     if (w.hidden) return;
     let started = false;
@@ -72,16 +88,26 @@ export function pickNext(words: QWord[], card: (id: string) => Card | undefined,
           if (id !== o.exclude) { if (!ahead || c.due < ahead[0]) ahead = [c.due, p]; }
           else if (!aheadSame || c.due < aheadSame[0]) aheadSame = [c.due, p];
         }
-      } else if (c.due <= o.now) { if (!review || c.due < review[0]) review = [c.due, p]; }
+      } else if (c.due <= o.now && id !== o.exclude) {
+        // повторения: вперемешку (равновероятно среди всех готовых) или самое просроченное
+        nReview++;
+        if (rnd) { if (rnd() * nReview < 1) review = [c.due, p]; }
+        else if (!review || c.due < review[0]) review = [c.due, p];
+      }
     }
     // карточки других навыков (не из списка колоды) тоже считают слово начатым
     if (!started && ["write", "read", "tone", "def"].some((sk) => card(cardId(w.id, sk as Skill)))) started = true;
     if (!missing.length) return;
-    if (started) { if (!newSkill) newSkill = { word: wi, skill: missing[0], fresh: "skill" }; }
-    else if (!newWord && o.newWordsLeft > 0) newWord = { word: wi, skill: missing[0], fresh: "word" };
+    if (started) {
+      nNewSkill++;
+      if (!newSkill || (rnd && rnd() * nNewSkill < 1)) newSkill = { word: wi, skill: pickSkill(missing), fresh: "skill" };
+    } else if (o.newWordsLeft > 0) {
+      const key = o.seed ? hashStr(o.seed + w.id) : wi;
+      if (!newWord || key < newWord[0]) newWord = [key, { word: wi, skill: pickSkill(missing), fresh: "word" }];
+    }
   });
   const pick = (x: [number, QPick] | null) => (x ? x[1] : null);
-  return pick(learnNow) ?? pick(review) ?? newWord ?? newSkill ?? pick(ahead) ?? pick(aheadSame);
+  return pick(learnNow) ?? pick(review) ?? pick(newWord) ?? newSkill ?? pick(ahead) ?? pick(aheadSame);
 }
 
 export type QCounts = { due: number; learning: number; review: number; newLeft: number; unseen: number; total: number };

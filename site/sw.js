@@ -2,10 +2,10 @@
 // Оболочка приложения кэшируется при установке; данные черт, словаря и шрифты — при первом запросе.
 // Файлы словаря (репозиторий cherta-dict) запрашиваются с ?v=<версия из meta.json>: после пересборки адрес новый,
 // а старые версии того же файла удаляются из кэша.
-const VERSION = "0.20.0-mvdzk4er";
+const VERSION = "0.22.0-mvemggdp";
 const SHELL = `cherta-shell-${VERSION}`;
 const DATA = "cherta-data-v1";
-const SHELL_FILES = ["./","index.html","app.js","styles.css","manifest.webmanifest","icons/icon.svg","icons/icon-192.png","data/decks/index.json","data/decks/hsk3-1.json","data/decks/hsk3-2.json","data/decks/hsk3-3.json","data/decks/hsk3-4.json","data/decks/hsk3-5.json","data/decks/hsk3-6.json","data/decks/hsk2-1.json","data/decks/hsk2-2.json","data/decks/hsk2-3.json","data/decks/hsk2-4.json","data/decks/hsk2-5.json","data/decks/hsk2-6.json","data/decks/radicals.json","data/decks/life-uni.json","data/decks/life-dorm.json","data/decks/life-bank.json","data/decks/life-transport.json","data/decks/life-shop.json","data/decks/life-doctor.json","data/dialogs.json","data/courses/index.json","data/courses/hsk1.txt","data/courses/hsk2.txt","data/courses/hsk3.txt","data/courses/life.txt"];
+const SHELL_FILES = ["./","index.html","app.js","styles.css","manifest.webmanifest","icons/icon.svg","icons/icon-192.png","data/decks/index.json","data/decks/hsk3-1.json","data/decks/hsk3-2.json","data/decks/hsk3-3.json","data/decks/hsk3-4.json","data/decks/hsk3-5.json","data/decks/hsk3-6.json","data/decks/hsk2-1.json","data/decks/hsk2-2.json","data/decks/hsk2-3.json","data/decks/hsk2-4.json","data/decks/hsk2-5.json","data/decks/hsk2-6.json","data/decks/radicals.json","data/decks/life-uni.json","data/decks/life-dorm.json","data/decks/life-bank.json","data/decks/life-transport.json","data/decks/life-shop.json","data/decks/life-doctor.json","data/dialogs.json","data/texts.json","data/decomp.json","data/courses/index.json","data/courses/hsk1.txt","data/courses/hsk2.txt","data/courses/hsk3.txt","data/courses/life.txt","data/courses/eng.txt"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(SHELL).then((c) => c.addAll(SHELL_FILES)).then(() => self.skipWaiting()));
@@ -48,4 +48,36 @@ self.addEventListener("fetch", (e) => {
       return res;
     }).catch(async () => (await caches.match(req, { ignoreSearch: true })) ?? caches.match("./index.html")),
   );
+});
+
+// Напоминание (периодическая фоновая проверка, Chrome на Android): сегодня ещё не занимались — показать уведомление.
+function idbGet(key) {
+  return new Promise((resolve) => {
+    const r = indexedDB.open("cherta");
+    r.onerror = () => resolve(undefined);
+    r.onsuccess = () => {
+      try {
+        const q = r.result.transaction("meta").objectStore("meta").get(key);
+        q.onsuccess = () => resolve(q.result);
+        q.onerror = () => resolve(undefined);
+      } catch { resolve(undefined); }
+    };
+  });
+}
+async function remindCheck() {
+  const remind = await idbGet("remind");
+  if (!remind || !remind.on) return;
+  const now = new Date();
+  const d = new Date(now.getTime() - 4 * 3600000);
+  const today = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  const day = await idbGet("day");
+  if (day && day.day === today && day.newCount > 0) return;
+  const [h, m] = String(remind.time || "20:00").split(":").map(Number);
+  if (now.getHours() * 60 + now.getMinutes() < h * 60 + m) return;
+  await self.registration.showNotification("Черта", { body: "Пора повторить слова — план на сегодня ждёт.", icon: "icons/icon-192.png", tag: "cherta-remind" });
+}
+self.addEventListener("periodicsync", (e) => { if (e.tag === "cherta-remind") e.waitUntil(remindCheck()); });
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type: "window" }).then((list) => (list[0] ? list[0].focus() : self.clients.openWindow("./"))));
 });

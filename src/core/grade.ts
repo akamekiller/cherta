@@ -26,3 +26,13 @@ export function autoGrade(a: Attempt): Grade {
   if (a.pinyin && !a.pinyin.ok) g = Math.min(g, a.pinyin.letters ? 2 : 1) as Grade;
   return g;
 }
+
+/**
+ * Письмо без подсказок: сколько «ошибок» засчитать иероглифу по распознаванию рисунка.
+ * rank — место нужного иероглифа среди вариантов распознавания (−1 — нет среди них), strokeDiff — разница в числе черт.
+ * Первое место — 0, второе-третье — 1, дальше в первой десятке — 2, не узнан — 4; лишние или пропущенные черты (больше 1) — ещё +1.
+ */
+export function blindMistakes(rank: number, strokeDiff: number): number {
+  const base = rank === 0 ? 0 : rank > 0 && rank < 3 ? 1 : rank >= 3 ? 2 : 4;
+  return base + (Math.abs(strokeDiff) > 1 ? 1 : 0);
+}

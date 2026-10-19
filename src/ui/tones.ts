@@ -90,6 +90,12 @@ function renderGrid() {
 /** Ключ статистики слова на ступени: тон слога или сочетание. */
 const statKey = (w: Word) => (st.stage === "syl" ? `t${w.ref[0].t}` : st.stage === "pair" ? comboOf(w) : "");
 
+/** Для плана «Сегодня»: на слух, слоги — пока не набрано 40 ответов, потом пары тонов. */
+export function useTonesToday() {
+  const n = Object.entries(st.stats).filter(([k]) => k.startsWith("t")).reduce((a, [, v]) => a + v.n, 0);
+  st.stage = n < 40 ? "syl" : "pair"; st.tab = "listen"; st.combo = ""; save();
+}
+
 /** Открыть «Тоны» с выбранной колодой (из меню колоды). */
 export function useTonesDeck(id: string) { st.deckId = id; st.stage = "mine"; save(); }
 
@@ -154,6 +160,7 @@ function listenCheck() {
   st.done++; if (ok) st.right++;
   const k = statKey(word);
   if (k) { const s0 = st.stats[k] ?? { n: 0, ok: 0 }; st.stats[k] = { n: s0.n + 1, ok: s0.ok + (ok ? 1 : 0) }; save(); renderGrid(); }
+  document.dispatchEvent(new CustomEvent("cherta:tone", { detail: { ok } }));
   $("tn-l-res").hidden = false;
   $("tn-l-res").innerHTML = `<span class="chip ${ok ? "ok" : "no"}">${ok ? "Верно" : "Не совсем"}</span> <span class="tn-word">${esc(word.han)}</span> <span class="py">${pinyinHTML(word.ref)}</span> <span class="hint">${esc(word.ru)}</span>`;
   renderListen();

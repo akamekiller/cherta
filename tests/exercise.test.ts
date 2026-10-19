@@ -149,7 +149,7 @@ test("parseExSet: слова урока, уровень и описание ку
 
 test("lessonSteps: шаги по содержимому урока", () => {
   const s = parseExSet(COURSE, "c", (z) => [...z]);
-  assert.deepEqual(lessonSteps(s.lessons[0]), ["words", "recog", "gap", "build", "listen", "write", "dialog"]);
+  assert.deepEqual(lessonSteps(s.lessons[0]), ["words", "recog", "gap", "build", "listen", "dict", "write", "dialog"]);
   assert.deepEqual(lessonSteps(s.lessons[1]), ["words"]);
 });
 
@@ -196,4 +196,9 @@ test("reviewTasks: смесь предложений и слов из пройд
   const t = reviewTasks(s.lessons, {}, 8, () => 0.4);
   assert.ok(t.length > 0 && t.length <= 8);
   assert.ok(t.some((x) => x.kind === "word"));
+});
+
+test("parseExSet: разделы «###» относятся к следующим урокам", () => {
+  const s = parseExSet("# К\n### Начало\n## 1\n你好。 | Привет.\n## 2\n谢谢。 | Спасибо.\n### Дальше\n## 3\n再见。 | Пока.\n", "c", (z) => [...z]);
+  assert.deepEqual(s.lessons.map((l) => l.section), ["Начало", "Начало", "Дальше"]);
 });

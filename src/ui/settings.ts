@@ -1,4 +1,5 @@
 import { app, updateSettings, reloadAll, revertEdit } from "../state.ts";
+import { optimize } from "../core/fsrsopt.ts";
 import * as store from "../store.ts";
 import { say, voiceStatus, onVoices } from "../speech.ts";
 import { $, esc, plural } from "./dom.ts";
@@ -68,6 +69,7 @@ function render() {
   $<HTMLInputElement>("s-py").checked = app.settings.pinyin;
   $<HTMLInputElement>("s-voice").checked = app.settings.voice;
   $<HTMLInputElement>("s-vibrate").checked = app.settings.vibrate;
+  $<HTMLInputElement>("s-blind").checked = !!app.settings.blind;
   $("voice-info").textContent = voiceStatus();
   $("progress-info").textContent = `Начато слов: ${app.cards.size}. Прогресс хранится в этом браузере на этом устройстве.`;
 }
@@ -86,7 +88,32 @@ function confirmBox(question: string, yes: string, onYes: () => void) {
   $("c-no").addEventListener("click", () => { box.hidden = true; });
 }
 
+/* ---------- интервалы под вас (FSRS) ---------- */
+
+function renderFsrs() {
+  const own = !!app.settings.fsrsW;
+  $("fs-reset").hidden = !own;
+  $("fs-run").textContent = own ? "Подстроить заново" : "Подстроить";
+}
+
+async function runFsrs() {
+  const msg = $("fs-msg");
+  msg.textContent = "Считаю…";
+  await new Promise((r) => setTimeout(r, 30));
+  const revs = (await store.allReviews()).map((r) => ({ id: r.id, at: r.at, grade: r.grade }));
+  const res = optimize(revs, 100);
+  if (!res) { msg.textContent = "Пока мало данных: нужно хотя бы 100 повторений после перерыва в день. Позанимайтесь ещё пару недель."; return; }
+  const gain = res.before > 0 ? Math.round((1 - res.after / res.before) * 100) : 0;
+  if (gain < 1) { msg.textContent = `Проверено ${res.n} повторений: параметры по умолчанию и так подходят вам.`; return; }
+  await updateSettings({ fsrsW: res.w });
+  renderFsrs();
+  msg.textContent = `Проверено ${res.n} повторений. Ошибка прогноза меньше на ${gain}%. Новые интервалы будут считаться по вашим параметрам.`;
+}
+
 export function initSettings() {
+  renderFsrs();
+  $("fs-run").addEventListener("click", runFsrs);
+  $("fs-reset").addEventListener("click", async () => { await updateSettings({ fsrsW: undefined }); renderFsrs(); $("fs-msg").textContent = "Вернул параметры по умолчанию."; });
   onShow("settings", () => { render(); requestAnimationFrame(startTry); });
   onLeave("settings", () => { tryWriter = null; const el = document.getElementById("pen-hw"); if (el) el.innerHTML = ""; });
   $("pens").addEventListener("click", (e) => {
@@ -126,6 +153,7 @@ export function initSettings() {
   $("n-plus").addEventListener("click", async () => { await updateSettings({ newPerDay: Math.min(50, app.settings.newPerDay + 5) }); render(); });
   $("s-py").addEventListener("change", (e) => updateSettings({ pinyin: (e.target as HTMLInputElement).checked }));
   $("s-voice").addEventListener("change", (e) => updateSettings({ voice: (e.target as HTMLInputElement).checked }));
+  $("s-blind").addEventListener("change", (e) => updateSettings({ blind: (e.target as HTMLInputElement).checked }));
   $("s-vibrate").addEventListener("change", (e) => {
     const on = (e.target as HTMLInputElement).checked;
     updateSettings({ vibrate: on });

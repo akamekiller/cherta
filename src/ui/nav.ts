@@ -1,14 +1,16 @@
 /** Экраны и боковое меню (кнопка ☰). */
-export type View = "home" | "deck" | "session" | "done" | "words" | "detail" | "book" | "ex" | "tones" | "stats" | "settings";
-const VIEWS: View[] = ["home", "deck", "session", "done", "words", "detail", "book", "ex", "tones", "stats", "settings"];
-const SECTION: Record<View, string> = { home: "home", deck: "home", session: "home", done: "home", words: "words", detail: "words", book: "book", ex: "ex", tones: "tones", stats: "stats", settings: "settings" };
-const TITLE: Record<string, string> = { home: "Карточки", words: "Слова", book: "Тетрадь прописей", ex: "Упражнения", tones: "Тоны", stats: "Статистика", settings: "Настройки" };
+export type View = "home" | "deck" | "session" | "done" | "words" | "detail" | "book" | "ex" | "read" | "tones" | "stats" | "settings";
+const VIEWS: View[] = ["home", "deck", "session", "done", "words", "detail", "book", "ex", "read", "tones", "stats", "settings"];
+const SECTION: Record<View, string> = { home: "home", deck: "home", session: "home", done: "home", words: "words", detail: "words", book: "book", ex: "ex", read: "read", tones: "tones", stats: "stats", settings: "settings" };
+const TITLE: Record<string, string> = { home: "Карточки", words: "Слова", book: "Тетрадь прописей", ex: "Упражнения", read: "Чтение", tones: "Тоны", stats: "Статистика", settings: "Настройки" };
 
 const handlers: Partial<Record<View, () => void>> = {};
 const leaveHandlers: Partial<Record<View, () => void>> = {};
 let current: View = "words";
 
 export function onShow(v: View, f: () => void) { handlers[v] = f; }
+/** Перерисовать текущий экран (например, после синхронизации). Занятие не трогаем. */
+export function rerender() { if (current !== "session") handlers[current]?.(); }
 export function onLeave(v: View, f: () => void) { leaveHandlers[v] = f; }
 
 export function show(v: View) {

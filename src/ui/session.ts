@@ -16,6 +16,11 @@ import { preload } from "../strokes.ts";
 import { $, esc, pinyinHTML, plural } from "./dom.ts";
 import { createWriter, type Writer } from "./writer.ts";
 import { show, onLeave } from "./nav.ts";
+import { mountFreePad, type FreePad } from "./freepad.ts";
+import { loadHwDb } from "./hwpad.ts";
+import { recognize } from "../core/handwriting.ts";
+import { blindMistakes } from "../core/grade.ts";
+import { getChar } from "../strokes.ts";
 import { initPyPick, resetPyPick, pyAnswer, pyAnswerShown } from "./pypick.ts";
 
 type Session = {
@@ -51,6 +56,67 @@ export function startSession() {
 
 function stopWriter() {
   try { s?.writer?.cancelQuiz(); } catch { /* нет активного теста */ }
+  free?.destroy();
+  free = null;
+}
+
+/* ---------- письмо без подсказок ---------- */
+
+let free: FreePad | null = null;
+/** Без подсказок — если включено в настройках и слово уже не новое (новые пишутся по контуру). */
+const blindNow = () => !!app.settings.blind && !!s && !s.isNew;
+
+function blindTools(on: boolean) {
+  $("b-hint").hidden = on;
+  $("b-giveup").hidden = on;
+  $("b-undo-stroke").hidden = !on;
+  $("b-char-done").hidden = !on;
+}
+
+function startBlind() {
+  if (!s) return;
+  const cur = s;
+  free = mountFreePad($("hw"));
+  const done = $<HTMLButtonElement>("b-char-done");
+  done.disabled = true;
+  free.onChange(() => { done.disabled = !free?.strokes().length; });
+  void cur;
+}
+
+/** «Готово»: распознаём рисунок, считаем ошибки, показываем образец и идём дальше. */
+async function finishBlind() {
+  if (!s || !free) return;
+  const cur = s, i = s.ci, ch = s.chars[i];
+  const strokes = free.strokes().map((st) => st.slice());
+  if (!strokes.length) return;
+  $<HTMLButtonElement>("b-char-done").disabled = true;
+  let rank = -1;
+  try { rank = recognize(await loadHwDb(), strokes, 10).indexOf(ch); } catch { rank = 0; /* без данных распознавания — не наказываем */ }
+  const data = await getChar(ch).catch(() => null);
+  const diff = data ? strokes.length - data.strokes.length : 0;
+  if (s !== cur || cur.ci !== i) return;
+  cur.miss[i] = blindMistakes(rank, diff);
+  // свои черты — для оценки почерка (координаты hanzi-writer: 1024, ось y вверх)
+  cur.drawn[i] = strokes.map((st) => st.map(([x, y]) => ({ x: x * 1024, y: 900 - y * 1024 })));
+  const ok = cur.miss[i] === 0;
+  const pad = $("pad");
+  pad.classList.add(ok ? "hit" : "miss");
+  if (!ok && app.settings.vibrate) try { navigator.vibrate?.(35); } catch { /* */ }
+  setTimeout(() => pad.classList.remove("hit", "miss"), 400);
+  // образец поверх своего рисунка
+  free.destroy();
+  free = null;
+  const wr = createWriter($("hw"), ch, { showOutline: true, showCharacter: false });
+  cur.writer = wr;
+  wr.animateCharacter({
+    onComplete: () => setTimeout(() => {
+      if (s !== cur || cur.ci !== i) return;
+      cur.ci++;
+      renderSlots();
+      if (cur.ci < cur.chars.length) startChar();
+      else { blindTools(false); charsDone(); }
+    }, ok ? 500 : 1200),
+  });
 }
 
 function endSession() { stopWriter(); s = null; }
@@ -72,6 +138,7 @@ function nextQuestion(force?: NextCard) {
       ? `Пройдено карточек: ${n}. Новые слова и повторения на сейчас закончились.`
       : "Новые слова и повторения на сейчас закончились.";
     show("done");
+    document.dispatchEvent(new CustomEvent("cherta:done"));
     return;
   }
   const { word: w, skill } = next;
@@ -134,6 +201,8 @@ function renderSlots() {
 function startChar() {
   if (!s) return;
   stopWriter();
+  blindTools(blindNow());
+  if (blindNow()) { startBlind(); return; }
   const outline = s.isNew;
   s.writer = createWriter($("hw"), s.chars[s.ci], { showOutline: outline });
   if (outline) s.hint[s.ci] = true;
@@ -313,6 +382,8 @@ export function initSession() {
     s.hint[s.ci] = true;
     s.writer.showOutline();
   });
+  $("b-undo-stroke").addEventListener("click", () => free?.undo());
+  $("b-char-done").addEventListener("click", () => { finishBlind(); });
   $("b-giveup").addEventListener("click", () => {
     if (!s?.writer || s.ci >= s.chars.length) return;
     const cur = s, i = s.ci, wr = s.writer;

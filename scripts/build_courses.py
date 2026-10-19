@@ -118,12 +118,14 @@ def main():
     index = []
     problems = 0
     for n in range(1, 4):
-        title, lessons = load(n)
+        title, lessons, sections = load(n)
         text = read_text(n)
         lines = [f"# {title}", f"#level: {n}",
                  f"#about: {len(lessons)} уроков по темам, {sum(len(w) for _, w in lessons)} слов старого HSK {n}. Предложения — свои и из базы примеров 大БКРС, только из пройденных слов.", ""]
         for i, (lt, ws) in enumerate(lessons, 1):
             known |= set(ws)
+            if i in sections:
+                lines.append(f"### {sections[i]}")
             lines.append(f"## {i}. {lt}")
             for w in ws:
                 py, ru = words_info.get(w) or EXTRA[w]
@@ -175,8 +177,22 @@ def main():
                       "about": f"Для начинающих: {len(lessons)} уроков по темам, {sum(len(w) for _, w in lessons)} слов." if n == 1 else
                                f"{len(lessons)} уроков по темам, {sum(len(w) for _, w in lessons)} слов. Продолжение курса HSK {n - 1}."})
     index.append(build_life(corpus, toks, known, used))
+    index.append(build_own("eng"))
     json.dump(index, open(os.path.join(ROOT, "data", "courses", "index.json"), "w", encoding="utf8"), ensure_ascii=False, indent=1)
     print("уроков:", sum(x["lessons"] for x in index), "проблем в своих текстах:", problems)
+
+
+def build_own(key):
+    """Курс, целиком написанный вручную (scripts/courses/<key>.txt): копируется как есть, в индекс — счётчики."""
+    text = open(os.path.join(ROOT, "scripts", "courses", f"{key}.txt"), encoding="utf8").read()
+    ls = text.splitlines()
+    title = ls[0][2:].strip()
+    level = int(next(l.split(":", 1)[1] for l in ls if l.startswith("#level:")))
+    lessons = sum(1 for l in ls if l.startswith("## "))
+    words = sum(1 for l in ls if l.startswith("+ "))
+    open(os.path.join(ROOT, "data", "courses", f"{key}.txt"), "w", encoding="utf8", newline="\n").write(text)
+    return {"id": key, "file": f"{key}.txt", "title": title, "level": level, "lessons": lessons, "words": words,
+            "about": f"Для работы на производстве: {lessons} уроков, {words} терминов — ЧПУ и CAM, станки, чертежи, допуски, безопасность, диалоги «в цеху»."}
 
 
 LIFE = [("Университет", "life-uni", ["d-teacher"]), ("Общежитие", "life-dorm", ["d-dorm"]),
@@ -193,6 +209,7 @@ def build_life(corpus, toks, known_hsk, used):
     for title, deck, dl in LIFE:
         words = list(tsv(os.path.join(ROOT, "data", f"{deck}.tsv")).items())
         half = (len(words) + 1) // 2
+        lines.append(f"### {title}")
         for part, chunk in enumerate((words[:half], words[half:]), 1):
             n_lessons += 1
             n_words += len(chunk)

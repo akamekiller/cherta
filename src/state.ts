@@ -1,8 +1,8 @@
 /** Состояние приложения: колоды, карточки, правки, настройки, очередь занятия. */
-import { schedule, newCard, type Card, type Grade } from "./core/fsrs.ts";
+import { schedule, newCard, DEFAULT_PARAMS, type Card, type Grade, type Params } from "./core/fsrs.ts";
 import { loadDeck, wordId, type Deck, type DeckFile, type Word } from "./core/deck.ts";
 import { applyEdit, isEmptyEdit, type WordEdit, type DictEntry } from "./core/edits.ts";
-import { parseIndex, dictShardOf, shardFile, type DictIndex, type DictArticle } from "./core/dict.ts";
+import { parseIndex, dictShardOf, shardFile, dictPyToNumeric, type DictIndex, type DictArticle } from "./core/dict.ts";
 import type { Dialog } from "./core/exercise.ts";
 import { cardId, normSkills, pickNext, queueCounts, ALL_SKILLS, type Skill, type QPick } from "./core/skills.ts";
 import { byDay, dayOf, type DayStat } from "./core/stats.ts";
@@ -137,9 +137,12 @@ export const deckSkills = (deckId: string): Skill[] => normSkills(app.settings.d
 
 const qWords = (deck: Deck) => deck.words.map((w) => ({ id: w.id, hidden: !!app.edits.get(w.id)?.hidden }));
 const getCard = (id: string) => app.cards.get(id);
-const qOpts = (deckId: string, exclude?: string) => ({
+/** Порядок новых слов в колоде: вперемешку (по умолчанию) или как в колоде. */
+export const deckOrder = (deckId: string): "random" | "seq" => (app.settings.deckOpts?.[deckId]?.order === "seq" ? "seq" : "random");
+const qOpts = (deckId: string, exclude?: string, rnd?: () => number) => ({
   now: Date.now(), skills: deckSkills(deckId), learnAhead: LEARN_AHEAD, exclude,
   newWordsLeft: Math.max(0, newLimit(deckId) - newDone(deckId)),
+  ...(deckOrder(deckId) === "random" ? { seed: `${dayKey()}:${deckId}`, rnd } : {}),
 });
 
 /** Счётчики колоды: к повторению, на шаге заучивания, новых на сегодня (по лимиту колоды). */
@@ -159,6 +162,7 @@ export async function setDeckOpts(id: string, patch: Partial<store.DeckOpts>) {
   if (!o.hidden) delete o.hidden;
   if (o.newPerDay === undefined || o.newPerDay === app.settings.newPerDay) delete o.newPerDay;
   if (!o.skills || normSkills(o.skills).length === ALL_SKILLS.length) delete o.skills; else o.skills = normSkills(o.skills);
+  if (o.order !== "seq") delete o.order;
   if (Object.keys(o).length) all[id] = o; else delete all[id];
   await updateSettings({ deckOpts: all });
   rebuildDeckList();
@@ -176,6 +180,7 @@ export async function renameDeck(id: string, title: string) {
 /** Удалить свою колоду или скрыть встроенную. Прогресс по словам сохраняется. */
 export async function deleteDeck(id: string) {
   if (app.userDecks.some((d) => d.id === id)) {
+    if (id === CHAR_DECK) await updateSettings({ charDeck: false });
     await removeUserDeck(id);
     await setDeckOpts(id, { title: "", hidden: false, newPerDay: undefined });
   } else {
@@ -313,6 +318,47 @@ export async function removeUserDeck(id: string) {
   if (app.deck?.id === id) { app.deck = null; app.baseDeck = null; await loadFirstDeck(); }
 }
 
+/** Параметры планировщика: свои (если подстроены и правильной длины) или по умолчанию. */
+export const fsrsParams = (): Params => (app.settings.fsrsW?.length === DEFAULT_PARAMS.w.length ? { ...DEFAULT_PARAMS, w: app.settings.fsrsW } : DEFAULT_PARAMS);
+
+/* ---------- иероглифы из моих слов ---------- */
+
+export const CHAR_DECK = "u-chars";
+let charBusy = false;
+/**
+ * Колода отдельных иероглифов: все иероглифы слов, которые уже начаты (есть хотя бы одна карточка).
+ * Пиньинь и значение — из HSK (односложные слова), иначе из словаря. Пополняется сама.
+ */
+export async function refreshCharDeck(): Promise<number> {
+  if (!app.settings.charDeck || charBusy) return 0;
+  charBusy = true;
+  try {
+    const started = new Set([...app.cards.keys()].map((k) => k.split("#")[0].replace(/^zh:/, "")));
+    const chars: string[] = [];
+    for (const w of started) for (const c of w) if (/\p{Script=Han}/u.test(c) && !chars.includes(c)) chars.push(c);
+    const old = app.userDecks.find((d) => d.id === CHAR_DECK);
+    const have = new Set(old?.words.map((w) => w[0]) ?? []);
+    const need = chars.filter((c) => !have.has(c));
+    if (!need.length && old) return 0;
+    const look = await hskLookup();
+    let idx: DictIndex | null = null;
+    const rows = [...(old?.words ?? [])];
+    for (const c of need) {
+      let py = "", ru = "";
+      const h = look(c);
+      if (h) { py = h.py; ru = h.ru; }
+      else {
+        try { idx ??= await dictIndex(); } catch { /* офлайн */ }
+        const i = idx ? idx.han.indexOf(c) : -1;
+        if (i >= 0) { py = dictPyToNumeric(idx!.py[i], c) ?? ""; ru = idx!.ru[i]; }
+      }
+      if (py && ru) rows.push([c, py, ru]);
+    }
+    await saveUserDeck({ id: CHAR_DECK, title: "Иероглифы из моих слов", words: rows, createdAt: old?.createdAt ?? Date.now(), group: "Иероглифы" });
+    return rows.length - (old?.words.length ?? 0);
+  } finally { charBusy = false; }
+}
+
 /* ---------- очередь ---------- */
 
 export function counts(): DeckCounts {
@@ -325,7 +371,7 @@ export function nextCard(excludeCardId?: string): NextCard | null {
   rollDay();
   const d = app.deck;
   if (!d) return null;
-  const p = pickNext(qWords(d), getCard, qOpts(d.id, excludeCardId));
+  const p = pickNext(qWords(d), getCard, qOpts(d.id, excludeCardId, Math.random));
   return p ? { word: d.words[p.word], skill: p.skill, fresh: p.fresh } : null;
 }
 
@@ -333,7 +379,7 @@ export const skillCard = (w: Word, skill: Skill) => app.cards.get(cardId(w.id, s
 
 export function preview(w: Word, skill: Skill, g: Grade, now = Date.now()): Card {
   const id = cardId(w.id, skill);
-  return schedule(app.cards.get(id) ?? newCard(id, now), g, now);
+  return schedule(app.cards.get(id) ?? newCard(id, now), g, now, fsrsParams());
 }
 
 /** Что нужно, чтобы отменить ответ (как Ctrl+Z в Anki). */
@@ -345,7 +391,7 @@ export async function answer(w: Word, skill: Skill, g: Grade, mistakes: number, 
   const id = cardId(w.id, skill);
   const before = app.cards.get(id);
   const dayBefore = app.day;
-  const next = schedule(before ?? newCard(id, now), g, now);
+  const next = schedule(before ?? newCard(id, now), g, now, fsrsParams());
   if (fresh === "word") {
     const deckId = app.deck?.id ?? app.settings.deck;
     app.day = { ...app.day, newCount: app.day.newCount + 1, byDeck: { ...app.day.byDeck, [deckId]: (app.day.byDeck?.[deckId] ?? 0) + 1 } };

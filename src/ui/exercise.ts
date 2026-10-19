@@ -161,16 +161,43 @@ async function renderHome() {
       <p class="hint">Курс — уроки по порядку: слова, узнавание, сборка фраз, аудирование, перевод и диалог. Добавьте готовый курс или загрузите свой файл (например, уроки учебника).</p></div>`;
     return;
   }
-  $("ex-courses").innerHTML = courses.map((c) => {
-    const n = c.set.lessons.length, done = doneLessons(c), next = nextLesson(c);
-    const pct = Math.round((100 * done) / Math.max(1, n));
-    return `<button class="course-card panel" data-course="${esc(c.key)}">
+  // курсы — по уровням, каждый уровень сворачивается
+  const lvlName = (n: number | undefined) => (n ? `Уровень ${n}${n === 1 ? " — начальный" : ""}` : "Свои курсы");
+  const groups = new Map<string, Course[]>();
+  for (const c of [...courses].sort((a0, b0) => (a0.set.level ?? 99) - (b0.set.level ?? 99))) {
+    const g = lvlName(c.set.level);
+    (groups.get(g) ?? groups.set(g, []).get(g)!).push(c);
+  }
+  $("ex-courses").innerHTML = [...groups].map(([g, list]) => {
+    const open = isOpen(`lvl:${g}`, true);
+    return `<button class="fold-head" data-fold="lvl:${esc(g)}" aria-expanded="${open}"><span>${esc(g)}</span><small>${list.length} ${plural(list.length, "курс", "курса", "курсов")}</small>${CHEV}</button>`
+      + `<div class="fold-body stack" ${open ? "" : "hidden"}>${list.map(courseCard).join("")}</div>`;
+  }).join("");
+}
+
+const CHEV = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
+
+function courseCard(c: Course): string {
+  const n = c.set.lessons.length, done = doneLessons(c), next = nextLesson(c);
+  const pct = Math.round((100 * done) / Math.max(1, n));
+  return `<button class="course-card panel" data-course="${esc(c.key)}">
       <span class="cc-title">${esc(c.title)}</span>
       <span class="cc-sub">${done ? `Пройдено ${done} из ${n} ${plural(n, "урока", "уроков", "уроков")}` : `${n} ${plural(n, "урок", "урока", "уроков")}`}${c.fileId ? " · из файла" : ""}</span>
       <span class="cc-bar"><i style="width:${pct}%"></i></span>
       <span class="cc-next">${done >= n ? "Курс пройден — можно повторять" : `Дальше: ${esc(c.set.lessons[next].title)}`}</span>
     </button>`;
-  }).join("");
+}
+
+/* Свёрнутые разделы и уровни (только на этом устройстве). Без явного выбора — значение по умолчанию. */
+const FOLD = "cherta.exfold";
+function folds(): Record<string, boolean> {
+  try { return JSON.parse(localStorage.getItem(FOLD) ?? "{}"); } catch { return {}; }
+}
+const isOpen = (key: string, dflt: boolean) => folds()[key] ?? dflt;
+function toggleFold(key: string, now: boolean) {
+  const f = folds();
+  f[key] = !now;
+  try { localStorage.setItem(FOLD, JSON.stringify(f)); } catch { /* */ }
 }
 
 /* ---------- каталог курсов ---------- */
@@ -193,7 +220,7 @@ async function openCatalog() {
   const on = (id: string) => (app.settings.courses ?? []).includes(id);
   const row = (b: BuiltinInfo) => `<button class="deck-opt" data-cadd="${esc(b.id)}" aria-pressed="${on(b.id)}"><span>${esc(b.title)}<small>${esc(b.about)}</small></span><span class="pick-btn${on(b.id) ? " on" : ""}">${on(b.id) ? "✓" : "+"}</span></button>`;
   const body = `<p class="hint">Готовые курсы: свои темы уроков, предложения только из пройденных слов, диалоги. Нажмите, чтобы добавить.</p>
-    <div class="deck-list">${list.map(row).join("")}</div>
+    ${[...new Set(list.map((b0) => b0.level))].sort().map((lv) => `<h3 class="grp-title"><span>Уровень ${lv}${lv === 1 ? " — начальный" : ""}</span></h3><div class="deck-list">${list.filter((b0) => b0.level === lv).map(row).join("")}</div>`).join("")}
     <h3 class="grp-title"><span>Свой курс из файла</span></h3>
     <p class="hint">Например, уроки учебника. Файл хранится только на этом устройстве.</p>
     <div class="tools"><button class="btn small" id="cat-file">Загрузить файл</button><button class="btn small" id="cat-help">Формат файла</button></div>
@@ -243,14 +270,32 @@ function openCourse(key: string) {
     <p class="hint">Пройдено ${done} из ${n} ${plural(n, "урока", "уроков", "уроков")}</p>
     <div class="c-actions"><button class="btn primary wide" data-lesson="${next}">${done >= n ? "Повторить последний урок" : done || started ? `Продолжить: урок ${next + 1}` : "Начать с урока 1"}</button>
     ${started ? `<button class="btn wide" data-review>Повторение пройденного</button>` : ""}</div>`;
-  $("ex-c-lessons").innerHTML = c.set.lessons.map((l, i) => {
+  const row = (l: (typeof c.set.lessons)[number], i: number) => {
     const steps = lessonSteps(l), best = lessonBest(c, i);
-    const ok = steps.filter((s) => (best[s] ?? 0) >= PASS).length;
+    const ok = steps.filter((s0) => (best[s0] ?? 0) >= PASS).length;
     const fin = lessonDone(steps, best);
     const cls = fin ? "done" : i === next ? "cur" : "";
     return `<button class="lesson-row ${cls}" data-lesson="${i}"><span class="ln">${fin ? "✓" : i + 1}</span>
       <span class="lt"><b>${esc(l.title.replace(/^\d+[.)]\s*/, ""))}</b><small>${l.words.length ? `${l.words.length} ${plural(l.words.length, "слово", "слова", "слов")} · ` : ""}${ok} из ${steps.length} ${plural(steps.length, "шага", "шагов", "шагов")}</small>
-      <span class="lp">${steps.map((s) => `<i class="${(best[s] ?? 0) >= PASS ? "on" : ""}"></i>`).join("")}</span></span></button>`;
+      <span class="lp">${steps.map((s0) => `<i class="${(best[s0] ?? 0) >= PASS ? "on" : ""}"></i>`).join("")}</span></span></button>`;
+  };
+  // разделы (темы): раздел с текущим уроком открыт, остальные свёрнуты — пока не раскрыть вручную
+  const secs: { name: string; idx: number[] }[] = [];
+  c.set.lessons.forEach((l, i) => {
+    const name = l.section ?? "";
+    if (!secs.length || secs[secs.length - 1].name !== name) secs.push({ name, idx: [] });
+    secs[secs.length - 1].idx.push(i);
+  });
+  if (secs.length <= 1 && !secs[0]?.name) {
+    $("ex-c-lessons").innerHTML = `<div class="lesson-list">${c.set.lessons.map(row).join("")}</div>`;
+    return;
+  }
+  $("ex-c-lessons").innerHTML = secs.map((sec, k) => {
+    const fin = sec.idx.filter((i) => lessonDone(lessonSteps(c.set.lessons[i]), lessonBest(c, i))).length;
+    const key = `${c.key}|${k}|${sec.name}`;
+    const open = isOpen(key, sec.idx.includes(next));
+    return `<button class="fold-head" data-fold="${esc(key)}" aria-expanded="${open}"><span>${esc(sec.name || "Уроки")}</span><small>${fin === sec.idx.length ? "✓ " : ""}${fin}/${sec.idx.length}</small>${CHEV}</button>`
+      + `<div class="fold-body lesson-list" ${open ? "" : "hidden"}>${sec.idx.map((i) => row(c.set.lessons[i], i)).join("")}</div>`;
   }).join("");
 }
 
@@ -258,14 +303,13 @@ function courseMenu() {
   const c = course;
   if (!c) return;
   const body = `<div class="dm-list">
-      <button class="deck-opt" id="cm-decks"><span>Слова курса — в колоды<small>По колоде на урок, в группе «${esc(c.title)}»</small></span></button>
+      <button class="deck-opt" id="cm-decks"><span>Все слова курса — в карточки<small>Сейчас в колоду «${esc(c.title)}» попадают слова пройденных уроков</small></span></button>
       <button class="deck-opt danger" id="cm-del"><span>${c.fileId ? "Удалить курс" : "Убрать курс"}<small>${c.fileId ? "Файл удалится с устройства, прогресс останется" : "Прогресс сохранится, вернуть — «Добавить курс»"}</small></span></button>
     </div><div class="confirm" id="cm-confirm" hidden></div>`;
   openSheet(c.title, body, (root) => {
     root.querySelector("#cm-decks")!.addEventListener("click", async () => {
-      let n = 0;
-      for (let i = 0; i < c.set.lessons.length; i++) if (c.set.lessons[i].words.length) { await lessonDeck(c, i); n++; }
-      root.querySelector("#cm-decks small")!.textContent = n ? `Готово: ${n} ${plural(n, "колода", "колоды", "колод")} в «Карточках»` : "В курсе нет слов уроков";
+      const r = await addToCourseDeck(c, c.set.lessons.map((_, i) => i));
+      root.querySelector("#cm-decks small")!.textContent = `Добавлено слов: ${r.added}. Колода «${c.title}» — в «Карточках», группа «Курсы».`;
     });
     root.querySelector("#cm-del")!.addEventListener("click", () => confirmInline(root.querySelector("#cm-confirm")!, `${c.fileId ? "Удалить" : "Убрать"} «${c.title}»?`, c.fileId ? "Удалить" : "Убрать", async () => {
       if (c.fileId) { sets = sets.filter((s) => s.id !== c.fileId); await saveExSets(sets); parsed.delete(c.key); }
@@ -276,15 +320,23 @@ function courseMenu() {
   });
 }
 
-/** Колода из слов урока (своя, в группе курса). Если уже есть — обновляется. */
-async function lessonDeck(c: Course, i: number): Promise<string> {
-  const id = `u-c-${c.key.replace(/[^a-z0-9]/gi, "")}-${i + 1}`;
-  const l = c.set.lessons[i];
+/** Колода курса: одна своя колода на курс, слова уроков добавляются в неё по мере прохождения («Слова урока»). */
+const courseDeckId = (c: Course) => `u-c-${c.key.replace(/[^a-z0-9]/gi, "")}`;
+async function addToCourseDeck(c: Course, lessons: number[]): Promise<{ id: string; added: number }> {
+  const id = courseDeckId(c);
   const look = await hskLookup();
-  const words = l.words.map(([h, py, ru]): [string, string, string] => [h, (py && normalizePinyin(py, h)) || look(h)?.py || "", ru || look(h)?.ru || ""]).filter((w) => w[1] && w[2]);
   const old = app.userDecks.find((d) => d.id === id);
-  await saveUserDeck({ id, title: `${c.title} · ${l.title}`, words, createdAt: old?.createdAt ?? Date.now(), group: c.title });
-  return id;
+  const words = [...(old?.words ?? [])];
+  const have = new Set(words.map((w) => w[0]));
+  let added = 0;
+  for (const i of lessons) for (const [h, py, ru] of c.set.lessons[i]?.words ?? []) {
+    if (have.has(h)) continue;
+    const row: [string, string, string] = [h, (py && normalizePinyin(py, h)) || look(h)?.py || "", ru || look(h)?.ru || ""];
+    if (!row[1] || !row[2]) continue;
+    words.push(row); have.add(h); added++;
+  }
+  if (added || !old) await saveUserDeck({ id, title: c.title, words, createdAt: old?.createdAt ?? Date.now(), group: "Курсы" });
+  return { id, added };
 }
 
 /* ---------- урок: шаги ---------- */
@@ -296,6 +348,7 @@ function openLesson(i: number) {
   const l = c.set.lessons[lessonIdx];
   views("lesson");
   $("ex-l-words").hidden = true;
+  $("ex-l-steps").hidden = false;
   $("ex-l-num").textContent = `Урок ${lessonIdx + 1} из ${c.set.lessons.length}`;
   $("ex-l-head").innerHTML = `<h2 class="deck-name">${esc(l.title)}</h2><p class="hint">${[
     l.words.length && `${l.words.length} ${plural(l.words.length, "слово", "слова", "слов")}`,
@@ -328,7 +381,7 @@ function showWords() {
       return `<div class="item lw"><button class="h" data-wopen="${esc(h)}">${esc(h)}</button><span class="txt"><span class="py">${p}</span><span class="ru">${esc(ru)}</span></span><button class="icon-btn small-ic" data-wsay="${i}" aria-label="Послушать">${PLAY}</button></div>`;
     }).join("")}</div>
     <div class="ex-btns"><button class="btn" data-words-deck>Учить карточками</button><button class="btn primary" data-words-ok>Запомнил — дальше</button></div>
-    <p class="hint" id="ex-words-msg">Карточки — своя колода урока в «Карточках»: письмо иероглифов, пиньинь и повторения по расписанию.</p>`;
+    <p class="hint" id="ex-words-msg">Слова урока сами попадут в колоду курса «${esc(c.title)}» в «Карточках»: письмо иероглифов, пиньинь и повторения по расписанию.</p>`;
 }
 
 async function saveBest(step: StepId, score: number) {
@@ -486,6 +539,16 @@ function showTask() {
     renderTrBody(s, mode);
     return;
   }
+  if (t.kind === "dict") {
+    card.innerHTML = `<div class="ex-top"><span class="label">Диктант: послушайте и напишите</span></div>
+      <div class="listen-btns"><button class="btn" data-act="say">${PLAY} Слушать</button><button class="btn" data-act="slow">Медленно</button></div>
+      <div id="ex-tr-body"></div>
+      <div class="ex-res" id="ex-res" hidden></div>
+      <div class="ex-btns" id="ex-btns"><button class="btn primary wide" data-act="check">Проверить</button></div>`;
+    renderTrBody(s, "type");
+    setTimeout(() => say(s.zh, 0.8), 250);
+    return;
+  }
   if (t.kind === "gap") {
     gap = gapTask(s, run.focus, poolWords, rnd);
     if (!gap) { tasks.splice(pos, 1); showTask(); return; }
@@ -591,7 +654,7 @@ async function check() {
   if (t.kind === "dialog") { checkDialog(t.dialog); return; }
   if (t.kind === "word") return;
   const s = t.sent;
-  if (t.kind === "tr" && trModeNow(t) === "type") {
+  if (t.kind === "dict" || (t.kind === "tr" && trModeNow(t) === "type")) {
     const mine = $<HTMLInputElement>("ex-in").value.trim();
     if (!mine) return;
     hwPad?.hide();
@@ -658,6 +721,7 @@ async function finish() {
       <div class="ex-btns">${passed
         ? `<button class="btn" data-act="to-lesson">К уроку</button>${next ? `<button class="btn primary" data-act="step" data-step="${next}">${STEPS.find((s) => s.id === next)!.name} →</button>` : lessonIdx + 1 < course.set.lessons.length ? `<button class="btn primary" data-act="lesson" data-lesson="${lessonIdx + 1}">Урок ${lessonIdx + 2} →</button>` : ""}`
         : `<button class="btn" data-act="to-lesson">К уроку</button><button class="btn primary" data-act="step" data-step="${run.step}">Ещё раз</button>`}</div>`;
+    document.dispatchEvent(new CustomEvent("cherta:stepdone", { detail: { passed } }));
     return;
   }
   $("ex-card").innerHTML = `<div class="ex-done"><b>${right}</b> из ${tasks.length} ${plural(tasks.length, "задания", "заданий", "заданий")} без ошибок</div>
@@ -674,6 +738,36 @@ async function gloss(w: string) {
   box.querySelector("[data-open]")!.addEventListener("click", () => openEntry(word.id, true));
   box.querySelector("[data-add]")!.addEventListener("click", () => openAddToDeck(word));
   box.querySelector("[data-say]")!.addEventListener("click", () => say(w));
+}
+
+/* ---------- для плана «Сегодня» ---------- */
+
+/** Следующий непройденный шаг в первом начатом курсе (иначе в первом курсе). */
+export async function nextCourseStep(): Promise<{ key: string; title: string; lesson: number; step: StepId; label: string } | null> {
+  sets = await loadExSets();
+  progCourse = (await store.getMeta<CourseProg>("course")) ?? {};
+  courses = await myCourses();
+  const list = [...courses].sort((a, b) => Number(startedLessons(b).length > 0) - Number(startedLessons(a).length > 0));
+  for (const c of list) {
+    const i = nextLesson(c);
+    const l = c.set.lessons[i];
+    if (!l) continue;
+    const steps = lessonSteps(l), best = lessonBest(c, i);
+    const step = steps.find((s0) => (best[s0] ?? 0) < PASS);
+    if (!step) continue;
+    return { key: c.key, title: c.title, lesson: i, step, label: `${c.title}: урок ${i + 1}, «${STEPS.find((x) => x.id === step)!.name}»` };
+  }
+  return null;
+}
+
+/** Открыть шаг урока курса (для плана «Сегодня»). */
+export async function openCourseStep(key: string, lesson: number, step: StepId) {
+  show("ex");
+  await renderHome();
+  openCourse(key);
+  if (!course) return;
+  openLesson(lesson);
+  await startStep(step);
 }
 
 /* ---------- обработчики ---------- */
@@ -694,11 +788,22 @@ export function initExercise() {
   $("ex-c-back").addEventListener("click", renderHome);
   $("ex-c-menu").addEventListener("click", courseMenu);
   $("ex-l-back").addEventListener("click", () => course && openCourse(course.key));
+  const onFold = (e: Event) => {
+    const f = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-fold]");
+    if (!f) return false;
+    const now = f.getAttribute("aria-expanded") === "true";
+    toggleFold(f.dataset.fold!, now);
+    f.setAttribute("aria-expanded", String(!now));
+    (f.nextElementSibling as HTMLElement).hidden = now;
+    return true;
+  };
   $("ex-courses").addEventListener("click", (e) => {
+    if (onFold(e)) return;
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-course]");
     if (b) openCourse(b.dataset.course!);
   });
   const onCourseClick = (e: Event) => {
+    if (onFold(e)) return;
     const t = e.target as HTMLElement;
     if (t.closest("[data-review]")) { startReview(); return; }
     const l = t.closest<HTMLButtonElement>("[data-lesson]");
@@ -723,9 +828,9 @@ export function initExercise() {
     if (sw) { say(l.words[Number(sw.dataset.wsay)][0]); return; }
     const wo = t.closest<HTMLButtonElement>("[data-wopen]");
     if (wo) { const w = await wordByHan(wo.dataset.wopen!); openEntry(w.id, true); return; }
-    if (t.closest("[data-words-ok]")) { await saveBest("words", 1); $("ex-l-steps").hidden = false; const steps = lessonSteps(l); const nx = steps[steps.indexOf("words") + 1]; if (nx) startStep(nx); else openLesson(lessonIdx); return; }
+    if (t.closest("[data-words-ok]")) { await saveBest("words", 1); await addToCourseDeck(c, [lessonIdx]); $("ex-l-steps").hidden = false; const steps = lessonSteps(l); const nx = steps[steps.indexOf("words") + 1]; if (nx) startStep(nx); else openLesson(lessonIdx); return; }
     if (t.closest("[data-words-deck]")) {
-      const id = await lessonDeck(c, lessonIdx);
+      const { id } = await addToCourseDeck(c, [lessonIdx]);
       await switchDeck(id);
       show("deck");
     }

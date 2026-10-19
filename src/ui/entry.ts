@@ -4,12 +4,16 @@ import { splitArticle, wordsWithChar, countWithChar, pyReadings, safeHtml, type 
 import type { Word } from "../core/deck.ts";
 import { formatGap } from "../core/fsrs.ts";
 import { say } from "../speech.ts";
-import { $, esc } from "./dom.ts";
+import { $, esc, pinyinHTML } from "./dom.ts";
+import { parseRef } from "../core/pinyin.ts";
 import { createWriter, type Writer } from "./writer.ts";
 import { onLeave, show } from "./nav.ts";
 import { showNote } from "./session.ts";
 import { openWordEditor, openAddToDeck } from "./editor.ts";
 import { toggleBookWord, inBook } from "./deckpick.ts";
+import { toDecomp, parts as decompParts, layoutName, TYPE_NAME, type DecompRow } from "../core/decomp.ts";
+import { hskLookup, editOf } from "../state.ts";
+import { wordId } from "../core/deck.ts";
 import { findWord, wordByHan, refreshOther, pyHTML, statusAny, itemHTML, fromHit, loadDict, dictNow, type OtherWord } from "./lookup.ts";
 
 type Tab = "mean" | "ex" | "words" | "strokes";
@@ -196,6 +200,48 @@ function renderStrokes() {
   try { writer?.cancelQuiz(); } catch { /* */ }
   // поле создаётся, когда вкладка видна: иначе у него нулевая ширина
   requestAnimationFrame(() => { writer = createWriter($("d-hw"), strokeChar, { showCharacter: true, showOutline: true }); });
+  renderDecomp(strokeChar);
+}
+
+/* ---------- состав иероглифа и мнемоника ---------- */
+
+let decompDb: Promise<Record<string, DecompRow>> | null = null;
+let radicals: Promise<Map<string, [string, string]>> | null = null;
+const loadDecomp = () => (decompDb ??= fetch("data/decomp.json").then((r) => r.json()).catch(() => { decompDb = null; return {}; }));
+/** Ключи из колоды «Ключи»: форма → [пиньинь, значение без примеров]. */
+const loadRadicals = () => (radicals ??= fetch("data/decks/radicals.json").then((r) => r.json()).then((f: { words: [string, string, string][] }) =>
+  new Map(f.words.map(([h, py, ru]) => [h, [py, ru.replace(/\s*\(.*\)\s*$/, "")] as [string, string]]))).catch(() => { radicals = null; return new Map(); }));
+
+/** Короткое значение части: ключ → HSK → словарь. */
+async function partInfo(ch: string): Promise<{ py: string; ru: string }> {
+  const r = (await loadRadicals()).get(ch);
+  if (r) return { py: r[0], ru: r[1] };
+  const h = (await hskLookup())(ch);
+  if (h) return { py: h.py, ru: h.ru.split(/[;,]/)[0] };
+  const w = await wordByHan(ch);
+  return { py: w.py, ru: (w.ru || "").split(/[;,]/)[0] };
+}
+
+const pyMarked = (py: string) => { try { return pinyinHTML(parseRef(py)); } catch { return esc(py); } };
+
+async function renderDecomp(ch: string) {
+  const box = $("d-decomp");
+  box.innerHTML = "";
+  const d = toDecomp((await loadDecomp())[ch]);
+  if (ch !== strokeChar) return;
+  const ps = d ? decompParts(d.ids).filter((p) => p !== ch) : [];
+  const info = await Promise.all(ps.map(partInfo));
+  if (ch !== strokeChar) return;
+  const note = editOf(wordId("zh", ch))?.note;
+  const lay = d ? layoutName(d.ids) : "";
+  const role = (p: string) => (d?.type === "s" ? (p === d.semantic ? "смысл" : p === d.phonetic ? "звучание" : "") : "");
+  box.innerHTML = `<h3 class="grp-title"><span>Состав ${esc(ch)}</span>${lay ? `<span class="grp-n">${lay}</span>` : ""}</h3>`
+    + (ps.length
+      ? `<div class="dc-parts">${ps.map((p, i) => `<button class="dc-part" data-part="${esc(p)}"><span class="dc-h">${esc(p)}</span><span class="dc-t"><span class="py">${pyMarked(info[i].py)}</span><span class="dc-ru">${esc(info[i].ru || "—")}</span>${role(p) ? `<span class="dc-role">${role(p)}</span>` : ""}</span></button>`).join("")}</div>`
+      : `<p class="hint">${d ? "Простой иероглиф — на части не делится." : "Нет данных о составе."}</p>`)
+    + (d?.type ? `<p class="hint">${TYPE_NAME[d.type]}${d.radical && d.radical !== ch ? ` · ключ ${esc(d.radical)}` : ""}</p>` : d?.radical && d.radical !== ch ? `<p class="hint">Ключ ${esc(d.radical)}</p>` : "")
+    + `<div class="dc-mn"><span class="label">Мнемоника</span>${note ? `<p class="word-note">${esc(note)}</p>` : `<p class="hint">Придумайте короткую историю из частей — так иероглиф запоминается быстрее.</p>`}<button class="btn small" data-mnemo>${note ? "Изменить" : "Написать мнемонику"}</button></div>`
+    + `<p class="art-src">Состав — Make Me a Hanzi (LGPL)</p>`;
 }
 
 /* ---------- обработчики ---------- */
@@ -231,6 +277,16 @@ export function initEntry() {
     if (w) openByHan(w.han);
   });
   $("d-rel-more").addEventListener("click", () => { wordState = { ...wordState, limit: wordState.limit + 36 }; renderWords(); });
+  $("d-decomp").addEventListener("click", async (e) => {
+    const t = e.target as HTMLElement;
+    const p = t.closest<HTMLButtonElement>("[data-part]");
+    if (p) { openByHan(p.dataset.part!); return; }
+    if (t.closest("[data-mnemo]")) {
+      const ch = strokeChar;
+      const w = await wordByHan(ch);
+      openWordEditor(w, () => renderDecomp(ch));
+    }
+  });
   $("d-chars").addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-c]");
     if (!b) return;

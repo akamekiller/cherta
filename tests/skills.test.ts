@@ -62,3 +62,27 @@ test("счётчики", () => {
   assert.equal(c.unseen, 2);
   assert.equal(c.newLeft, 1 + 1); // одно новое слово по лимиту + новый навык 甲
 });
+
+test("pickNext: вперемешку — новое слово не по порядку, но одно и то же весь день", async () => {
+  const { pickNext } = await import("../src/core/skills.ts");
+  const words = Array.from({ length: 30 }, (_, i) => ({ id: `zh:${i}` }));
+  const o = { now: 0, skills: ["write" as const], newWordsLeft: 5, learnAhead: 0 };
+  assert.equal(pickNext(words, () => undefined, o)!.word, 0);
+  const a = pickNext(words, () => undefined, { ...o, seed: "2026-10-19:d" })!.word;
+  const b = pickNext(words, () => undefined, { ...o, seed: "2026-10-19:d" })!.word;
+  assert.equal(a, b);
+  const firsts = new Set(["a", "b", "c", "d", "e", "f"].map((s) => pickNext(words, () => undefined, { ...o, seed: s })!.word));
+  assert.ok(firsts.size > 1);
+});
+
+test("pickNext: повторения вперемешку", async () => {
+  const { pickNext } = await import("../src/core/skills.ts");
+  const words = Array.from({ length: 10 }, (_, i) => ({ id: `zh:${i}` }));
+  const card = (id: string) => ({ id, state: "review" as const, due: Number(id.slice(3)), stability: 5, difficulty: 5, step: 0, reps: 3, lapses: 0, last: 0 });
+  const o = { now: 100, skills: ["write" as const], newWordsLeft: 0, learnAhead: 0 };
+  assert.equal(pickNext(words, card, o)!.word, 0);
+  let x = 0.13;
+  const rnd = () => (x = (x * 9301 + 0.4927) % 1);
+  const seen = new Set(Array.from({ length: 20 }, () => pickNext(words, card, { ...o, rnd })!.word));
+  assert.ok(seen.size > 3);
+});

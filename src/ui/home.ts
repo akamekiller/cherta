@@ -3,7 +3,7 @@ import { useBookDeck } from "./book.ts";
 import { useTonesDeck } from "./tones.ts";
 import { SKILLS, type Skill } from "../core/skills.ts";
 import { app, counts, countsFor, deckById, visibleDecks, nextDueTime, words, switchDeck, newLimit, deckSkills, setDeckOpts, renameDeck, deleteDeck,
-  saveUserDeck, hskLookup, dictIndex, addBuiltinDecks, removeBuiltinDeck, isAdded, type DeckInfo } from "../state.ts";
+  saveUserDeck, hskLookup, dictIndex, deckOrder, addBuiltinDecks, removeBuiltinDeck, isAdded, refreshCharDeck, updateSettings, removeUserDeck, CHAR_DECK, type DeckInfo } from "../state.ts";
 import { countChars } from "../core/deck.ts";
 import { formatGap } from "../core/fsrs.ts";
 import { parseImportAll, exportDeckText, fileName, type ImportRow } from "../core/importer.ts";
@@ -12,6 +12,7 @@ import { $, esc, plural, downloadText } from "./dom.ts";
 import { onShow, show } from "./nav.ts";
 import { startSession } from "./session.ts";
 import { openDeckWords } from "./words.ts";
+import { renderToday } from "./today.ts";
 import { goalLine } from "./stats.ts";
 import { openDeckEditor, userDeckById } from "./editor.ts";
 import { openSheet, closeSheet, confirmInline } from "./sheet.ts";
@@ -25,6 +26,9 @@ let listToken = 0;
 export async function renderHome() {
   const my = ++listToken;
   $("goal-line").innerHTML = goalLine();
+  renderToday($("today-home"));
+  // колода иероглифов пополняется сама, когда начаты новые слова
+  if (app.settings.charDeck) refreshCharDeck().then((n) => { if (n && my === listToken) renderHome(); });
   const decks = visibleDecks();
   // сначала строки без чисел, потом числа по мере загрузки колод
   // заголовки групп (HSK, основа, жизнь в Китае, свои), как вложенные колоды в Anki
@@ -122,6 +126,8 @@ function openDeckMenu(id: string) {
     <div class="field"><span class="label">Что тренировать</span>
       <div class="chips-row wrapped" id="dm-skills">${SKILLS.map((k) => `<button class="chip-btn" data-skill="${k.id}" aria-pressed="${deckSkills(id).includes(k.id)}" title="${esc(k.hint)}">${k.name}</button>`).join("")}</div>
       <small class="hint" id="dm-skill-hint">У каждого навыка свой интервал повторения, как в Skritter.</small></div>
+    <div class="field"><span class="label">Новые слова</span>
+      <div class="seg" role="group" id="dm-order"><button data-order="random" aria-pressed="${deckOrder(id) === "random"}">Вперемешку</button><button data-order="seq" aria-pressed="${deckOrder(id) === "seq"}">По порядку колоды</button></div></div>
     <div class="dm-list">
       ${d.user ? `<button class="deck-opt" id="dm-edit"><span>Изменить слова<small>Добавить или убрать слова</small></span></button>` : ""}
       <button class="deck-opt" id="dm-words"><span>Слова колоды<small>Список, поиск, статус</small></span></button>
@@ -134,6 +140,7 @@ function openDeckMenu(id: string) {
     <button class="btn primary wide" id="dm-save">Готово</button>`;
   let nNew = limit;
   let skills: Skill[] = deckSkills(id);
+  let order = deckOrder(id);
   openSheet(d.title, body, (root) => {
     const q = <T extends HTMLElement>(s: string) => root.querySelector<T>(`#${s}`)!;
     q("dm-skills").addEventListener("click", (e) => {
@@ -145,6 +152,12 @@ function openDeckMenu(id: string) {
       skills = SKILLS.map((x) => x.id).filter((x) => next.includes(x));
       b.setAttribute("aria-pressed", String(skills.includes(k)));
     });
+    q("dm-order").addEventListener("click", (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-order]");
+      if (!b) return;
+      order = b.dataset.order as "random" | "seq";
+      q("dm-order").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    });
     const step = (k: number) => { nNew = Math.max(0, Math.min(200, nNew + k)); q("dm-new").textContent = String(nNew); };
     q("dm-minus").addEventListener("click", () => step(nNew > 20 ? -5 : -1));
     q("dm-plus").addEventListener("click", () => step(nNew >= 20 ? 5 : 1));
@@ -153,6 +166,7 @@ function openDeckMenu(id: string) {
       if (t && t !== d.title) await renameDeck(id, t);
       if (nNew !== limit) await setDeckOpts(id, { newPerDay: nNew });
       if (skills.join() !== deckSkills(id).join()) await setDeckOpts(id, { skills });
+      if (order !== deckOrder(id)) await setDeckOpts(id, { order });
     };
     q("dm-save").addEventListener("click", async () => { await save(); closeSheet(); refresh(); });
     root.querySelector("#dm-edit")?.addEventListener("click", async () => {
@@ -186,13 +200,24 @@ export function openCatalog(onDone?: () => void) {
     const on = isAdded(d.id);
     return `<button class="deck-opt" data-cat="${esc(d.id)}" aria-pressed="${on}"><span>${esc(d.title)}<small>${d.count} ${plural(d.count, "слово", "слова", "слов")}${d.subtitle ? ` · ${esc(d.subtitle)}` : ""}</small></span><span class="pick-btn${on ? " on" : ""}">${on ? "✓" : "+"}</span></button>`;
   };
+  const charRow = () => `<button class="deck-opt" data-chars aria-pressed="${!!app.settings.charDeck}"><span>Иероглифы из моих слов<small>Каждый иероглиф начатых слов — отдельной карточкой, как в Skritter. Пополняется сама.</small></span><span class="pick-btn${app.settings.charDeck ? " on" : ""}">${app.settings.charDeck ? "✓" : "+"}</span></button>`;
   const body = `<p class="hint">Нажмите, чтобы добавить колоду к себе. Прогресс по словам общий: если слово уже выучено в другой колоде, оно не начнётся заново.</p>`
+    + `<h3 class="grp-title"><span>Иероглифы</span></h3><div class="deck-list">${charRow()}</div>`
     + [...groups].map(([g, list]) => `<h3 class="grp-title"><span>${esc(g)}</span></h3><div class="deck-list">${list.map(row).join("")}</div>`).join("")
     + `<button class="btn primary wide" id="cat-done">Готово</button>`;
   openSheet("Готовые колоды", `<div class="pick-decks">${body}</div>`, (root) => {
     root.addEventListener("click", async (e) => {
       const t = e.target as HTMLElement;
       if (t.closest("#cat-done")) { closeSheet(); renderHome(); onDone?.(); return; }
+      const ch = t.closest<HTMLButtonElement>("[data-chars]");
+      if (ch) {
+        const on = !app.settings.charDeck;
+        await updateSettings({ charDeck: on });
+        if (on) await refreshCharDeck(); else if (app.userDecks.some((d) => d.id === CHAR_DECK)) await removeUserDeck(CHAR_DECK);
+        ch.outerHTML = charRow();
+        renderHome();
+        return;
+      }
       const b = t.closest<HTMLButtonElement>("[data-cat]");
       if (!b) return;
       const id = b.dataset.cat!;

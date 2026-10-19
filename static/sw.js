@@ -49,3 +49,35 @@ self.addEventListener("fetch", (e) => {
     }).catch(async () => (await caches.match(req, { ignoreSearch: true })) ?? caches.match("./index.html")),
   );
 });
+
+// Напоминание (периодическая фоновая проверка, Chrome на Android): сегодня ещё не занимались — показать уведомление.
+function idbGet(key) {
+  return new Promise((resolve) => {
+    const r = indexedDB.open("cherta");
+    r.onerror = () => resolve(undefined);
+    r.onsuccess = () => {
+      try {
+        const q = r.result.transaction("meta").objectStore("meta").get(key);
+        q.onsuccess = () => resolve(q.result);
+        q.onerror = () => resolve(undefined);
+      } catch { resolve(undefined); }
+    };
+  });
+}
+async function remindCheck() {
+  const remind = await idbGet("remind");
+  if (!remind || !remind.on) return;
+  const now = new Date();
+  const d = new Date(now.getTime() - 4 * 3600000);
+  const today = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  const day = await idbGet("day");
+  if (day && day.day === today && day.newCount > 0) return;
+  const [h, m] = String(remind.time || "20:00").split(":").map(Number);
+  if (now.getHours() * 60 + now.getMinutes() < h * 60 + m) return;
+  await self.registration.showNotification("Черта", { body: "Пора повторить слова — план на сегодня ждёт.", icon: "icons/icon-192.png", tag: "cherta-remind" });
+}
+self.addEventListener("periodicsync", (e) => { if (e.tag === "cherta-remind") e.waitUntil(remindCheck()); });
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type: "window" }).then((list) => (list[0] ? list[0].focus() : self.clients.openWindow("./"))));
+});

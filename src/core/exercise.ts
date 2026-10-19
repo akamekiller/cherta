@@ -8,6 +8,12 @@ export type ExProgress = Record<string, { seen: number; ok: number; last: number
 
 const HAN = /\p{Script=Han}/u;
 export const isWordTok = (t: string) => HAN.test(t);
+/** Перемешать копию массива (Фишер — Йейтс). */
+export const shuffled = <T>(a: T[], rnd: () => number) => {
+  const out = [...a];
+  for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [out[i], out[j]] = [out[j], out[i]]; }
+  return out;
+};
 /** Китайский текст без пунктуации и пробелов — для сравнения. */
 export const zhKey = (s: string) => [...s].filter((c) => HAN.test(c) || /[0-9A-Za-z]/.test(c)).join("");
 
@@ -64,9 +70,10 @@ export type Question = { q: string; o: string[]; a: number };
 export type Dialog = { id: string; title: string; theme?: string; level?: number; lines: [string, string, string][]; q: Question[] };
 /** Слово урока: иероглифы, пиньинь (как в колоде), значение. */
 export type LessonWord = [string, string, string];
-export type Lesson = { title: string; words: LessonWord[]; sents: Sent[]; dialogs: Dialog[] };
+/** section — раздел курса (тема, уровень), к которому относится урок: строка «### Раздел» перед уроками. */
+export type Lesson = { title: string; words: LessonWord[]; sents: Sent[]; dialogs: Dialog[]; section?: string };
 export type ExSet = { id: string; title: string; lessons: Lesson[]; level?: number; about?: string };
-export type Kind = "tr" | "gap" | "listen" | "dialog";
+export type Kind = "tr" | "gap" | "listen" | "dict" | "dialog";
 /** Задание: предложение (перевод, пропуск, аудирование), диалог или слово (узнавание: иероглифы → значение или наоборот). */
 export type Task = { kind: Exclude<Kind, "dialog">; sent: Sent; tiles?: boolean } | { kind: "dialog"; dialog: Dialog } | { kind: "word"; word: LessonWord; dir: "zh" | "ru" };
 
@@ -74,6 +81,7 @@ export const KINDS: { id: Kind; name: string; hint: string }[] = [
   { id: "tr", name: "Перевод", hint: "написать по-китайски рукой или с клавиатуры" },
   { id: "gap", name: "Пропуски", hint: "вставить пропущенное слово" },
   { id: "listen", name: "Аудирование", hint: "послушать и собрать предложение" },
+  { id: "dict", name: "Диктант", hint: "послушать и написать по-китайски" },
   { id: "dialog", name: "Диалоги", hint: "прочитать диалог и ответить на вопросы" },
 ];
 
@@ -174,18 +182,21 @@ export function diffZh(mine: string, ref: string): { ref: { c: string; ok: boole
  *   ? Что покупают? | яблоки* | хлеб  — вопрос к диалогу, верный вариант со звёздочкой
  *   + 学习 | xue2 xi2 | учиться         — слово урока (для курса: «Слова урока», узнавание, карточки)
  *   #level: 1   #about: описание       — уровень и описание курса
+ *   ### Еда и покупки                  — раздел (тема) для следующих уроков
  */
 export function parseExSet(text: string, id: string, seg: (zh: string) => string[]): ExSet {
   const set: ExSet = { id, title: "", lessons: [] };
   let lesson: Lesson | null = null;
   let dialog: Dialog | null = null;
-  const ensureLesson = () => (lesson ??= (set.lessons.push({ title: "Без раздела", words: [], sents: [], dialogs: [] }), set.lessons[set.lessons.length - 1]));
+  let section: string | undefined;
+  const ensureLesson = () => (lesson ??= (set.lessons.push({ title: "Без раздела", words: [], sents: [], dialogs: [], ...(section ? { section } : {}) }), set.lessons[set.lessons.length - 1]));
   const split = (l: string) => l.split(/\s*[|\t]\s*/).map((x) => x.trim());
   let n = 0;
   for (const raw of text.replace(/\r/g, "").split("\n")) {
     const line = raw.trim();
     if (!line) { dialog = null; continue; }
-    if (line.startsWith("## ")) { lesson = { title: line.slice(3).trim(), words: [], sents: [], dialogs: [] }; set.lessons.push(lesson); dialog = null; continue; }
+    if (line.startsWith("### ")) { section = line.slice(4).trim() || undefined; lesson = null; dialog = null; continue; }
+    if (line.startsWith("## ")) { lesson = { title: line.slice(3).trim(), words: [], sents: [], dialogs: [], ...(section ? { section } : {}) }; set.lessons.push(lesson); dialog = null; continue; }
     if (line.startsWith("# ")) { set.title ||= line.slice(2).trim(); continue; }
     const meta = /^#(level|about):\s*(.*)$/i.exec(line);
     if (meta) {
@@ -235,9 +246,11 @@ export function planSession(sents: Sent[], dialogs: Dialog[], kinds: Kind[], pro
     out.push({ kind: "dialog", dialog: d });
   }
   if (sentKinds.length && sents.length) {
-    const items: ExItem[] = sents.map((s) => ({ zh: s.zh, ru: s.ru, t: s.t }));
+    // первые 60 подходящих — вперемешку, чтобы занятия не повторяли один и тот же порядок
+    const pool = [...shuffled(sents.slice(0, 60), rnd), ...sents.slice(60)];
+    const items: ExItem[] = pool.map((s) => ({ zh: s.zh, ru: s.ru, t: s.t }));
     const order = pickLesson(items, prog, Math.max(0, n - out.length), "");
-    order.forEach((i, k) => out.push({ kind: sentKinds[k % sentKinds.length], sent: sents[i] }));
+    order.forEach((i, k) => out.push({ kind: sentKinds[k % sentKinds.length], sent: pool[i] }));
   }
   // диалог — в середину занятия, не первым
   if (out.length > 3 && out[0].kind === "dialog") out.splice(Math.floor(out.length / 2), 0, out.shift()!);
@@ -246,13 +259,14 @@ export function planSession(sents: Sent[], dialogs: Dialog[], kinds: Kind[], pro
 
 /* ======================= курсы: урок по шагам ======================= */
 
-export type StepId = "words" | "recog" | "gap" | "build" | "listen" | "write" | "dialog";
+export type StepId = "words" | "recog" | "gap" | "build" | "listen" | "dict" | "write" | "dialog";
 export const STEPS: { id: StepId; name: string; hint: string }[] = [
   { id: "words", name: "Слова урока", hint: "послушать и запомнить" },
   { id: "recog", name: "Узнавание", hint: "иероглифы ↔ значение" },
   { id: "gap", name: "Пропуски", hint: "вставить слово в предложение" },
   { id: "build", name: "Сборка фраз", hint: "собрать перевод из слов" },
   { id: "listen", name: "Аудирование", hint: "услышать и собрать" },
+  { id: "dict", name: "Диктант", hint: "услышать и написать" },
   { id: "write", name: "Перевод", hint: "написать по-китайски" },
   { id: "dialog", name: "Диалог", hint: "прочитать и ответить" },
 ];
@@ -268,6 +282,7 @@ export function lessonSteps(l: Lesson): StepId[] {
   if (l.sents.length >= 2) out.push("gap");
   if (withRu >= 2) out.push("build");
   if (l.sents.length >= 2) out.push("listen");
+  if (l.sents.length >= 2) out.push("dict");
   if (withRu >= 2) out.push("write");
   if (l.dialogs.length) out.push("dialog");
   return out;
@@ -287,11 +302,6 @@ export function shortRu(ru: string): string {
   return (t.length > 40 ? t.slice(0, 40).replace(/[,\s]+[^,\s]*$/, "") + "…" : t) || ru;
 }
 
-const shuffled = <T>(a: T[], rnd: () => number) => {
-  const out = [...a];
-  for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [out[i], out[j]] = [out[j], out[i]]; }
-  return out;
-};
 
 /** Варианты для узнавания слова: верный и 3 других из урока, потом из курса; без повторов значения. */
 export function wordOptions(word: LessonWord, lesson: LessonWord[], course: LessonWord[], dir: "zh" | "ru", rnd: () => number): string[] {
@@ -312,7 +322,8 @@ export function wordOptions(word: LessonWord, lesson: LessonWord[], course: Less
 
 /** Задания шага урока. Предложения — сначала новые и с ошибками (prog), слова — в обе стороны. */
 export function stepTasks(step: StepId, l: Lesson, prog: ExProgress, rnd: () => number): Task[] {
-  const order = (list: Sent[], n: number) => pickLesson(list.map((s) => ({ zh: s.zh, ru: s.ru, t: s.t })), prog, n).map((i) => list[i]);
+  // вперемешку: сначала новые и с ошибками (pickLesson), но внутри — в случайном порядке
+  const order = (list: Sent[], n: number) => { const sh = shuffled(list, rnd); return pickLesson(sh.map((s) => ({ zh: s.zh, ru: s.ru, t: s.t })), prog, n).map((i) => sh[i]); };
   const withRu = l.sents.filter((s) => s.ru);
   switch (step) {
     case "recog": {
@@ -324,6 +335,7 @@ export function stepTasks(step: StepId, l: Lesson, prog: ExProgress, rnd: () => 
     case "gap": return order(l.sents, 8).map((s) => ({ kind: "gap", sent: s }));
     case "build": return order(withRu, 6).map((s) => ({ kind: "tr", sent: s, tiles: true }));
     case "listen": return order(l.sents, 6).map((s) => ({ kind: "listen", sent: s }));
+    case "dict": return order(l.sents, 5).map((s) => ({ kind: "dict", sent: s }));
     case "write": return order(withRu, 5).map((s) => ({ kind: "tr", sent: s, tiles: false }));
     case "dialog": return l.dialogs.map((d) => ({ kind: "dialog", dialog: d }));
     default: return [];
@@ -336,7 +348,8 @@ export function reviewTasks(lessons: Lesson[], prog: ExProgress, n: number, rnd:
   const words = lessons.flatMap((l) => l.words);
   const kinds: ("gap" | "build" | "listen" | "write")[] = ["gap", "build", "listen", "write"];
   const out: Task[] = [];
-  const picked = pickLesson(sents.map((s) => ({ zh: s.zh, ru: s.ru, t: s.t })), prog, Math.max(0, n - 3)).map((i) => sents[i]);
+  const sh = shuffled(sents, rnd);
+  const picked = pickLesson(sh.map((s) => ({ zh: s.zh, ru: s.ru, t: s.t })), prog, Math.max(0, n - 3)).map((i) => sh[i]);
   picked.forEach((s, k) => {
     const kind = kinds[k % kinds.length];
     if (!s.ru && (kind === "build" || kind === "write")) out.push({ kind: "gap", sent: s });

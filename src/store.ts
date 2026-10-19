@@ -31,19 +31,25 @@ export type Settings = {
   penSize: number;
   /** Короткая вибрация при неверной черте (если телефон умеет). */
   vibrate: boolean;
+  /** Письмо без подсказок: проверка иероглифа целиком, а не каждой черты. */
+  blind?: boolean;
   /** Цель на день: сколько карточек пройти. */
   dailyGoal: number;
   /** Настройки отдельных колод (id → настройки). */
   deckOpts: Record<string, DeckOpts>;
   /** Готовые колоды, которые пользователь добавил к себе (сначала список пуст). undefined — старые данные до этой настройки. */
   added?: string[];
+  /** Колода «Иероглифы из моих слов» (отдельные иероглифы начатых слов, как в Skritter). */
+  charDeck?: boolean;
+  /** Свои параметры FSRS (подстроены по журналу ответов), иначе по умолчанию. */
+  fsrsW?: number[];
   /** Подключённые встроенные курсы упражнений. */
   courses?: string[];
 };
 /** Счётчик новых слов за день: всего и по колодам (у каждой колоды свой лимит, как в Anki). */
 export type DayCounter = { day: string; newCount: number; byDeck?: Record<string, number> };
 /** Настройки колоды поверх данных: своё название, скрыта из списка, свой лимит новых слов. */
-export type DeckOpts = { title?: string; hidden?: boolean; newPerDay?: number; skills?: string[] };
+export type DeckOpts = { title?: string; hidden?: boolean; newPerDay?: number; skills?: string[]; order?: "random" | "seq" };
 export type Review = { id: string; at: number; grade: Grade; state: Card["state"]; mistakes: number };
 
 export const DEFAULT_SETTINGS: Settings = { newPerDay: 10, pinyin: true, voice: true, deck: "", theme: "auto", pen: "brush", ink: "auto", keepStrokes: true, penSize: 1, vibrate: true, dailyGoal: 30, deckOpts: {} };
@@ -141,17 +147,18 @@ const ALL = ["cards", "reviews", "meta", "edits", "userDecks"] as const;
 export async function exportAll(): Promise<string> {
   const db = await open();
   const tx = db.transaction([...ALL]);
-  const [cards, reviews, settings, day, ex, exsets, edits, userDecks] = await Promise.all([
+  const [cards, reviews, settings, day, ex, exsets, course, edits, userDecks] = await Promise.all([
     done(tx.objectStore("cards").getAll()),
     done(tx.objectStore("reviews").getAll()),
     done(tx.objectStore("meta").get("settings")),
     done(tx.objectStore("meta").get("day")),
     done(tx.objectStore("meta").get("ex")),
     done(tx.objectStore("meta").get("exsets")),
+    done(tx.objectStore("meta").get("course")),
     done(tx.objectStore("edits").getAll()),
     done(tx.objectStore("userDecks").getAll()),
   ]);
-  return JSON.stringify({ format: EXPORT_FORMAT, version: DB_VERSION, exportedAt: new Date().toISOString(), cards, reviews, settings, day, ex, exsets, edits, userDecks });
+  return JSON.stringify({ format: EXPORT_FORMAT, version: DB_VERSION, exportedAt: new Date().toISOString(), cards, reviews, settings, day, ex, exsets, course, edits, userDecks });
 }
 
 export async function importAll(json: string): Promise<number> {
@@ -168,6 +175,7 @@ export async function importAll(json: string): Promise<number> {
   if (data.day) tx.objectStore("meta").put(data.day, "day");
   if (data.ex) tx.objectStore("meta").put(data.ex, "ex");
   if (data.exsets) tx.objectStore("meta").put(data.exsets, "exsets");
+  if (data.course) tx.objectStore("meta").put(data.course, "course");
   await txDone(tx);
   return data.cards.length;
 }

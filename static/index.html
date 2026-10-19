@@ -38,6 +38,7 @@
       <button class="dr-item" data-view="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="13" height="15" rx="2"/><path d="M8 3h11a1 1 0 0 1 1 1v13"/></svg><span class="dr-text"><b>Карточки</b><small>Повторение слов с письмом</small></span></button>
       <button class="dr-item" data-view="book"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M9 5v14M15 5v14"/></svg><span class="dr-text"><b>Тетрадь прописей</b><small>Иероглиф по клеткам, печать</small></span></button>
       <button class="dr-item" data-view="ex"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h7"/></svg><span class="dr-text"><b>Упражнения</b><small>Курсы: урок за уроком</small></span></button>
+      <button class="dr-item" data-view="read"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h6a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H3z"/><path d="M21 5h-6a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h7z"/></svg><span class="dr-text"><b>Чтение</b><small>Тексты по уровню, тап по слову</small></span></button>
       <button class="dr-item" data-view="tones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h2l3-7 4 14 3-9 2 2h4"/></svg><span class="dr-text"><b>Тоны и произношение</b><small>Слоги, пары тонов, свои слова</small></span></button>
       <button class="dr-item" data-view="stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span class="dr-text"><b>Статистика</b><small>Серия, календарь, прогноз</small></span></button>
       <button class="dr-item" data-view="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span class="dr-text"><b>Настройки</b><small>Тема, лимиты, прогресс</small></span></button>
@@ -56,6 +57,7 @@
 
   <!-- Главная: список колод, как в Anki -->
   <section id="home" class="stack" hidden>
+    <div id="today-home"></div>
     <div class="empty-start panel" id="home-empty" hidden>
       <span class="han-big" aria-hidden="true">卡</span>
       <h2>Колод пока нет</h2>
@@ -120,6 +122,8 @@
       <div class="tools">
         <button class="btn small" id="b-hint">Показать контур</button>
         <button class="btn small" id="b-giveup">Не помню</button>
+        <button class="btn small" id="b-undo-stroke" hidden>Стереть черту</button>
+        <button class="btn small primary" id="b-char-done" hidden disabled>Готово</button>
       </div>
       <div class="py-pick" id="py-field">
         <div class="py-head"><span class="label">Пиньинь</span><button class="link-btn" id="py-mode" type="button">Набрать с клавиатуры</button></div>
@@ -161,7 +165,8 @@
       <div class="deck-han" aria-hidden="true">好</div>
       <h2>На сегодня всё</h2>
       <p class="hint" id="done-text"></p>
-      <button class="btn primary wide" id="done-home">К колоде</button>
+      <button class="btn primary wide" id="done-next" hidden></button>
+      <button class="btn wide" id="done-home">К колоде</button>
     </div>
   </section>
 
@@ -254,6 +259,7 @@
         <button class="btn small" id="d-anim">Порядок черт</button>
         <button class="btn small" id="d-try">Написать</button>
       </div>
+      <div class="decomp" id="d-decomp"></div>
     </div>
   </section>
 
@@ -304,7 +310,7 @@
     <div id="ex-course" class="stack" hidden>
       <div class="topbar"><button class="btn ghost small" id="ex-c-back">← Курсы</button><button class="icon-btn" id="ex-c-menu" aria-label="Действия с курсом"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button></div>
       <div id="ex-c-head"></div>
-      <div id="ex-c-lessons" class="lesson-list"></div>
+      <div id="ex-c-lessons" class="stack"></div>
     </div>
     <!-- Урок: шаги -->
     <div id="ex-lesson" class="stack" hidden>
@@ -333,7 +339,20 @@
   </section>
 
   <!-- Тоны и произношение -->
+  <section id="read" class="stack read" hidden>
+    <div id="rd-list" class="stack"></div>
+    <div id="rd-text" class="stack" hidden>
+      <div class="topbar"><button class="btn ghost small" id="rd-back">← Тексты</button><button class="btn small" id="rd-all">▶ Весь текст</button></div>
+      <div id="rd-head"></div>
+      <div class="chips-row"><button class="chip-btn" id="rd-py" aria-pressed="true">Пиньинь</button><button class="chip-btn" id="rd-ru" aria-pressed="false">Перевод</button></div>
+      <div id="rd-body" class="panel stack"></div>
+      <div class="ex-gloss" id="rd-gloss" hidden></div>
+      <div id="rd-q" class="stack"></div>
+    </div>
+  </section>
+
   <section id="tones" class="stack tones" hidden>
+    <div class="today-bar" id="tn-today" hidden></div>
     <div class="seg wide-seg" role="group" aria-label="Ступень" id="tn-stage"><button data-stage="syl">Слоги</button><button data-stage="pair">Пары тонов</button><button data-stage="mine">Мои слова</button></div>
     <p class="hint" id="tn-stage-hint"></p>
     <div id="tn-grid" class="tn-grid" hidden></div>
@@ -399,6 +418,10 @@
         </div>
       </div>
       <div class="set-row">
+        <div class="t"><div>Писать без подсказок</div><div>Черты не проверяются по ходу: пишете иероглиф целиком, проверка — по кнопке «Готово». Новые слова — всё равно по контуру.</div></div>
+        <input type="checkbox" class="switch" id="s-blind" aria-label="Писать без подсказок">
+      </div>
+      <div class="set-row">
         <div class="t"><div>Вибрация на ошибку</div><div>Короткая отдача при неверной черте</div></div>
         <input type="checkbox" class="switch" id="s-vibrate" aria-label="Вибрация на ошибку">
       </div>
@@ -418,6 +441,23 @@
         <div class="t"><div>Проверить голос</div><div id="voice-info">Ищем китайский голос…</div></div>
         <button class="btn small" id="s-test">你好</button>
       </div>
+    </div>
+    <div class="panel stack">
+      <div class="label">Синхронизация</div>
+      <div id="sync-box"></div>
+      <p class="note" id="sync-msg"></p>
+    </div>
+    <div class="panel stack">
+      <div class="label">Напоминания</div>
+      <div class="set-row"><div class="t"><div>Время</div><div>Каждый день</div></div><input type="time" id="rm-time" value="20:00"></div>
+      <div class="row"><button class="btn small" id="rm-ics">Добавить в календарь</button><button class="btn small" id="rm-push" hidden>Включить уведомления</button></div>
+      <p class="note" id="rm-msg"></p>
+    </div>
+    <div class="panel stack">
+      <div class="label">Интервалы под вас</div>
+      <p class="hint" id="fs-info">FSRS подстраивает интервалы повторений по вашему журналу ответов: если вы помните лучше или хуже среднего, повторения станут реже или чаще. Нужно хотя бы 100 повторений после перерыва в день и больше.</p>
+      <div class="row"><button class="btn small" id="fs-run">Подстроить</button><button class="btn small" id="fs-reset" hidden>Вернуть по умолчанию</button></div>
+      <p class="note" id="fs-msg"></p>
     </div>
     <div class="panel stack">
       <div class="label">Мои правки</div>

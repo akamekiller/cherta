@@ -5,6 +5,7 @@
 import { app, hskLookup, dictIndex } from "../state.ts";
 import type { Word } from "../core/deck.ts";
 import { pickDeck, deckWords, deckTitle, setPickLabel } from "./deckpick.ts";
+import { hashStr } from "../core/skills.ts";
 import { uniqueChars, cellPlan, printRows, paginate, rowsPerPage, type PrintCell } from "../core/copybook.ts";
 import { dictPyToNumeric, type DictIndex } from "../core/dict.ts";
 import { parseRef, toMarked } from "../core/pinyin.ts";
@@ -17,7 +18,7 @@ import { openSheet, closeSheet } from "./sheet.ts";
 
 type Src = "deck" | "text";
 const LS = "cherta.book";
-const st = { v: 2, src: "deck" as Src, deckId: "", text: "", total: 10, trace: 3, pos: {} as Record<string, number>,
+const st = { v: 2, src: "deck" as Src, deckId: "", text: "", total: 10, trace: 3, pos: {} as Record<string, number>, shuffle: true, seed: "1",
   print: { perRow: 10, traces: 3, rowsPerChar: 1, count: 12, labels: true, all: false } };
 try {
   const saved = JSON.parse(localStorage.getItem(LS) ?? "{}");
@@ -83,7 +84,8 @@ async function render() {
   const my = ++gen;
   const list = await loadSource();
   if (my !== gen) return;
-  chars = list;
+  // колода — вперемешку (порядок постоянный, пока не нажать «Перемешать»), свой текст — как написан
+  chars = st.shuffle && st.src === "deck" ? [...list].sort((a, b) => hashStr(st.seed + a) - hashStr(st.seed + b)) : list;
   setPickLabel("bk-src", st.src === "text" ? "Свой текст" : deckTitle(st.deckId));
   $("bk-text-field").hidden = st.src !== "text";
   $<HTMLInputElement>("bk-text").value = st.text;
@@ -186,7 +188,11 @@ function openOptions() {
       <div class="stepper"><button class="icon-btn" data-k="total" data-d="-1" aria-label="Меньше">−</button><output id="bo-total">${st.total}</output><button class="icon-btn" data-k="total" data-d="1" aria-label="Больше">+</button></div></div>
     <div class="set-row"><div class="t"><div>Из них по контуру</div><div>Остальные — по памяти</div></div>
       <div class="stepper"><button class="icon-btn" data-k="trace" data-d="-1" aria-label="Меньше">−</button><output id="bo-trace">${st.trace}</output><button class="icon-btn" data-k="trace" data-d="1" aria-label="Больше">+</button></div></div>
+    <div class="field"><span class="label">Порядок иероглифов колоды</span>
+      <div class="seg" role="group" id="bo-order"><button data-shuffle="1" aria-pressed="${st.shuffle}">Вперемешку</button><button data-shuffle="0" aria-pressed="${!st.shuffle}">По порядку</button></div>
+      <button class="link-btn" id="bo-reshuffle">Перемешать заново</button></div>
     <button class="btn primary wide" id="bo-done">Готово</button>`;
+  let reordered = false;
   openSheet("Прописи", body, (root) => {
     root.addEventListener("click", (e) => {
       const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-k]");
@@ -198,7 +204,18 @@ function openOptions() {
         root.querySelector("#bo-trace")!.textContent = String(st.trace);
         save();
       }
-      if ((e.target as HTMLElement).closest("#bo-done")) { closeSheet(); if (chars.length) startChar(); }
+      const sh = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-shuffle]");
+      if (sh) {
+        st.shuffle = sh.dataset.shuffle === "1"; st.pos[key()] = 0; save();
+        root.querySelectorAll("[data-shuffle]").forEach((x) => x.setAttribute("aria-pressed", String(x === sh)));
+        reordered = true;
+      }
+      if ((e.target as HTMLElement).closest("#bo-reshuffle")) {
+        st.shuffle = true; st.seed = String(Date.now()); st.pos[key()] = 0; save();
+        root.querySelectorAll("[data-shuffle]").forEach((x) => x.setAttribute("aria-pressed", String((x as HTMLElement).dataset.shuffle === "1")));
+        reordered = true;
+      }
+      if ((e.target as HTMLElement).closest("#bo-done")) { closeSheet(); if (reordered) render(); else if (chars.length) startChar(); }
     });
   });
 }

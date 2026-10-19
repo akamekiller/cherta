@@ -4,7 +4,11 @@
  *    без запроса — недавно открытые слова;
  *  слова колоды (из обзора колоды): список с фильтрами и порядком, поиск внутри колоды.
  */
-import { app, words, isLeech, LEECH, cardOf, deckById } from "../state.ts";
+import { app, words, isLeech, LEECH, cardOf, deckById, loadThemes, themesOf } from "../state.ts";
+import { hashStr } from "../core/skills.ts";
+import { say } from "../speech.ts";
+import { openAddToDeck } from "./editor.ts";
+import { pinyinHTML } from "./dom.ts";
 import { searchDict } from "../core/dict.ts";
 import { searchEntries, type DictEntry } from "../core/edits.ts";
 import type { Word } from "../core/deck.ts";
@@ -189,21 +193,93 @@ async function renderDictSearch(q: string) {
   }, 80);
 }
 
-/* ---------- без запроса: недавние ---------- */
+/* ---------- без запроса: начальный экран словаря ---------- */
+
+const PLAY = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>`;
+/** Частые ключи (смысловые части иероглифов) — тап показывает иероглифы с этим ключом. */
+const KEYS: [string, string][] = [["亻", "человек"], ["氵", "вода"], ["扌", "рука"], ["口", "рот"], ["木", "дерево"], ["艹", "трава"], ["讠", "речь"], ["女", "женщина"],
+  ["心", "сердце"], ["忄", "сердце"], ["日", "солнце"], ["月", "луна, тело"], ["土", "земля"], ["火", "огонь"], ["宀", "крыша"], ["纟", "нить"],
+  ["辶", "движение"], ["门", "дверь"], ["钅", "металл"], ["足", "нога"], ["目", "глаз"], ["贝", "деньги"], ["饣", "еда"], ["车", "повозка"]];
+const EXAMPLES = ["学习", "xuexi", "учиться", "人", "zhongguo", "спасибо"];
+
+let homeOpen: { kind: "theme" | "key"; id: string } | null = null;
+let themesAll = false;
+let decompDb: Promise<Record<string, [string, string, string, string, string]>> | null = null;
+const loadDecomp = () => (decompDb ??= fetch("data/decomp.json").then((r) => r.json()).catch(() => { decompDb = null; return {}; }));
+
+/** Слово дня: одно и то же весь день, из HSK того уровня, который вы учите (по добавленным колодам, иначе HSK 1–2). */
+function wordOfDay(list: DictEntry[]): DictEntry | null {
+  const lv = Math.max(0, ...app.decks.map((d) => Number(/^hsk3-(\d)$/.exec(d.id)?.[1] ?? 0)));
+  const want = new Set(Array.from({ length: Math.max(2, lv) }, (_, i) => `HSK ${i + 1}`));
+  const pool = list.filter((e) => e.level && want.has(e.level) && e.han.length <= 3 && e.ru);
+  if (!pool.length) return null;
+  const day = new Date().toISOString().slice(0, 10);
+  return pool.reduce((m, e) => (hashStr(day + e.han) < hashStr(day + m.han) ? e : m), pool[0]);
+}
 
 async function renderDictHome() {
   const box = $("w-home");
   box.hidden = false;
   $("w-groups").innerHTML = "";
   $("w-more").hidden = true;
-  const list = recent();
-  const deck = app.deck;
   const my = ++token;
-  const items = await Promise.all(list.slice(0, 20).map((h) => wordByHan(h)));
+  const [hsk] = await Promise.all([loadHskList().catch(() => [] as DictEntry[]), loadThemes()]);
+  const list = recent();
+  const items = await Promise.all(list.slice(0, 8).map((h) => wordByHan(h)));
+  // трудные слова: забытые много раз в любой колоде
+  const leechHan = [...new Set([...app.cards.values()].filter((c) => (c.lapses ?? 0) >= LEECH).map((c) => c.id.replace(/^zh:/, "").replace(/#.*$/, "")))].slice(0, 8);
+  const leeches = await Promise.all(leechHan.map((h) => wordByHan(h)));
   if (my !== token) return;
-  box.innerHTML = `<p class="hint">Ищите любое слово: иероглифами, пиньинем без тонов, по-русски, рисованием ✍ или голосом.</p>`
+  const wod = wordOfDay(hsk);
+  let wodHTML = "";
+  if (wod) {
+    const w = await wordByHan(wod.han);
+    if (my !== token) return;
+    wodHTML = `<div class="panel wod"><span class="label">Слово дня · ${esc(wod.level ?? "")}</span>
+      <div class="wod-main"><button class="wod-han" data-open-han="${esc(w.han)}">${esc(w.han)}</button>
+        <div class="wod-t"><span class="py">${w.ref.length ? pinyinHTML(w.ref) : esc(w.py)}</span><span class="wod-ru">${esc(w.ru)}</span></div>
+        <button class="icon-btn" data-say-han="${esc(w.han)}" aria-label="Послушать">${PLAY}</button></div>
+      <div class="row"><button class="btn small" data-open-han="${esc(w.han)}">Статья</button><button class="btn small" data-add-han="${esc(w.han)}">+ В колоду</button></div></div>`;
+  }
+  const themes = themesOf("hsk3-1");
+  box.innerHTML = wodHTML
+    + `<div class="wh-ex"><span class="hint">Ищите иероглифами, пиньинем без тонов, по-русски, рисованием ✍ или голосом. Например:</span>
+       <div class="chips-row wrapped">${EXAMPLES.map((x) => `<button class="chip-btn" data-try="${esc(x)}">${esc(x)}</button>`).join("")}</div></div>`
     + (items.length ? `<h3 class="grp-title"><span>Недавно открытые</span><button class="link-btn small" data-clear-recent>Очистить</button></h3>${listHTML(items)}` : "")
-    + (deck ? `<button class="deck-opt" data-deck-words><span>Слова колоды «${esc(deck.title)}»<small>${deck.words.length} ${plural(deck.words.length, "слово", "слова", "слов")} — список, статус, фильтры</small></span><span class="pick-btn">→</span></button>` : "");
+    + (themes.length ? `<h3 class="grp-title"><span>Слова по темам · HSK 1</span><span class="grp-n">${themes.length}</span></h3>
+       <div class="chips-row wrapped" id="wh-themes">${themes.map((t, i) => `<button class="chip-btn" data-wtheme="${i}" aria-pressed="${homeOpen?.kind === "theme" && homeOpen.id === String(i)}" ${i >= 8 && !themesAll ? "hidden" : ""}>${esc(t.t)}</button>`).join("")}${themes.length > 8 && !themesAll ? `<button class="chip-btn more" data-wthemes-all>Все темы (${themes.length}) ▾</button>` : ""}</div><div id="wh-theme"></div>` : "")
+    + `<h3 class="grp-title"><span>Иероглифы по ключу</span><span class="grp-n">${KEYS.length}</span></h3>
+       <div class="keys">${KEYS.map(([k, ru]) => `<button class="key-btn" data-wkey="${esc(k)}" aria-pressed="${homeOpen?.kind === "key" && homeOpen.id === k}" title="${esc(ru)}"><b>${esc(k)}</b><small>${esc(ru)}</small></button>`).join("")}</div><div id="wh-key"></div>`
+    + (leeches.length ? `<h3 class="grp-title"><span>Трудные слова</span><span class="grp-n">${leeches.length}</span></h3><p class="hint">Забыты ${LEECH} и больше раз — откройте и придумайте мнемонику («Изменить» → заметка).</p>${listHTML(leeches)}` : "")
+    + (app.deck ? `<button class="deck-opt" data-deck-words><span>Слова колоды «${esc(app.deck.title)}»<small>${app.deck.words.length} ${plural(app.deck.words.length, "слово", "слова", "слов")} — список, статус, фильтры</small></span><span class="pick-btn">→</span></button>` : "");
+  if (homeOpen) showHomeList(homeOpen.kind, homeOpen.id);
+}
+
+/** Слова темы или иероглифы с ключом — под кнопками, повторный тап сворачивает. */
+async function showHomeList(kind0: "theme" | "key", id: string) {
+  const box = document.getElementById(kind0 === "theme" ? "wh-theme" : "wh-key");
+  const other = document.getElementById(kind0 === "theme" ? "wh-key" : "wh-theme");
+  if (!box) return;
+  if (other) other.innerHTML = "";
+  document.querySelectorAll<HTMLElement>("#w-home [data-wtheme],#w-home [data-wkey]").forEach((b) =>
+    b.setAttribute("aria-pressed", String((kind0 === "theme" ? b.dataset.wtheme : b.dataset.wkey) === id)));
+  const my = ++token;
+  let hans: string[] = [];
+  let title = "";
+  if (kind0 === "theme") {
+    const t = themesOf("hsk3-1")[Number(id)];
+    if (!t) return;
+    hans = t.w; title = `${t.t} · ${t.w.length} ${plural(t.w.length, "слово", "слова", "слов")}`;
+  } else {
+    const db = await loadDecomp();
+    const hsk = new Map((hskList() ?? []).map((e, i) => [e.han, i]));
+    // иероглифы с этим ключом, сначала те, что встречаются в HSK (и чем раньше, тем выше)
+    hans = Object.entries(db as Record<string, string[]>).filter(([ch, r]) => r[1] === id && hsk.has(ch)).map(([ch]) => ch).sort((x, y) => hsk.get(x)! - hsk.get(y)!).slice(0, 40);
+    title = `Ключ ${id} · ${hans.length} ${plural(hans.length, "иероглиф", "иероглифа", "иероглифов")} из HSK`;
+  }
+  const ws = await Promise.all(hans.map((h) => wordByHan(h)));
+  if (my !== token) return;
+  box.innerHTML = `<div class="wh-list"><div class="wh-head"><b>${esc(title)}</b><button class="link-btn small" data-home-close>Свернуть</button></div>${ws.length ? listHTML(ws) : `<p class="empty">Нет слов.</p>`}</div>`;
 }
 
 /* ---------- отрисовка ---------- */
@@ -289,6 +365,30 @@ export function initWords() {
     if (t.closest("[data-search-all]")) { mode = "dict"; renderList(); return; }
     if (t.closest("[data-deck-words]")) { mode = "deck"; renderList(); return; }
     if (t.closest("[data-clear-recent]")) { try { localStorage.removeItem(RECENT); } catch { /* */ } renderList(); return; }
+    if (t.closest("[data-wthemes-all]")) { themesAll = true; document.querySelectorAll<HTMLElement>("#wh-themes [data-wtheme]").forEach((x) => (x.hidden = false)); t.closest("[data-wthemes-all]")!.remove(); return; }
+    const tr = t.closest<HTMLButtonElement>("[data-try]");
+    if (tr) { searchInput().value = tr.dataset.try!; renderList(); return; }
+    const th = t.closest<HTMLButtonElement>("[data-wtheme]");
+    const ky = t.closest<HTMLButtonElement>("[data-wkey]");
+    if (th || ky) {
+      const k: "theme" | "key" = th ? "theme" : "key", id = th ? th.dataset.wtheme! : ky!.dataset.wkey!;
+      if (homeOpen?.kind === k && homeOpen.id === id) { homeOpen = null; $(k === "theme" ? "wh-theme" : "wh-key").innerHTML = ""; (th ?? ky)!.setAttribute("aria-pressed", "false"); return; }
+      homeOpen = { kind: k, id };
+      showHomeList(k, id);
+      return;
+    }
+    if (t.closest("[data-home-close]")) {
+      homeOpen = null;
+      for (const x of ["wh-theme", "wh-key"]) { const el = document.getElementById(x); if (el) el.innerHTML = ""; }
+      document.querySelectorAll<HTMLElement>("#w-home [data-wtheme],#w-home [data-wkey]").forEach((x) => x.setAttribute("aria-pressed", "false"));
+      return;
+    }
+    const sh = t.closest<HTMLButtonElement>("[data-say-han]");
+    if (sh) { say(sh.dataset.sayHan!); return; }
+    const oh = t.closest<HTMLButtonElement>("[data-open-han]");
+    if (oh) { wordByHan(oh.dataset.openHan!).then((w) => open(w.id, w.han)); return; }
+    const ah = t.closest<HTMLButtonElement>("[data-add-han]");
+    if (ah) { wordByHan(ah.dataset.addHan!).then((w) => openAddToDeck(w)); return; }
     const b = t.closest<HTMLButtonElement>(".item,.tile");
     if (b?.dataset.id) open(b.dataset.id, b.querySelector(".h")?.textContent ?? undefined);
   };

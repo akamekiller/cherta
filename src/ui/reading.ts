@@ -100,7 +100,7 @@ function openCatalog() {
   openSheet("Готовые тексты", `<div class="pick-decks">${body}</div>`, (root) => {
     root.addEventListener("click", async (e) => {
       const t = e.target as HTMLElement;
-      if (t.closest("#rc-ok")) { closeSheet(); renderList(); return; }
+      if (t.closest("#rc-ok")) { closeSheet(); return; }
       const all = t.closest<HTMLButtonElement>("[data-call]");
       const one = t.closest<HTMLButtonElement>("[data-cadd]");
       if (!all && !one) return;
@@ -112,8 +112,9 @@ function openCatalog() {
         const b = root.querySelector<HTMLElement>(`[data-cadd="${CSS.escape(id)}"]`);
         if (b) b.outerHTML = row(builtin.find((x) => x.id === id)!);
       }
+      renderList();
     });
-  });
+  }, () => renderList());
 }
 
 const FORMAT_HELP = `<div class="stack"><p>Обычный текстовый файл (.txt, UTF-8). Можно просто вставить китайский текст — он разделится на предложения. Или подробно:</p>

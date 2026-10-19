@@ -746,3 +746,21 @@ html{scrollbar-gutter:stable}
 #ex-pyt{margin-left:auto}
 #ex-pyt[aria-pressed="false"]{opacity:.6;text-decoration:line-through}
 #ex .ex-zh .u{display:inline-flex;align-items:flex-end;white-space:nowrap}
+/* «Слова»: начальный экран словаря */
+.wod{display:flex;flex-direction:column;gap:8px}
+.wod-main{display:flex;align-items:center;gap:14px}
+.wod-han{border:0;background:none;color:var(--ink);font:500 48px/1.1 var(--f-han);padding:0;cursor:pointer}
+.wod-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.wod-t .py{font-size:18px}
+.wod-ru{color:var(--muted);font-size:14px;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.wh-ex{display:flex;flex-direction:column;gap:6px}
+.keys{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px}
+.key-btn{display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 2px;border:1px solid var(--line);border-radius:10px;background:var(--sheet);color:var(--ink);cursor:pointer;font:inherit}
+.key-btn b{font:400 22px/1.2 var(--f-han)}
+.key-btn small{font-size:11px;color:var(--muted);text-align:center;line-height:1.2}
+.key-btn[aria-pressed="true"],#w-home .chip-btn[aria-pressed="true"]{border-color:var(--jade);background:var(--jade-soft)}
+.wh-list{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.wh-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+#wh-theme:empty,#wh-key:empty{display:none}
+#wh-themes .chip-btn[hidden]{display:none}
+.chip-btn.more{color:var(--jade);border-style:dashed}

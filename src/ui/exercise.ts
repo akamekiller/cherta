@@ -244,7 +244,7 @@ async function openCatalog() {
   openSheet("Курсы", `<div class="pick-decks">${body}</div>`, (root) => {
     root.addEventListener("click", async (e) => {
       const t = e.target as HTMLElement;
-      if (t.closest("#cat-ok")) { closeSheet(); renderHome(); return; }
+      if (t.closest("#cat-ok")) { closeSheet(); return; }
       if (t.closest("#cat-file")) { closeSheet(); $<HTMLInputElement>("ex-set-file").click(); return; }
       if (t.closest("#cat-help")) { openSheet("Формат файла курса", FORMAT_HELP); return; }
       const b = t.closest<HTMLButtonElement>("[data-cadd]");
@@ -254,7 +254,7 @@ async function openCatalog() {
       await updateSettings({ courses: on(id) ? cur.filter((x) => x !== id) : [...cur, id] });
       b.outerHTML = row(list.find((x) => x.id === id)!);
     });
-  });
+  }, () => { renderHome(); });
 }
 
 async function loadFile(f: File) {

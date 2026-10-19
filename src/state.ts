@@ -148,6 +148,8 @@ let themes: Record<string, Theme[]> = {};
 let themesP: Promise<void> | null = null;
 /** Темы готовых колод (data/themes.json) — грузятся один раз. */
 export const loadThemes = () => (themesP ??= fetch("data/themes.json").then((r) => r.json()).then((j) => { themes = j; }).catch(() => { themesP = null; }));
+/** Темы колоды (после loadThemes). */
+export const themesOf = (deckId: string): Theme[] => themes[deckId] ?? [];
 const blockCache = new WeakMap<Deck, Block[]>();
 /** Уроки колоды: темы (если есть) или по 20 слов. */
 export function deckBlocks(deck: Deck): Block[] {

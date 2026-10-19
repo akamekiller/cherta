@@ -5,7 +5,10 @@ let onClose: (() => void) | null = null;
 
 export function openSheet(title: string, body: string, mount?: (root: HTMLElement) => void, closed?: () => void) {
   $("sheet-title").textContent = title;
-  const root = $("sheet-body");
+  // каждый раз новый контейнер: иначе обработчики прошлых открытий копятся и один тап срабатывает дважды
+  const old = $("sheet-body");
+  const root = old.cloneNode(false) as HTMLElement;
+  old.replaceWith(root);
   root.innerHTML = body;
   onClose = closed ?? null;
   $("sheet-scrim").hidden = false;

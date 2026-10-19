@@ -59,6 +59,7 @@ writeFileSync(join(out, "data/themes.json"), readFileSync(join(root, "data/theme
 mkdirSync(join(out, "data/hsk"), { recursive: true });
 const hskIndex = JSON.parse(readFileSync(join(root, "data/hsk/index.json"), "utf8"));
 for (const x of hskIndex) writeFileSync(join(out, "data/hsk", x.file), readFileSync(join(root, "data/hsk", x.file), "utf8"));
+writeFileSync(join(out, "data/hsk/index.json"), JSON.stringify(hskIndex));
 // Встроенные курсы упражнений (python scripts/build_courses.py → data/courses)
 const coursesOut = join(out, "data/courses");
 mkdirSync(coursesOut, { recursive: true });
@@ -74,7 +75,7 @@ if (!existsSync(join(out, "data/strokes/00.json"))) {
 // 6. Service worker со списком файлов оболочки
 const shell = ["./", "index.html", "app.js", "styles.css", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png",
   "data/decks/index.json", ...decks.map((d) => `data/decks/${d.id}.json`),
-  "data/dialogs.json", "data/texts.json", "data/themes.json", ...hskIndex.map((x) => `data/hsk/${x.file}`), "data/decomp.json", "data/courses/index.json", ...courses.map((c) => `data/courses/${c.file}`)];
+  "data/dialogs.json", "data/texts.json", "data/themes.json", "data/hsk/index.json", ...hskIndex.map((x) => `data/hsk/${x.file}`), "data/decomp.json", "data/courses/index.json", ...courses.map((c) => `data/courses/${c.file}`)];
 writeFileSync(join(out, "sw.js"), readFileSync(join(root, "static/sw.js"), "utf8")
   .replace("__VERSION__", VERSION).replace("__SHELL_FILES__", JSON.stringify(shell)));
 writeFileSync(join(out, ".nojekyll"), "");

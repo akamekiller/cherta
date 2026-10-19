@@ -1,6 +1,6 @@
 /**
- * Экзамен HSK 3.0 (уровни 1–3): формат по образцам 2025 года (число заданий и время), типы заданий — по схеме
- * прежнего HSK (картинки, верно/неверно, выбор ответа, пропуски, порядок слов, иероглиф по пиньиню).
+ * Экзамен HSK 3.0 (уровни 1–6): уровни 1–3 — формат по образцам 2025 года (число заданий и время), 4–6 — формат
+ * прежнего HSK 4–6 (образцы нового пока не опубликованы); типы заданий — по схеме прежнего HSK (картинки, верно/неверно, выбор ответа, пропуски, порядок слов, иероглиф по пиньиню).
  * Задания свои (scripts/hsk/), собираются в data/hsk/N.json; вариант экзамена каждый раз собирается из банка заново.
  */
 
@@ -14,50 +14,93 @@ export type Opt = { t?: string; p?: string };
  *  ru — перевод для разбора, py — пиньиню для write, words — слова для order (в правильном порядке).
  */
 export type Item = {
-  id: string; part: string; kind: "choice" | "order" | "write";
+  id: string; part: string; kind: "choice" | "order" | "write" | "free";
   audio?: string[]; text?: string; q?: string; pic?: string;
   opts?: Opt[]; a?: number; ans?: string; py?: string; words?: string[]; ru?: string;
+  /** Общий текст/запись для нескольких вопросов (группа собирается в вариант целиком). */
+  grp?: string;
+  /** free: слова, которые нужно использовать, и минимум знаков; ans — образец. */
+  need?: string[]; min?: number;
 };
-export type Part = { id: string; sec: Sec; n: number; title: string; zh: string };
+/**
+ * Вид строк части (fmt):
+ *  pic_tf_a — картинка + звучит слово → верно/неверно; a_tf_pic — звучит фраза + картинка → верно/неверно;
+ *  t_pic / a_pic — текст/запись → картинка; star_a / star_t — запись/текст + «★ утверждение» → верно/неверно;
+ *  a_q / t_q — запись/текст + вопрос → ответ (можно группой: «>> общий текст», затем «? вопрос | варианты»);
+ *  q_ans — вопрос или задание → вариант; gap — то же, но с пропуском ___; order — порядок слов/предложений;
+ *  pyw — иероглиф по пиньиню; free — написать своё (предложение, сочинение, пересказ).
+ */
+export type Fmt = "pic_tf_a" | "a_tf_pic" | "t_pic" | "a_pic" | "star_a" | "star_t" | "a_q" | "t_q" | "q_ans" | "gap" | "order" | "pyw" | "free";
+export type Part = { id: string; sec: Sec; n: number; title: string; zh: string; fmt: Fmt };
 export type LevelSpec = { level: number; minutes: Record<Sec, number>; parts: Part[] };
 
-const P = (id: string, sec: Sec, n: number, title: string, zh: string): Part => ({ id, sec, n, title, zh });
+const P = (id: string, sec: Sec, n: number, title: string, zh: string, fmt: Fmt): Part => ({ id, sec, n, title, zh, fmt });
 
 /** Формат уровней (HSK 3.0, образцы 2025: уровень 1 — 40 заданий, 2 — 60, 3 — 70). */
 export const LEVELS: LevelSpec[] = [
   { level: 1, minutes: { L: 15, R: 20, W: 0 }, parts: [
-    P("1L1", "L", 5, "Послушайте и решите: верно ли подписана картинка", "判断对错"),
-    P("1L2", "L", 5, "Послушайте фразу и выберите картинку", "选择图片"),
-    P("1L3", "L", 5, "Послушайте диалог и выберите картинку", "选择图片"),
-    P("1L4", "L", 5, "Послушайте и ответьте на вопрос", "选择正确答案"),
-    P("1R1", "R", 5, "Какая картинка подходит к слову", "选择图片"),
-    P("1R2", "R", 5, "Какая картинка подходит к предложению", "选择图片"),
-    P("1R3", "R", 5, "Выберите ответ на вопрос", "选择回答"),
-    P("1R4", "R", 5, "Вставьте пропущенное слово", "选词填空"),
+    P("1L1", "L", 5, "Послушайте и решите: верно ли подписана картинка", "判断对错", "pic_tf_a"),
+    P("1L2", "L", 5, "Послушайте фразу и выберите картинку", "选择图片", "a_pic"),
+    P("1L3", "L", 5, "Послушайте диалог и выберите картинку", "选择图片", "a_pic"),
+    P("1L4", "L", 5, "Послушайте и ответьте на вопрос", "选择正确答案", "a_q"),
+    P("1R1", "R", 5, "Какая картинка подходит к слову", "选择图片", "t_pic"),
+    P("1R2", "R", 5, "Какая картинка подходит к предложению", "选择图片", "t_pic"),
+    P("1R3", "R", 5, "Выберите ответ на вопрос", "选择回答", "q_ans"),
+    P("1R4", "R", 5, "Вставьте пропущенное слово", "选词填空", "gap"),
   ] },
   { level: 2, minutes: { L: 17, R: 25, W: 10 }, parts: [
-    P("2L1", "L", 5, "Послушайте фразу и решите: соответствует ли картинка", "判断对错"),
-    P("2L2", "L", 5, "Послушайте диалог и выберите картинку", "选择图片"),
-    P("2L3", "L", 10, "Послушайте диалог и ответьте на вопрос", "选择正确答案"),
-    P("2L4", "L", 5, "Послушайте длинный диалог и ответьте на вопрос", "选择正确答案"),
-    P("2R1", "R", 5, "Какая картинка подходит к предложению", "选择图片"),
-    P("2R2", "R", 5, "Вставьте пропущенное слово", "选词填空"),
-    P("2R3", "R", 5, "Прочитайте и решите: верно ли утверждение ★", "判断对错"),
-    P("2R4", "R", 5, "Выберите ответ на вопрос", "选择回答"),
-    P("2R5", "R", 5, "Прочитайте текст и ответьте на вопрос", "阅读理解"),
-    P("2W1", "W", 5, "Составьте предложение из слов", "完成句子"),
-    P("2W2", "W", 5, "Впишите иероглиф по пиньиню", "写汉字"),
+    P("2L1", "L", 5, "Послушайте фразу и решите: соответствует ли картинка", "判断对错", "a_tf_pic"),
+    P("2L2", "L", 5, "Послушайте диалог и выберите картинку", "选择图片", "a_pic"),
+    P("2L3", "L", 10, "Послушайте диалог и ответьте на вопрос", "选择正确答案", "a_q"),
+    P("2L4", "L", 5, "Послушайте длинный диалог и ответьте на вопрос", "选择正确答案", "a_q"),
+    P("2R1", "R", 5, "Какая картинка подходит к предложению", "选择图片", "t_pic"),
+    P("2R2", "R", 5, "Вставьте пропущенное слово", "选词填空", "gap"),
+    P("2R3", "R", 5, "Прочитайте и решите: верно ли утверждение ★", "判断对错", "star_t"),
+    P("2R4", "R", 5, "Выберите ответ на вопрос", "选择回答", "q_ans"),
+    P("2R5", "R", 5, "Прочитайте текст и ответьте на вопрос", "阅读理解", "t_q"),
+    P("2W1", "W", 5, "Составьте предложение из слов", "完成句子", "order"),
+    P("2W2", "W", 5, "Впишите иероглиф по пиньиню", "写汉字", "pyw"),
   ] },
   { level: 3, minutes: { L: 23, R: 30, W: 20 }, parts: [
-    P("3L1", "L", 5, "Послушайте диалог и выберите картинку", "选择图片"),
-    P("3L2", "L", 10, "Послушайте и решите: верно ли утверждение ★", "判断对错"),
-    P("3L3", "L", 10, "Послушайте диалог и ответьте на вопрос", "选择正确答案"),
-    P("3L4", "L", 5, "Послушайте длинный диалог и ответьте на вопрос", "选择正确答案"),
-    P("3R1", "R", 5, "Выберите ответ на вопрос", "选择回答"),
-    P("3R2", "R", 10, "Вставьте пропущенное слово", "选词填空"),
-    P("3R3", "R", 15, "Прочитайте текст и ответьте на вопрос", "阅读理解"),
-    P("3W1", "W", 5, "Составьте предложение из слов", "完成句子"),
-    P("3W2", "W", 5, "Впишите иероглиф по пиньиню", "写汉字"),
+    P("3L1", "L", 5, "Послушайте диалог и выберите картинку", "选择图片", "a_pic"),
+    P("3L2", "L", 10, "Послушайте и решите: верно ли утверждение ★", "判断对错", "star_a"),
+    P("3L3", "L", 10, "Послушайте диалог и ответьте на вопрос", "选择正确答案", "a_q"),
+    P("3L4", "L", 5, "Послушайте длинный диалог и ответьте на вопрос", "选择正确答案", "a_q"),
+    P("3R1", "R", 5, "Выберите ответ на вопрос", "选择回答", "q_ans"),
+    P("3R2", "R", 10, "Вставьте пропущенное слово", "选词填空", "gap"),
+    P("3R3", "R", 15, "Прочитайте текст и ответьте на вопрос", "阅读理解", "t_q"),
+    P("3W1", "W", 5, "Составьте предложение из слов", "完成句子", "order"),
+    P("3W2", "W", 5, "Впишите иероглиф по пиньиню", "写汉字", "pyw"),
+  ] },
+  // Уровни 4–6: официальные виды заданий нового формата не опубликованы — схема прежнего HSK 4–6, слова HSK 3.0.
+  { level: 4, minutes: { L: 30, R: 40, W: 25 }, parts: [
+    P("4L1", "L", 10, "Послушайте и решите: верно ли утверждение ★", "判断对错", "star_a"),
+    P("4L2", "L", 15, "Послушайте короткий диалог и ответьте на вопрос", "选择正确答案", "a_q"),
+    P("4L3", "L", 20, "Послушайте диалог или рассказ и ответьте на вопросы", "选择正确答案", "a_q"),
+    P("4R1", "R", 10, "Вставьте пропущенное слово", "选词填空", "gap"),
+    P("4R2", "R", 10, "Расставьте предложения по порядку", "排列顺序", "order"),
+    P("4R3", "R", 20, "Прочитайте текст и ответьте на вопросы", "阅读理解", "t_q"),
+    P("4W1", "W", 10, "Составьте предложение из слов", "完成句子", "order"),
+    P("4W2", "W", 5, "Напишите предложение по картинке со словом", "看图，用词造句", "free"),
+  ] },
+  { level: 5, minutes: { L: 30, R: 45, W: 40 }, parts: [
+    P("5L1", "L", 20, "Послушайте короткий диалог и ответьте на вопрос", "选择正确答案", "a_q"),
+    P("5L2", "L", 25, "Послушайте диалог или рассказ и ответьте на вопросы", "选择正确答案", "a_q"),
+    P("5R1", "R", 15, "Выберите слово или фразу для пропуска в тексте", "选词填空", "t_q"),
+    P("5R2", "R", 10, "Выберите утверждение, которое соответствует тексту", "选择与原文一致的一项", "t_q"),
+    P("5R3", "R", 20, "Прочитайте текст и ответьте на вопросы", "阅读理解", "t_q"),
+    P("5W1", "W", 8, "Составьте предложение из слов", "完成句子", "order"),
+    P("5W2", "W", 2, "Напишите короткий текст (около 80 знаков)", "写短文", "free"),
+  ] },
+  { level: 6, minutes: { L: 35, R: 50, W: 45 }, parts: [
+    P("6L1", "L", 15, "Послушайте и выберите, что соответствует записи", "选择与录音内容一致的一项", "a_q"),
+    P("6L2", "L", 15, "Послушайте интервью и ответьте на вопросы", "听采访回答问题", "a_q"),
+    P("6L3", "L", 20, "Послушайте рассказ и ответьте на вопросы", "选择正确答案", "a_q"),
+    P("6R1", "R", 10, "Найдите предложение с ошибкой", "找出有语病的句子", "q_ans"),
+    P("6R2", "R", 10, "Выберите слова для пропусков", "选词填空", "t_q"),
+    P("6R3", "R", 10, "Вставьте предложения в текст", "选句填空", "t_q"),
+    P("6R4", "R", 20, "Прочитайте текст и ответьте на вопросы", "阅读理解", "t_q"),
+    P("6W1", "W", 1, "Прочитайте рассказ и перескажите его (около 400 знаков)", "缩写", "free"),
   ] },
 ];
 export const levelSpec = (lv: number) => LEVELS.find((l) => l.level === lv);
@@ -87,89 +130,101 @@ const picsOf = (s: string): Opt[] => [...s.trim()].length ? s.trim().split(/\s+/
 /** Аудио: реплики через « / ». */
 const audioOf = (s: string) => s.split(/\s+\/\s+/).map((x) => x.trim()).filter(Boolean);
 
+const FMT: Record<string, Fmt> = Object.fromEntries(LEVELS.flatMap((l) => l.parts.map((p) => [p.id, p.fmt])));
+
 /**
- * Файл банка: «== 1L3» — часть, дальше строки по её виду (поля через «|», варианты через «;», верный — «*»,
- * последнее поле «= перевод» необязательно). Виды строк:
- *  картинка и подпись (L1 ур.1, R1):   🍎 | 苹果 | +            (+ верно, − неверно)  / R1: 苹果 | 🍎 🚕 🐱 | 1
- *  звучит → картинка (L2, L3, R2, …):  他在喝茶。 | 🍵 🚕 📖 | 1     (диалог: 男：…  / 女：…)
- *  звучит/текст + вопрос → ответ:      男：… / 女：… | 问题？ | 答案；答案*；答案
- *  вопрос → ответ (R «选择回答»):        你去哪儿？ | 去学校*；三个；很好
- *  пропуск:                             我___喝茶。 | 想*；是；有
- *  верно ли ★:                          текст | ★ утверждение | +
- *  порядок слов (W1):                   我 / 想 / 喝 / 茶
- *  иероглиф по пиньиню (W2):            我想喝___。 | 茶 | chá
+ * Файл банка: «== 4L3» — часть, дальше строки по её виду (fmt части; поля через «|», варианты через «；», верный — «*»,
+ * последнее поле «= перевод» необязательно). Примеры:
+ *  pic_tf_a: 🍎 | 苹果 | +        a_tf_pic: 他在喝茶。 | 🍵 | +       t_pic / a_pic: 他在喝茶。 | 🍵 🚕 📖 | 1
+ *  star_a / star_t: текст | ★ утверждение | +      a_q / t_q: 男：… / 女：… | 问题？ | 答案；答案*；答案
+ *  q_ans: 你去哪儿？ | 去学校*；三个；很好          gap: 我___喝茶。 | 想*；是；有
+ *  order: 我 / 想 / 喝 / 茶 (в правильном порядке)  pyw: 我想喝___。 | 茶 | chá
+ *  free: стимул (картинка или текст) | нужные слова через пробел или «-» | минимум знаков | образец
+ * Группа (a_q, t_q): «>> общий текст или запись» (можно «| = перевод»), затем строки «? вопрос | варианты».
  */
 export function parseBank(src: string): Item[] {
   const out: Item[] = [];
   let part = "";
-  let n = 0;
-  for (const raw of src.replace(/^﻿/, "").split(/\r?\n/)) {
+  let n = 0, g = 0;
+  let group: { text: string; ru?: string; id: string } | null = null;
+  for (const raw of src.replace(/^\uFEFF/, "").split(/\r?\n/)) {
     const line = raw.trim();
     if (!line || line.startsWith("#")) continue;
     const m = /^==\s*(\d[LRW]\d)\s*$/.exec(line);
-    if (m) { part = m[1]; continue; }
+    if (m) { part = m[1]; group = null; continue; }
     if (!part) continue;
     let ru: string | undefined;
     let body = line;
     const tr = line.lastIndexOf("| =");
     if (tr >= 0) { ru = line.slice(tr + 3).trim(); body = line.slice(0, tr).trim(); }
-    const f = split(body);
+    if (body.startsWith(">>")) { group = { text: body.slice(2).trim(), ru, id: `${part}-g${++g}` }; continue; }
+    const fmt = FMT[part];
     const id = `${part}-${++n}`;
-    const t = part.slice(1);
-    const it = itemOf(id, part, t, f, ru);
+    let it: Item | null = null;
+    if (body.startsWith("?")) {
+      if (group && (fmt === "a_q" || fmt === "t_q")) it = itemOf(id, part, fmt, [group.text, ...split(body.slice(1))], group.ru ?? ru, group.id, group.ru ? ru : undefined);
+    } else {
+      group = null;
+      if (fmt) it = itemOf(id, part, fmt, split(body), ru);
+    }
     if (it) out.push(it);
   }
   return out;
 }
 
-function itemOf(id: string, part: string, t: string, f: string[], ru?: string): Item | null {
-  const base = { id, part, ...(ru ? { ru } : {}) };
+function itemOf(id: string, part: string, fmt: Fmt, f: string[], ru?: string, grp?: string, qru?: string): Item | null {
+  const base = { id, part, ...(ru ? { ru } : {}), ...(grp ? { grp } : {}) };
   const tf = (s: string) => (s === "+" ? 0 : s === "-" || s === "−" ? 1 : -1);
   const TF: Opt[] = [{ t: "对" }, { t: "错" }];
-  // уровень 1, аудирование 1: картинка + звучит слово/фраза → верно/неверно
-  if (part === "1L1") { const a = tf(f[2]); return f[0] && f[1] && a >= 0 ? { ...base, kind: "choice", pic: f[0], audio: [f[1]], opts: TF, a } : null; }
-  // уровень 2, аудирование 1: звучит фраза, картинка → верно/неверно
-  if (part === "2L1") { const a = tf(f[2]); return f[0] && f[1] && a >= 0 ? { ...base, kind: "choice", audio: audioOf(f[0]), pic: f[1], opts: TF, a } : null; }
-  // «★ верно ли»: текст/аудио + утверждение
-  if (part === "2R3" || part === "3L2") {
-    const a = tf(f[2]);
-    if (!f[0] || !f[1] || a < 0) return null;
-    const st = f[1].replace(/^★\s*/, "");
-    return part === "3L2" ? { ...base, kind: "choice", audio: audioOf(f[0]), q: `★ ${st}`, opts: TF, a } : { ...base, kind: "choice", text: f[0], q: `★ ${st}`, opts: TF, a };
+  const qr = qru ? { ru: `${ru ?? ""}${ru ? " — " : ""}${qru}` } : {};
+  switch (fmt) {
+    case "pic_tf_a": { const a = tf(f[2]); return f[0] && f[1] && a >= 0 ? { ...base, kind: "choice", pic: f[0], audio: [f[1]], opts: TF, a } : null; }
+    case "a_tf_pic": { const a = tf(f[2]); return f[0] && f[1] && a >= 0 ? { ...base, kind: "choice", audio: audioOf(f[0]), pic: f[1], opts: TF, a } : null; }
+    case "star_a": case "star_t": {
+      const a = tf(f[2]);
+      if (!f[0] || !f[1] || a < 0) return null;
+      const q = `★ ${f[1].replace(/^★\s*/, "")}`;
+      return fmt === "star_a" ? { ...base, kind: "choice", audio: audioOf(f[0]), q, opts: TF, a } : { ...base, kind: "choice", text: f[0], q, opts: TF, a };
+    }
+    case "t_pic": case "a_pic": {
+      const opts = picsOf(f[1] ?? ""), a = Number(f[2]) - 1;
+      if (!f[0] || opts.length < 2 || !(a >= 0 && a < opts.length)) return null;
+      return fmt === "t_pic" ? { ...base, kind: "choice", text: f[0], opts, a } : { ...base, kind: "choice", audio: audioOf(f[0]), opts, a };
+    }
+    case "a_q": case "t_q": {
+      const { opts, a } = starOpts(f[2] ?? "");
+      if (!f[0] || !f[1] || opts.length < 2 || a < 0) return null;
+      return fmt === "a_q" ? { ...base, ...qr, kind: "choice", audio: audioOf(f[0]), q: f[1], opts, a } : { ...base, ...qr, kind: "choice", text: f[0], q: f[1], opts, a };
+    }
+    case "q_ans": case "gap": {
+      const { opts, a } = starOpts(f[1] ?? "");
+      if (!f[0] || opts.length < 2 || a < 0) return null;
+      if (fmt === "gap" && !f[0].includes("___")) return null;
+      return { ...base, kind: "choice", text: f[0], opts, a };
+    }
+    case "order": {
+      // знаки в конце кусков не показываем — по ним легко угадать первое и последнее предложение
+      const words = f[0].split("/").map((x) => x.trim().replace(/[，。！？,.!?；;]+$/, "")).filter(Boolean);
+      return words.length >= 3 ? { ...base, kind: "order", words, ans: words.join("") } : null;
+    }
+    case "pyw": return f[0]?.includes("___") && f[1] && HAN.test(f[1]) && f[2] ? { ...base, kind: "write", text: f[0], ans: f[1], py: f[2] } : null;
+    case "free": {
+      const need = (f[1] ?? "").split(/\s+/).filter((w) => w && w !== "-");
+      const min = Number(f[2]);
+      if (!f[0] || !(min > 0) || !f[3]) return null;
+      const stim = HAN.test(f[0]) ? { text: f[0] } : { pic: f[0] };
+      return { ...base, kind: "free", ...stim, need, min, ans: f[3] };
+    }
   }
-  // слово/предложение → картинка (чтение)
-  if (part === "1R1" || part === "1R2" || part === "2R1") {
-    const opts = picsOf(f[1] ?? ""), a = Number(f[2]) - 1;
-    return f[0] && opts.length >= 2 && a >= 0 && a < opts.length ? { ...base, kind: "choice", text: f[0], opts, a } : null;
-  }
-  // звучит → картинка
-  if (part === "1L2" || part === "1L3" || part === "2L2" || part === "3L1") {
-    const opts = picsOf(f[1] ?? ""), a = Number(f[2]) - 1;
-    return f[0] && opts.length >= 2 && a >= 0 && a < opts.length ? { ...base, kind: "choice", audio: audioOf(f[0]), opts, a } : null;
-  }
-  // звучит + вопрос → ответ
-  if (part === "1L4" || part === "2L3" || part === "2L4" || part === "3L3" || part === "3L4") {
-    const { opts, a } = starOpts(f[2] ?? "");
-    return f[0] && f[1] && opts.length >= 2 && a >= 0 ? { ...base, kind: "choice", audio: audioOf(f[0]), q: f[1], opts, a } : null;
-  }
-  // текст + вопрос → ответ
-  if (part === "2R5" || part === "3R3") {
-    const { opts, a } = starOpts(f[2] ?? "");
-    return f[0] && f[1] && opts.length >= 2 && a >= 0 ? { ...base, kind: "choice", text: f[0], q: f[1], opts, a } : null;
-  }
-  // вопрос → ответ; пропуск
-  if (part === "1R3" || part === "2R4" || part === "3R1" || part === "1R4" || part === "2R2" || part === "3R2") {
-    const { opts, a } = starOpts(f[1] ?? "");
-    if (!f[0] || opts.length < 2 || a < 0) return null;
-    if ((part === "1R4" || part === "2R2" || part === "3R2") && !f[0].includes("___")) return null;
-    return { ...base, kind: "choice", text: f[0], opts, a };
-  }
-  if (t === "W1") {
-    const words = f[0].split("/").map((x) => x.trim()).filter(Boolean);
-    return words.length >= 3 ? { ...base, kind: "order", words, ans: words.join("") } : null;
-  }
-  if (t === "W2") return f[0]?.includes("___") && f[1] && HAN.test(f[1]) && f[2] ? { ...base, kind: "write", text: f[0], ans: f[1], py: f[2] } : null;
   return null;
+}
+
+/** free: сколько китайских знаков в ответе. */
+export const hanCount = (s: string) => [...s].filter((c) => HAN.test(c)).length;
+/** free: чего не хватает — неиспользованные слова и недостающие знаки. */
+export function freeCheck(it: Item, ans: string): { missing: string[]; short: number } {
+  const missing = (it.need ?? []).filter((w) => !ans.includes(w));
+  return { missing, short: Math.max(0, (it.min ?? 0) - hanCount(ans)) };
 }
 
 /* ---------- сборка варианта ---------- */
@@ -177,9 +232,22 @@ function itemOf(id: string, part: string, t: string, f: string[], ru?: string): 
 /** Вариант экзамена: по каждой части — n заданий из банка; сначала те, что давно не попадались (seen: id → время). */
 export function assemble(spec: LevelSpec, bank: Item[], seen: Record<string, number>, rnd: () => number, secs?: Sec[]): { part: Part; items: Item[] }[] {
   return spec.parts.filter((p) => !secs || secs.includes(p.sec)).map((part) => {
-    const pool = bank.filter((it) => it.part === part.id).map((it) => ({ it, k: (seen[it.id] ?? 0) + rnd() * 1e6 }));
+    // блоки: одиночное задание или вся группа вопросов к одному тексту; давно не виденные — первыми
+    const blocks = new Map<string, Item[]>();
+    for (const it of bank) if (it.part === part.id) { const k = it.grp ?? it.id; (blocks.get(k) ?? blocks.set(k, []).get(k)!).push(it); }
+    const pool = [...blocks.values()].map((items) => ({ items, k: Math.max(...items.map((it) => seen[it.id] ?? 0)) + rnd() * 1e6 }));
     pool.sort((a, b) => a.k - b.k);
-    return { part, items: pool.slice(0, part.n).map((x) => x.it) };
+    const items: Item[] = [];
+    for (const b of pool) {
+      if (items.length >= part.n) break;
+      if (items.length + b.items.length <= part.n) items.push(...b.items);
+    }
+    // если группы не легли ровно — добрать первыми вопросами следующей группы
+    for (const b of pool) {
+      if (items.length >= part.n) break;
+      for (const it of b.items) if (items.length < part.n && !items.includes(it)) items.push(it);
+    }
+    return { part, items };
   }).filter((x) => x.items.length);
 }
 
@@ -197,6 +265,7 @@ export function isRight(it: Item, ans: number | string | string[] | null | undef
   if (it.kind === "choice") return ans === it.a;
   const norm = (s: string) => s.replace(/[\s，。？！,.?!]/g, "");
   if (it.kind === "order") return norm(Array.isArray(ans) ? ans.join("") : String(ans)) === norm(it.ans ?? "");
+  if (it.kind === "free") { const c = freeCheck(it, String(ans)); return !c.missing.length && !c.short; }
   return norm(String(ans)) === norm(it.ans ?? "");
 }
 

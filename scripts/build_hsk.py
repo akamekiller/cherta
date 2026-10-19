@@ -1,7 +1,7 @@
 """
-Банк заданий экзамена HSK 3.0 (уровни 1–3).
+Банк заданий экзамена HSK 3.0 (уровни 1–6).
 
-    python scripts/build_hsk.py   → data/hsk/hsk1.txt … hsk3.txt и data/hsk/index.json
+    python scripts/build_hsk.py   → data/hsk/hsk1.txt … hsk6.txt и data/hsk/index.json
 
 Источники:
   scripts/hsk/hskN.txt — свои задания (формат — src/core/hsk.ts parseBank). Проверяется, что в них только слова
@@ -23,7 +23,7 @@ ROOT = os.path.join(os.path.dirname(__file__), "..")
 SRC = os.path.join(os.path.dirname(__file__), "hsk")
 OUT = os.path.join(ROOT, "data", "hsk")
 HANRUN = re.compile(r"[一-鿿]+")
-EXTRA_OK = set("男 女 ★ 李明 小明 小张 小王 小李 上海".split()) | set("吧 啊 呢 吗 的 了 着 过 们 地 得".split())
+EXTRA_OK = set("男 女 ★ 李明 小明 小张 小王 小李 上海 哈尔滨 海南 法国 马克 安娜 大卫 小刘 刘 氵 扌 儿 俄罗斯".split()) | set("吧 啊 呢 吗 的 了 着 过 们 地 得 点儿".split())
 
 MARKS = {"a": "āáǎà", "e": "ēéěè", "i": "īíǐì", "o": "ōóǒò", "u": "ūúǔù", "ü": "ǖǘǚǜ"}
 
@@ -92,7 +92,9 @@ def main():
     rnd = random.Random(11)
     index = []
     problems = 0
-    for n in (1, 2, 3):
+    for n in (1, 2, 3, 4, 5, 6):
+        if not os.path.exists(os.path.join(SRC, f"hsk{n}.txt")):
+            continue
         known = {w for w, x in lv.items() if x <= n}
         lines = [f"# HSK {n} (3.0): банк заданий, собран scripts/build_hsk.py — не править вручную"]
         path = os.path.join(SRC, f"hsk{n}.txt")
@@ -126,7 +128,7 @@ def main():
                 rnd.shuffle(opts)
                 lines.append(f"{w} | {' '.join(opts)} | {opts.index(p) + 1} | = {w} {py_marked(py[w])} — {ru_of[w]}")
         # письмо: предложения базы, где все слова уровня ≤ n
-        if n >= 2 and corpus:
+        if 2 <= n <= 5 and corpus:
             order, write = [], []
             seen = set()
             for zh, ru, toks, _ in corpus:
@@ -138,20 +140,24 @@ def main():
                 core = [x for x in t if HANRUN.fullmatch(x)]
                 # порядок слов: 4–6 слов, хотя бы два многосложных, без чисел, законченное предложение
                 num = set("一二三四五六七八九十百千万两几零")
-                if (4 <= len(core) <= 6 and len(t) - len(core) <= 1 and 6 <= len(zh) <= 14 and zh[-1] in "。？！"
-                        and sum(1 for x in core if len(x) >= 2) >= 2 and not any(set(x) <= num for x in core)):
+                lo, hi, clo, chi = {2: (4, 6, 6, 14), 3: (4, 6, 6, 14), 4: (5, 8, 9, 18), 5: (6, 9, 11, 22)}.get(n, (0, 0, 0, 0))
+                if (lo <= len(core) <= hi and len(t) - len(core) <= 1 and clo <= len(zh) <= chi and zh[-1] in "。？！"
+                        and sum(1 for x in core if len(x) >= 2) >= 2 and not any(set(x) <= num for x in core)
+                        and (n < 4 or any(lv.get(x, 0) >= n - 1 for x in core))):
                     order.append(f"{' / '.join(core)} | = {ru.replace('|', '/')}")
-                cand = [x for x in core if lv.get(x) == n and 1 <= len(x) <= 2 and py.get(x)]
+                cand = [x for x in core if lv.get(x) == n and 1 <= len(x) <= 2 and py.get(x)] if n <= 3 else []
                 if cand and len(zh) <= 18:
                     w = rnd.choice(cand)
                     if zh.count(w) == 1:
                         write.append(f"{zh.replace(w, '___')} | {w} | {py_marked(py[w])} | = {ru.replace('|', '/')}")
             rnd.shuffle(order)
             rnd.shuffle(write)
-            lines.append(f"== {n}W1")
-            lines += order[:120]
-            lines.append(f"== {n}W2")
-            lines += write[:120]
+            if n <= 5:
+                lines.append(f"== {n}W1")
+                lines += order[:120]
+            if n <= 3:
+                lines.append(f"== {n}W2")
+                lines += write[:120]
         text = "\n".join(lines) + "\n"
         open(os.path.join(OUT, f"hsk{n}.txt"), "w", encoding="utf8", newline="\n").write(text)
         parts = {}

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseBank, assemble, shuffleOpts, isRight, scoreExam, levelSpec, LEVELS } from "../src/core/hsk.ts";
+import { parseBank, assemble, shuffleOpts, isRight, scoreExam, levelSpec, LEVELS, freeCheck } from "../src/core/hsk.ts";
 
 const BANK = `
 # выдуманные задания
@@ -73,11 +73,61 @@ test("баллы: каждая часть из 100, «сдал» — 60%", () =>
   assert.equal(sc.total, 150);
   assert.equal(sc.max, 200);
   assert.equal(sc.passed, true);
-  assert.deepEqual(LEVELS.map((l0) => l0.parts.reduce((a, p) => a + p.n, 0)), [40, 60, 70]);
+  assert.deepEqual(LEVELS.map((l0) => l0.parts.reduce((a, p) => a + p.n, 0)), [40, 60, 70, 100, 100, 101]);
 });
 
 test("банк: вопрос-ответ уровня 2 (2R4) без пропуска разбирается", () => {
   const b = parseBank("== 2R4\n你去哪儿？ | 去学校*；很好\n== 2R2\nбез пропуска | 甲*；乙");
   assert.equal(b.filter((x) => x.part === "2R4").length, 1);
   assert.equal(b.filter((x) => x.part === "2R2").length, 0);
+});
+
+
+test("группы: общий текст и несколько вопросов, сборка берёт группу целиком", () => {
+  const b = parseBank(`== 4R3
+>> 甲乙丙丁。 | = Текст.
+? 问一？ | 甲*；乙 | = Вопрос 1.
+? 问二？ | 甲；乙*
+单个。 | 问？ | 甲*；乙
+? без группы | 甲*；乙
+== 4L3
+>> 男：甲。 / 女：乙。
+? 问？ | 甲；乙*；丙`);
+  const g = b.filter((x) => x.part === "4R3");
+  assert.equal(g.length, 3);
+  assert.equal(g[0].text, "甲乙丙丁。");
+  assert.equal(g[0].grp, g[1].grp);
+  assert.equal(g[0].ru, "Текст. — Вопрос 1.");
+  assert.equal(g[1].ru, "Текст.");
+  assert.equal(g[2].grp, undefined);
+  const l = b.find((x) => x.part === "4L3")!;
+  assert.deepEqual(l.audio, ["男：甲。", "女：乙。"]);
+  // часть из 3 заданий: группа (2) + одиночное
+  const spec = { level: 9, minutes: { L: 1, R: 1, W: 1 }, parts: [{ ...levelSpec(4)!.parts.find((p) => p.id === "4R3")!, n: 3 }] };
+  const v = assemble(spec, b, {}, () => 0.5);
+  assert.equal(v[0].items.length, 3);
+  const i0 = v[0].items.findIndex((x) => x.grp);
+  assert.equal(v[0].items[i0 + 1].grp, v[0].items[i0].grp);
+});
+
+test("свободное письмо: нужные слова и длина", () => {
+  const [p, e] = parseBank(`== 4W2
+🏊 | 游泳 | 6 | 他每天下午都去游泳。
+== 5W2
+请用下面的词写一段话。 | 周末 打算 | 20 | образец`);
+  assert.equal(p.kind, "free");
+  assert.equal(p.pic, "🏊");
+  assert.deepEqual(p.need, ["游泳"]);
+  assert.ok(isRight(p, "我很喜欢游泳。"));
+  assert.ok(!isRight(p, "我喜欢跑步。"));
+  assert.ok(!isRight(p, "游泳。"));
+  assert.equal(e.text, "请用下面的词写一段话。");
+  assert.deepEqual(freeCheck(e, "周末我打算"), { missing: [], short: 15 });
+  assert.deepEqual(freeCheck(e, "我"), { missing: ["周末", "打算"], short: 19 });
+});
+
+test("порядок предложений (4R2)", () => {
+  const [it] = parseBank("== 4R2\nA甲乙丙。 / B丁戊， / C己庚。");
+  assert.equal(it.kind, "order");
+  assert.ok(isRight(it, ["A甲乙丙。", "B丁戊，", "C己庚。"]));
 });

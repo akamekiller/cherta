@@ -827,3 +827,13 @@ html{scrollbar-gutter:stable}
 .hk-cell.on{background:var(--jade-soft);border-color:var(--jade)}
 .hk-cell.cur{outline:2px solid var(--jade)}
 #hk-card .grp-title{position:static;background:none;margin-top:6px}
+.hk-text.long{font-size:18px;line-height:1.75}
+.hk-gh{margin:0 0 4px}
+.hk-ans.sent,.ex-pool.sent{flex-direction:column;align-items:stretch}
+.hk-ans.sent .tile-w,.ex-pool.sent .tile-w{font-size:17px;align-items:flex-start;text-align:left;padding:8px 12px}
+.hk-need{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.hk-need .chip{font-family:var(--f-han);font-size:16px}
+.hk-free{width:100%;box-sizing:border-box;margin-top:8px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--sheet);color:var(--ink);font:400 18px/1.6 var(--f-han);resize:vertical}
+.hk-cnt{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:4px;color:var(--muted);font-size:13px}
+
+.hk-lv button{padding-left:4px;padding-right:4px;min-width:0}

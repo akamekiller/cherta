@@ -14,7 +14,7 @@ for (const spec of LEVELS) {
     for (const l of src.split("\n")) {
       const m = /^==\s*(\d[LRW]\d)/.exec(l);
       if (m) { part = m[1]; continue; }
-      if (part && l.trim() && !l.startsWith("#")) { want[part] = (want[part] ?? 0) + 1; lines++; }
+      if (part && l.trim() && !l.startsWith("#") && !l.trim().startsWith(">>")) { want[part] = (want[part] ?? 0) + 1; lines++; }
     }
     assert.equal(items.length, lines);
     for (const p of spec.parts) assert.ok((want[p.id] ?? 0) >= p.n, `часть ${p.id}: ${want[p.id] ?? 0} < ${p.n}`);

@@ -214,7 +214,7 @@ function show() {
     if (it.text) {
       // пересказ: на экзамене текст читают и прячут перед письмом (в тренировке — можно открыть снова)
       if (q.hid && !train) body += `<p class="hint">Текст скрыт — пишите пересказ по памяти.</p>`;
-      else body += `<div class="hk-text long">${zhHTML(it.text)}</div>${summary && !checked ? `<button class="btn" data-hide>${train ? "Спрятать текст" : "Прочитал — спрятать текст и писать"}</button>` : ""}`;
+      else body += `<div class="hk-text long">${it.text.split(/\u3000{2,}/).map((x) => `<p>${zhHTML(x.trim())}</p>`).join("")}</div>${summary && !checked ? `<button class="btn" data-hide>${train ? "Спрятать текст" : "Прочитал — спрятать текст и писать"}</button>` : ""}`;
     }
     if (it.need?.length) body += `<div class="hk-need">${it.need.map((w) => `<span class="chip${v.includes(w) ? " ok" : ""}">${esc(w)}</span>`).join("")}</div>`;
     const canWrite = !summary || q.hid || train;

@@ -23,7 +23,7 @@ ROOT = os.path.join(os.path.dirname(__file__), "..")
 SRC = os.path.join(os.path.dirname(__file__), "hsk")
 OUT = os.path.join(ROOT, "data", "hsk")
 HANRUN = re.compile(r"[一-鿿]+")
-EXTRA_OK = set("男 女 ★ 李明 小明 小张 小王 小李 上海 哈尔滨 海南 法国 马克 安娜 大卫 小刘 刘 氵 扌 儿 俄罗斯 张伟 李华 云南 西安 杭州 西湖 小林 短文 四川 陕西 生肖 十二生肖".split()) | set("吧 啊 呢 吗 的 了 着 过 们 地 得 点儿".split())
+EXTRA_OK = set("男 女 ★ 李明 小明 小张 小王 小李 上海 哈尔滨 海南 法国 马克 安娜 大卫 小刘 刘 氵 扌 儿 俄罗斯 张伟 李华 云南 西安 杭州 西湖 小林 短文 四川 陕西 生肖 十二生肖 林 赵 陈 小陈 吴 周 语病 神农 唐朝 伦敦 窑洞 双十一 张明".split()) | set("吧 啊 呢 吗 的 了 着 过 们 地 得 点儿".split())
 
 MARKS = {"a": "āáǎà", "e": "ēéěè", "i": "īíǐì", "o": "ōóǒò", "u": "ūúǔù", "ü": "ǖǘǚǜ"}
 

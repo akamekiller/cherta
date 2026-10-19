@@ -828,6 +828,8 @@ html{scrollbar-gutter:stable}
 .hk-cell.cur{outline:2px solid var(--jade)}
 #hk-card .grp-title{position:static;background:none;margin-top:6px}
 .hk-text.long{font-size:18px;line-height:1.75}
+.hk-text.long p{margin:0 0 .6em;text-indent:2em}
+.hk-text.long p:first-child{text-indent:0;color:var(--muted)}
 .hk-gh{margin:0 0 4px}
 .hk-ans.sent,.ex-pool.sent{flex-direction:column;align-items:stretch}
 .hk-ans.sent .tile-w,.ex-pool.sent .tile-w{font-size:17px;align-items:flex-start;text-align:left;padding:8px 12px}

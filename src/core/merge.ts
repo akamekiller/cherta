@@ -4,6 +4,7 @@
  * свои колоды — объединение слов; настройки — с этого устройства, но списки колод и курсов объединяются;
  * прогресс упражнений и курсов — лучший результат.
  */
+import { mergeLib } from "./reading.ts";
 type Any = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 const byId = <T extends Any>(list: T[] | undefined, key = "id") => new Map((list ?? []).map((x) => [x[key], x] as const));
@@ -28,16 +29,21 @@ export function mergeBackups(local: Any, remote: Any): Any {
     decks.set(d.id, { ...l, words: [...l.words, ...d.words.filter((w: string[]) => !have.has(w[0]))] });
   }
   const ls = local.settings ?? {}, rs = remote.settings ?? {};
-  const union = (a?: string[], b?: string[]) => (a || b ? [...new Set([...(a ?? []), ...(b ?? [])])] : undefined);
-  const settings = { ...rs, ...ls, deckOpts: { ...(rs.deckOpts ?? {}), ...(ls.deckOpts ?? {}) } };
-  const added = union(ls.added, rs.added); if (added) settings.added = added;
-  const courses = union(ls.courses, rs.courses); if (courses) settings.courses = courses;
+  // что когда добавлено/удалено: по каждому ключу — последнее действие
+  const listAt: Record<string, number> = { ...(rs.listAt ?? {}) };
+  for (const [k, v] of Object.entries((ls.listAt ?? {}) as Record<string, number>)) if (Math.abs(v) > Math.abs(listAt[k] ?? 0)) listAt[k] = v;
+  const alive = (key: string) => (listAt[key] ?? 1) > 0;
+  const union = (a: string[] | undefined, b: string[] | undefined, prefix: string) =>
+    (a || b ? [...new Set([...(a ?? []), ...(b ?? [])])].filter((id) => alive(prefix + id)) : undefined);
+  const settings = { ...rs, ...ls, deckOpts: { ...(rs.deckOpts ?? {}), ...(ls.deckOpts ?? {}) }, listAt };
+  const added = union(ls.added, rs.added, "deck:"); if (added) settings.added = added;
+  const courses = union(ls.courses, rs.courses, "course:"); if (courses) settings.courses = courses;
   const ex: Any = { ...(remote.ex ?? {}) };
   for (const [k, v] of Object.entries((local.ex ?? {}) as Any)) {
     const r = ex[k];
     ex[k] = r ? { seen: Math.max(v.seen, r.seen), ok: Math.max(v.ok, r.ok), last: Math.max(v.last, r.last) } : v;
   }
-  const exsets = [...byId([...(remote.exsets ?? []), ...(local.exsets ?? [])]).values()];
+  const exsets = [...byId([...(remote.exsets ?? []), ...(local.exsets ?? [])]).values()].filter((x: Any) => alive(`ex:${x.id}`));
   const course: Any = JSON.parse(JSON.stringify(remote.course ?? {}));
   for (const [ck, lessons] of Object.entries((local.course ?? {}) as Any)) {
     course[ck] ??= {};
@@ -51,8 +57,9 @@ export function mergeBackups(local: Any, remote: Any): Any {
     cards: [...cards.values()],
     reviews: [...reviews.values()].sort((a: Any, b: Any) => a.at - b.at),
     edits: [...edits.values()],
-    userDecks: [...decks.values()],
+    userDecks: [...decks.values()].filter((d: Any) => alive(`ud:${d.id}`)),
     settings, ex, exsets, course,
+    reading: local.reading || remote.reading ? mergeLib(local.reading, remote.reading) : undefined,
     day: local.day ?? remote.day,
   };
 }

@@ -7,12 +7,12 @@
 import { app, hskLookup, deckById, exCorpus, loadExSets, saveExSets, dictIndex, updateSettings, saveUserDeck, switchDeck, type ExSetFile } from "../state.ts";
 import {
   KINDS, STEPS, PASS, parseCorpus, segment, sentencesFor, gapTask, diffZh, parseExSet, planSession, tilesFor, checkAssembled, isWordTok, record,
-  lessonSteps, stepOpen, lessonDone, stepTasks, reviewTasks, wordOptions, shortRu,
-  type Kind, type Sent, type Dialog, type Task, type ExProgress, type ExSet, type StepId, type LessonWord,
+  lessonSteps, stepOpen, lessonDone, stepTasks, reviewTasks, wordOptions, shortRu, stepName, pinyinOptions,
+  type Kind, type Sent, type Dialog, type Task, type ExProgress, type ExSet, type StepId, type LessonWord, type Gram, type GramX,
 } from "../core/exercise.ts";
 import { dictPyToNumeric, type DictIndex } from "../core/dict.ts";
 import { normalizePinyin } from "../core/importer.ts";
-import { parseRef } from "../core/pinyin.ts";
+import { parseRef, toMarked } from "../core/pinyin.ts";
 import * as store from "../store.ts";
 import { say, sayAll } from "../speech.ts";
 import { $, esc, pinyinHTML, plural } from "./dom.ts";
@@ -27,7 +27,8 @@ import { mountHwPad, type HwPad } from "./hwpad.ts";
 /* ---------- настройки ---------- */
 
 const LS = "cherta.ex3";
-const ui = { kinds: ["tr", "gap", "listen"] as Kind[], n: 10, pinyin: true, trMode: "type" as "type" | "tiles", freeDeck: "" };
+/** pyMode — пиньинь над словами в курсах: «auto» (по уровню и шагу) или явно включён/выключен кнопкой в занятии. */
+const ui = { kinds: ["tr", "gap", "listen"] as Kind[], n: 10, pinyin: true, trMode: "type" as "type" | "tiles", freeDeck: "", pyMode: "auto" as "auto" | "on" | "off" };
 try { Object.assign(ui, JSON.parse(localStorage.getItem(LS) ?? "{}")); } catch { /* */ }
 const save = () => { try { localStorage.setItem(LS, JSON.stringify(ui)); } catch { /* */ } };
 
@@ -62,6 +63,16 @@ let pyOn = true;
 const tokHTML = (t: string, extra = "") => isWordTok(t)
   ? `<button class="w${extra}" data-w="${esc(t)}">${pyOn ? `<small class="py">${pyOf(t)}</small>` : ""}<span>${esc(t)}</span></button>`
   : `<span class="p">${esc(t)}</span>`;
+/** Строка слов: знак препинания держится со словом перед ним (не уезжает один на новую строку). */
+function toksHTML(toks: string[], mark = -1): string {
+  const out: string[] = [];
+  toks.forEach((t, i) => {
+    const h = tokHTML(t, i === mark ? " hl" : "");
+    if (!isWordTok(t) && out.length) out[out.length - 1] = out[out.length - 1].replace(/<\/span>$/, `${h}</span>`);
+    else out.push(`<span class="u">${h}</span>`);
+  });
+  return out.join("");
+}
 
 /* ---------- курсы ---------- */
 
@@ -358,9 +369,10 @@ function openLesson(i: number) {
   $("ex-l-words").hidden = true;
   $("ex-l-steps").hidden = false;
   $("ex-l-num").textContent = `Урок ${lessonIdx + 1} из ${c.set.lessons.length}`;
-  $("ex-l-head").innerHTML = `<h2 class="deck-name">${esc(l.title)}</h2><p class="hint">${[
+  $("ex-l-head").innerHTML = `<h2 class="deck-name">${esc(l.title)}</h2>${l.goal ? `<p class="l-goal">${esc(l.goal)}</p>` : ""}<p class="hint">${[
     l.words.length && `${l.words.length} ${plural(l.words.length, "слово", "слова", "слов")}`,
     l.sents.length && `${l.sents.length} ${plural(l.sents.length, "предложение", "предложения", "предложений")}`,
+    l.grammar?.length && `${l.grammar.length} ${plural(l.grammar.length, "правило", "правила", "правил")}`,
     l.dialogs.length && `${l.dialogs.length} ${plural(l.dialogs.length, "диалог", "диалога", "диалогов")}`].filter(Boolean).join(" · ")}</p>`;
   const steps = lessonSteps(l), best = lessonBest(c, lessonIdx);
   const firstOpen = steps.findIndex((s) => (best[s] ?? 0) < PASS);
@@ -368,28 +380,45 @@ function openLesson(i: number) {
     const info = STEPS.find((x) => x.id === s)!;
     const open = stepOpen(steps, best, k);
     const b = best[s];
-    const state = b !== undefined && b >= PASS ? `<span class="st ok">✓ ${Math.round(b * 100)}%</span>` : !open ? `<span class="st lock" aria-label="Закрыто">🔒</span>` : b !== undefined ? `<span class="st mid">${Math.round(b * 100)}%</span>` : `<span class="st go">→</span>`;
-    return `<button class="step-row${k === firstOpen ? " cur" : ""}" data-step="${s}" ${open ? "" : "disabled"}><span class="sn">${k + 1}</span><span class="lt"><b>${info.name}</b><small>${info.hint}</small></span>${state}</button>`;
+    const theory = s === "words";
+    const state = theory ? (b ? `<span class="st ok">✓</span>` : `<span class="st go">→</span>`)
+      : b !== undefined && b >= PASS ? `<span class="st ok">✓ ${Math.round(b * 100)}%</span>` : !open ? `<span class="st lock" aria-label="Закрыто">🔒</span>` : b !== undefined ? `<span class="st mid">${Math.round(b * 100)}%</span>` : `<span class="st go">→</span>`;
+    const hint = theory && !l.grammar?.length ? "послушать и запомнить" : info.hint;
+    return `<button class="step-row${k === firstOpen ? " cur" : ""}${theory ? " theory" : ""}" data-step="${s}" ${open ? "" : "disabled"}><span class="sn">${theory ? "📖" : k}</span><span class="lt"><b>${stepName(s, l)}</b><small>${hint}${theory ? " · по желанию" : ""}</small></span>${state}</button>`;
   }).join("") + (lessonDone(steps, best) && lessonIdx + 1 < c.set.lessons.length ? `<button class="btn primary wide" data-lesson="${lessonIdx + 1}">Следующий урок →</button>` : "")
     + (!steps.length ? `<p class="hint">В этом уроке нет заданий.</p>` : "")
-    + `<p class="hint">Шаг засчитывается от ${Math.round(PASS * 100)}% верных ответов — тогда открывается следующий.</p>`;
+    + `<p class="hint">Шаг засчитывается от ${Math.round(PASS * 100)}% верных ответов — тогда открывается следующий. Теорию можно открыть в любой момент.</p>`;
+  // урок ещё не начат и есть теория — спросить, нужна ли она
+  if (l.grammar?.length && !Object.keys(best).length) {
+    $("ex-l-steps").insertAdjacentHTML("afterbegin", `<div class="panel theory-ask"><b>Начать с теории?</b><p class="hint">Цель урока, новые слова и ${l.grammar.length} ${plural(l.grammar.length, "правило", "правила", "правил")} с примерами — как в учебнике.</p>
+      <div class="ex-btns"><button class="btn" data-skip-theory>Сразу к заданиям</button><button class="btn primary" data-step="words">Показать теорию</button></div></div>`);
+  }
 }
 
-/** Шаг «Слова урока»: список с озвучкой, «Учить карточками», «Запомнил». */
+/** Шаг «Теория»: цель урока, новые слова (с озвучкой, «Учить карточками»), правила с примерами. */
 function showWords() {
   const c = course!;
   const l = c.set.lessons[lessonIdx];
   $("ex-l-steps").hidden = true;
   const box = $("ex-l-words");
   box.hidden = false;
-  box.innerHTML = `<div class="topbar"><button class="btn ghost small" data-words-back>← К шагам</button></div>
+  const exLine = ([zh, ru]: [string, string], k: string) => `<div class="g-ex"><div class="ex-zh">${toksHTML(seg(zh))}</div><button class="icon-btn small-ic" data-gsay="${esc(k)}" data-zh="${esc(zh)}" aria-label="Послушать">${PLAY}</button>${ru ? `<div class="g-ru">${esc(ru)}</div>` : ""}</div>`;
+  box.innerHTML = `<div class="topbar"><button class="btn ghost small" data-words-back>← К шагам</button>${l.grammar?.length ? `<button class="chip-btn small" data-th-py aria-pressed="${pyOn}">pīnyīn</button>` : ""}</div>
+    ${l.goal ? `<div class="panel th-goal"><span class="label">Цель урока</span><p>${esc(l.goal)}</p></div>` : ""}
+    ${l.words.length ? `<h3 class="grp-title"><span>Новые слова</span><span class="grp-n">${l.words.length}</span></h3>
     <div class="grp list">${l.words.map(([h, py, ru], i) => {
       let p = "";
       try { p = py ? pinyinHTML(parseRef(py)) : pyOf(h); } catch { p = pyOf(h); }
       return `<div class="item lw"><button class="h" data-wopen="${esc(h)}">${esc(h)}</button><span class="txt"><span class="py">${p}</span><span class="ru">${esc(ru)}</span></span><button class="icon-btn small-ic" data-wsay="${i}" aria-label="Послушать">${PLAY}</button></div>`;
     }).join("")}</div>
-    <div class="ex-btns"><button class="btn" data-words-deck>Учить карточками</button><button class="btn primary" data-words-ok>Запомнил — дальше</button></div>
-    <p class="hint" id="ex-words-msg">Слова урока сами попадут в колоду курса «${esc(c.title)}» в «Карточках»: письмо иероглифов, пиньинь и повторения по расписанию.</p>`;
+    <button class="btn wide" data-words-deck>Учить слова карточками</button>
+    <p class="hint" id="ex-words-msg">Слова урока сами попадут в колоду курса «${esc(c.title)}» в «Карточках».</p>` : ""}
+    ${(l.grammar ?? []).map((g, gi) => `<div class="panel gram">
+      <h3 class="gram-t"><span class="gram-n">${gi + 1}</span>${esc(g.title)}</h3>
+      ${g.text.map((t) => `<p>${esc(t)}</p>`).join("")}
+      ${g.ex.length ? `<div class="g-exs"><span class="label">Примеры</span>${g.ex.map((e, k) => exLine(e, `${gi}:${k}`)).join("")}</div>` : ""}
+    </div>`).join("")}
+    <div class="ex-btns"><button class="btn primary wide" data-words-ok>${l.dialogs.length ? "Понятно — к тексту урока" : "Понятно — к заданиям"}</button></div>`;
 }
 
 async function saveBest(step: StepId, score: number) {
@@ -480,7 +509,7 @@ async function begin(list: Task[], r: Run) {
   tasks = list;
   pos = 0;
   right = 0;
-  poolWords = [...new Set([...r.focus, ...list.flatMap((t) => (t.kind === "dialog" || t.kind === "word" ? [] : t.sent.t.filter(isWordTok))), ...r.courseWords.map((w) => w[0])])];
+  poolWords = [...new Set([...r.focus, ...list.flatMap((t) => (t.kind === "dialog" || t.kind === "word" || t.kind === "choice" ? [] : t.sent.t.filter(isWordTok))), ...r.courseWords.map((w) => w[0])])];
   views("run");
   showTask();
 }
@@ -488,6 +517,7 @@ async function begin(list: Task[], r: Run) {
 /** Пиньинь над словами: в первом курсе всегда, дальше — в первых шагах; в переводе и диалоге — только на уровне 1. */
 function autoPinyin(step: StepId | undefined): boolean {
   if (run.mode === "free") return ui.pinyin;
+  if (ui.pyMode !== "auto") return ui.pyMode === "on";
   const lvl = course?.set.level ?? 2;
   if (lvl <= 1) return true;
   return step === "recog" || step === "gap" || step === "build" || step === "listen";
@@ -496,13 +526,13 @@ function autoPinyin(step: StepId | undefined): boolean {
 async function startStep(step: StepId) {
   const c = course!;
   const l = c.set.lessons[lessonIdx];
-  if (step === "words") { showWords(); return; }
+  if (step === "words") { pyOn = ui.pyMode !== "off"; showWords(); window.scrollTo(0, 0); return; }
   prog = (await store.getMeta<ExProgress>("ex")) ?? {};
   const list = stepTasks(step, l, prog, rnd = Math.random);
   pyOn = autoPinyin(step);
   const all = c.set.lessons.flatMap((x) => x.words);
   await begin(list, { mode: "step", step, focus: new Set([...l.words.map((w) => w[0]), ...l.sents.flatMap((s) => s.t.filter(isWordTok))]), words: l.words, courseWords: all,
-    distract: Math.min(3, 1 + Math.floor(lessonIdx / 5)), title: STEPS.find((s) => s.id === step)!.name });
+    distract: Math.min(3, 1 + Math.floor(lessonIdx / 5)), title: stepName(step, l) });
 }
 
 async function startReview() {
@@ -511,7 +541,7 @@ async function startReview() {
   if (!idx.length) return;
   prog = (await store.getMeta<ExProgress>("ex")) ?? {};
   const lessons = idx.map((i) => c.set.lessons[i]);
-  pyOn = (c.set.level ?? 2) <= 1;
+  pyOn = ui.pyMode === "auto" ? (c.set.level ?? 2) <= 1 : ui.pyMode === "on";
   await begin(reviewTasks(lessons, prog, 12, rnd = Math.random), { mode: "review", focus: new Set(lessons.flatMap((l) => l.words.map((w) => w[0]))), words: lessons.flatMap((l) => l.words),
     courseWords: c.set.lessons.flatMap((x) => x.words), distract: 2, title: "Повторение" });
 }
@@ -532,8 +562,10 @@ function showTask() {
   $("ex-count").textContent = `${run.title ? `${run.title} · ` : ""}${pos + 1} из ${tasks.length}`;
   const t = tasks[pos];
   const card = $("ex-card");
+  $("ex-pyt").setAttribute("aria-pressed", String(pyOn));
   if (t.kind === "dialog") { renderDialog(t.dialog); return; }
   if (t.kind === "word") { renderWord(t.word, t.dir); return; }
+  if (t.kind === "choice") { renderChoice(t.x, t.rule); return; }
   const s = t.sent;
   if (t.kind === "tr") {
     if (!s.ru) { tasks[pos] = { kind: "gap", sent: s }; showTask(); return; }
@@ -587,8 +619,20 @@ function wordPy(w: LessonWord): string {
 }
 
 /** Узнавание слова: иероглифы → значение или значение → иероглифы, 4 варианта. */
-function renderWord(w: LessonWord, dir: "zh" | "ru") {
+let wRight = "";
+const markPy = (p: string) => { try { return esc(toMarked(parseRef(p))); } catch { return esc(p); } };
+function renderWord(w: LessonWord, dir: "zh" | "ru" | "py") {
+  if (dir === "py") {
+    wopts = pinyinOptions(w[1], [...run.words, ...run.courseWords].filter((x) => x[0] !== w[0] && x[1]).map((x) => x[1]), rnd);
+    wRight = pinyinOptions(w[1], [], () => 0)[0];
+    $("ex-card").innerHTML = `<div class="ex-top"><span class="label">Как читается это слово?</span></div>
+       <div class="wq"><span class="wq-han">${esc(w[0])}</span><span class="hint">${esc(shortRu(w[2]))}</span></div>
+       <div class="w-opts">${wopts.map((o, i) => `<button class="opt-btn py-opt" data-wopt="${i}">${markPy(o)}</button>`).join("")}</div>
+       <div class="ex-res" id="ex-res" hidden></div><div class="ex-btns" id="ex-btns"></div>`;
+    return;
+  }
   wopts = wordOptions(w, run.words, run.courseWords, dir, rnd);
+  wRight = dir === "zh" ? shortRu(w[2]) : w[0];
   $("ex-card").innerHTML = dir === "zh"
     ? `<div class="ex-top"><span class="label">Что значит это слово?</span><button class="icon-btn small-ic" data-act="say-word" aria-label="Послушать">${PLAY}</button></div>
        <div class="wq"><span class="wq-han">${esc(w[0])}</span>${pyOn ? `<span class="py">${wordPy(w)}</span>` : ""}</div>
@@ -600,6 +644,22 @@ function renderWord(w: LessonWord, dir: "zh" | "ru") {
        <div class="ex-res" id="ex-res" hidden></div><div class="ex-btns" id="ex-btns"></div>`;
   if (dir === "zh") setTimeout(() => say(w[0]), 200);
 }
+
+/** Грамматика: предложение с пропуском и варианты; при ошибке — напоминание правила. */
+let cOpts: number[] = [];
+function renderChoice(x: GramX, g: Gram) {
+  cOpts = x.o.map((_, i) => i);
+  for (let i = cOpts.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [cOpts[i], cOpts[j]] = [cOpts[j], cOpts[i]]; }
+  const [a, b = ""] = x.zh.split("___");
+  const toks = (z: string) => toksHTML(seg(z));
+  $("ex-card").innerHTML = `<div class="ex-top"><span class="label">Грамматика · ${esc(g.title)}</span></div>
+    <div class="ex-zh">${toks(a)}<span class="gap-slot">＿＿</span>${toks(b)}</div>
+    ${x.ru ? `<div class="ex-ru small">${esc(x.ru)}</div>` : ""}
+    <div class="gap-opts">${cOpts.map((i) => `<button class="tile-w" data-copt="${i}">${pyOn && isWordTok(x.o[i]) ? `<small class="py">${pyOf(x.o[i])}</small>` : ""}<span>${esc(x.o[i])}</span></button>`).join("")}</div>
+    <div class="ex-res" id="ex-res" hidden></div>
+    <div class="ex-btns" id="ex-btns"></div>`;
+}
+const filled = (x: GramX) => x.zh.replace("___", x.o[x.a]);
 
 function renderTrBody(s: Sent, mode: "type" | "tiles") {
   const body = $("ex-tr-body");
@@ -631,7 +691,7 @@ function renderTiles() {
 }
 
 function sentenceView(s: Sent, mark?: number) {
-  return `<div class="ex-zh ans">${s.t.map((x, i) => tokHTML(x, i === mark ? " hl" : "")).join("")}</div>${s.ru ? `<div class="ex-ru small">${esc(s.ru)}</div>` : ""}`;
+  return `<div class="ex-zh ans">${toksHTML(s.t, mark)}</div>${s.ru ? `<div class="ex-ru small">${esc(s.ru)}</div>` : ""}`;
 }
 
 const nextBtn = () => `<button class="btn primary wide" data-act="next">${pos + 1 < tasks.length ? "Дальше" : "Итог"}</button>`;
@@ -652,7 +712,7 @@ async function result(ok: boolean, html: string, selfGrade = false) {
 async function mark(ok: boolean) {
   if (ok) right++;
   const t = tasks[pos];
-  const key = t.kind === "dialog" ? t.dialog.id : t.kind === "word" ? `w:${t.word[0]}` : t.sent.zh;
+  const key = t.kind === "dialog" ? t.dialog.id : t.kind === "word" ? `w:${t.word[0]}` : t.kind === "choice" ? `g:${t.x.zh}` : t.sent.zh;
   prog = record(prog, key, ok);
   await store.setMeta("ex", prog);
 }
@@ -660,7 +720,7 @@ async function mark(ok: boolean) {
 async function check() {
   const t = tasks[pos];
   if (t.kind === "dialog") { checkDialog(t.dialog); return; }
-  if (t.kind === "word") return;
+  if (t.kind === "word" || t.kind === "choice") return;
   const s = t.sent;
   if (t.kind === "dict" || (t.kind === "tr" && trModeNow(t) === "type")) {
     const mine = $<HTMLInputElement>("ex-in").value.trim();
@@ -684,8 +744,8 @@ async function check() {
 
 function renderDialog(d: Dialog) {
   qAns = d.q.map(() => null);
-  $("ex-card").innerHTML = `<div class="ex-top"><span class="label">Диалог: ${esc(d.title)}</span><button class="btn small" data-act="say-all">${PLAY} Весь</button></div>
-    <div class="dl">${d.lines.map((l, i) => `<div class="dl-line"><span class="dl-who">${esc(l[0])}</span><div class="dl-body"><div class="ex-zh">${seg(l[1]).map((x) => tokHTML(x)).join("")}</div><div class="dl-ru" hidden>${esc(l[2])}</div></div><button class="icon-btn small-ic" data-line="${i}" aria-label="Послушать реплику">${PLAY}</button></div>`).join("")}</div>
+  $("ex-card").innerHTML = `<div class="ex-top"><span class="label">${run.mode === "step" && run.step === "dialog" ? "Текст урока" : "Диалог"}: ${esc(d.title)}</span><button class="btn small" data-act="say-all">${PLAY} Весь</button></div>
+    <div class="dl">${d.lines.map((l, i) => `<div class="dl-line"><span class="dl-who">${esc(l[0])}</span><div class="dl-body"><div class="ex-zh">${toksHTML(seg(l[1]))}</div><div class="dl-ru" hidden>${esc(l[2])}</div></div><button class="icon-btn small-ic" data-line="${i}" aria-label="Послушать реплику">${PLAY}</button></div>`).join("")}</div>
     <button class="link-btn" data-act="ru">Показать перевод</button>
     ${d.q.length ? `<div class="dl-q">${d.q.map((q, i) => `<div class="q"><div class="q-t">${esc(q.q)}</div><div class="q-o">${q.o.map((o, j) => `<button class="chip-btn" data-q="${i}" data-o="${j}" aria-pressed="false">${esc(o)}</button>`).join("")}</div></div>`).join("")}</div>` : ""}
     <div class="ex-res" id="ex-res" hidden></div>
@@ -727,9 +787,8 @@ async function finish() {
     $("ex-card").innerHTML = `<div class="ex-done"><b>${pct}%</b>${right} из ${tasks.length} верно</div>
       <p class="hint center">${passed ? (lessonFin ? "Урок пройден! Слова урока можно повторять карточками." : "Шаг засчитан — следующий открыт.") : `Нужно ${Math.round(PASS * 100)}%. Ошибки попадутся снова — попробуйте ещё раз.`}</p>
       <div class="ex-btns">${passed
-        ? `<button class="btn" data-act="to-lesson">К уроку</button>${next ? `<button class="btn primary" data-act="step" data-step="${next}">${STEPS.find((s) => s.id === next)!.name} →</button>` : lessonIdx + 1 < course.set.lessons.length ? `<button class="btn primary" data-act="lesson" data-lesson="${lessonIdx + 1}">Урок ${lessonIdx + 2} →</button>` : ""}`
+        ? `<button class="btn" data-act="to-lesson">К уроку</button>${next ? `<button class="btn primary" data-act="step" data-step="${next}">${stepName(next, l)} →</button>` : lessonIdx + 1 < course.set.lessons.length ? `<button class="btn primary" data-act="lesson" data-lesson="${lessonIdx + 1}">Урок ${lessonIdx + 2} →</button>` : ""}`
         : `<button class="btn" data-act="to-lesson">К уроку</button><button class="btn primary" data-act="step" data-step="${run.step}">Ещё раз</button>`}</div>`;
-    document.dispatchEvent(new CustomEvent("cherta:stepdone", { detail: { passed } }));
     return;
   }
   $("ex-card").innerHTML = `<div class="ex-done"><b>${right}</b> из ${tasks.length} ${plural(tasks.length, "задания", "заданий", "заданий")} без ошибок</div>
@@ -746,36 +805,6 @@ async function gloss(w: string) {
   box.querySelector("[data-open]")!.addEventListener("click", () => openEntry(word.id, true));
   box.querySelector("[data-add]")!.addEventListener("click", () => openAddToDeck(word));
   box.querySelector("[data-say]")!.addEventListener("click", () => say(w));
-}
-
-/* ---------- для плана «Сегодня» ---------- */
-
-/** Следующий непройденный шаг в первом начатом курсе (иначе в первом курсе). */
-export async function nextCourseStep(): Promise<{ key: string; title: string; lesson: number; step: StepId; label: string } | null> {
-  sets = await loadExSets();
-  progCourse = (await store.getMeta<CourseProg>("course")) ?? {};
-  courses = await myCourses();
-  const list = [...courses].sort((a, b) => Number(startedLessons(b).length > 0) - Number(startedLessons(a).length > 0));
-  for (const c of list) {
-    const i = nextLesson(c);
-    const l = c.set.lessons[i];
-    if (!l) continue;
-    const steps = lessonSteps(l), best = lessonBest(c, i);
-    const step = steps.find((s0) => (best[s0] ?? 0) < PASS);
-    if (!step) continue;
-    return { key: c.key, title: c.title, lesson: i, step, label: `${c.title}: урок ${i + 1}, «${STEPS.find((x) => x.id === step)!.name}»` };
-  }
-  return null;
-}
-
-/** Открыть шаг урока курса (для плана «Сегодня»). */
-export async function openCourseStep(key: string, lesson: number, step: StepId) {
-  show("ex");
-  await renderHome();
-  openCourse(key);
-  if (!course) return;
-  openLesson(lesson);
-  await startStep(step);
 }
 
 /* ---------- обработчики ---------- */
@@ -823,6 +852,7 @@ export function initExercise() {
     const t = e.target as HTMLElement;
     const l = t.closest<HTMLButtonElement>("[data-lesson]");
     if (l) { openLesson(Number(l.dataset.lesson)); return; }
+    if (t.closest("[data-skip-theory]")) { saveBest("words", 0).then(() => openLesson(lessonIdx)); return; }
     const s = t.closest<HTMLButtonElement>("[data-step]");
     if (s && !s.disabled) startStep(s.dataset.step as StepId);
   });
@@ -834,6 +864,11 @@ export function initExercise() {
     if (t.closest("[data-words-back]")) { $("ex-l-steps").hidden = false; openLesson(lessonIdx); return; }
     const sw = t.closest<HTMLButtonElement>("[data-wsay]");
     if (sw) { say(l.words[Number(sw.dataset.wsay)][0]); return; }
+    const gs = t.closest<HTMLButtonElement>("[data-gsay]");
+    if (gs) { say(gs.dataset.zh!, 0.8); return; }
+    const tw = t.closest<HTMLButtonElement>("[data-w]");
+    if (tw) { say(tw.dataset.w!); return; }
+    if (t.closest("[data-th-py]")) { pyOn = !pyOn; ui.pyMode = pyOn ? "on" : "off"; save(); const y = window.scrollY; showWords(); window.scrollTo(0, y); return; }
     const wo = t.closest<HTMLButtonElement>("[data-wopen]");
     if (wo) { const w = await wordByHan(wo.dataset.wopen!); openEntry(w.id, true); return; }
     if (t.closest("[data-words-ok]")) { await saveBest("words", 1); await addToCourseDeck(c, [lessonIdx]); $("ex-l-steps").hidden = false; const steps = lessonSteps(l); const nx = steps[steps.indexOf("words") + 1]; if (nx) startStep(nx); else openLesson(lessonIdx); return; }
@@ -864,6 +899,15 @@ export function initExercise() {
   $("ex-py").addEventListener("change", (e) => { ui.pinyin = (e.target as HTMLInputElement).checked; save(); });
   $("ex-start").addEventListener("click", startFree);
   $("ex-quit").addEventListener("click", quitRun);
+  // пиньинь над словами: включить/выключить (запоминается); текущее задание перерисовывается, если ещё не отвечено
+  $("ex-pyt").addEventListener("click", () => {
+    pyOn = !pyOn;
+    if (run.mode === "free") ui.pinyin = pyOn; else ui.pyMode = pyOn ? "on" : "off";
+    save();
+    $("ex-pyt").setAttribute("aria-pressed", String(pyOn));
+    if (!answered && (tasks[pos]?.kind !== "dialog" || qAns.every((x) => x === null))) showTask();
+    else document.querySelectorAll<HTMLElement>("#ex-card .w .py").forEach((x) => (x.hidden = !pyOn));
+  });
 
   // задания
   $("ex-card").addEventListener("click", async (e) => {
@@ -882,8 +926,9 @@ export function initExercise() {
     if (act === "step") { startStep(actBtn!.dataset.step as StepId); return; }
     if (act === "lesson") { openLesson(Number(actBtn!.dataset.lesson)); return; }
     if (act === "say-word" && task?.kind === "word") { say(task.word[0]); return; }
-    if (act === "say" && task && task.kind !== "dialog" && task.kind !== "word") { say(task.sent.zh, 0.8); return; }
-    if (act === "slow" && task && task.kind !== "dialog" && task.kind !== "word") { say(task.sent.zh, 0.55); return; }
+    if (act === "say" && task && task.kind !== "dialog" && task.kind !== "word" && task.kind !== "choice") { say(task.sent.zh, 0.8); return; }
+    if (act === "slow" && task && task.kind !== "dialog" && task.kind !== "word" && task.kind !== "choice") { say(task.sent.zh, 0.55); return; }
+    if (act === "say-x" && task?.kind === "choice") { say(filled(task.x), 0.8); return; }
     if (act === "say-all" && task?.kind === "dialog") { sayAll(task.dialog.lines.map((l) => l[1]), 0.8); return; }
     if (act === "ru") { document.querySelectorAll<HTMLElement>("#ex-card .dl-ru").forEach((x) => (x.hidden = !x.hidden)); return; }
     if (act === "hw") { if (hwPad?.visible()) hwPad.hide(); else hwPad?.show(); actBtn!.setAttribute("aria-pressed", String(!!hwPad?.visible())); return; }
@@ -904,15 +949,30 @@ export function initExercise() {
       return;
     }
     const wo = t.closest<HTMLButtonElement>("[data-wopt]");
+    const co = t.closest<HTMLButtonElement>("[data-copt]");
+    if (co && task?.kind === "choice") {
+      const i = Number(co.dataset.copt), ok = i === task.x.a;
+      document.querySelectorAll<HTMLButtonElement>("#ex-card [data-copt]").forEach((b) => {
+        b.classList.toggle("right", Number(b.dataset.copt) === task.x.a);
+        b.classList.toggle("wrong", b === co && !ok);
+        b.disabled = true;
+      });
+      const full = filled(task.x);
+      say(full, 0.8);
+      await result(ok, `<div class="chip ${ok ? "ok" : "no"}">${ok ? "Верно" : "Не так"}</div>
+        <div class="ex-zh ans">${toksHTML(seg(full))}<button class="icon-btn small-ic" data-act="say-x" aria-label="Послушать">${PLAY}</button></div>
+        ${ok ? "" : `<div class="rule-hint"><b>${esc(task.rule.title)}</b>${task.rule.text[0] ? `<p>${esc(task.rule.text[0])}</p>` : ""}</div>`}`);
+      return;
+    }
     if (wo && task?.kind === "word") {
-      const right0 = task.dir === "zh" ? shortRu(task.word[2]) : task.word[0];
+      const right0 = wRight;
       const ok = wopts[Number(wo.dataset.wopt)] === right0;
       document.querySelectorAll<HTMLButtonElement>("#ex-card [data-wopt]").forEach((b) => {
         b.classList.toggle("right", wopts[Number(b.dataset.wopt)] === right0);
         b.classList.toggle("wrong", b === wo && !ok);
         b.disabled = true;
       });
-      if (task.dir === "ru") say(task.word[0]);
+      if (task.dir !== "zh") say(task.word[0]);
       await result(ok, `<div class="chip ${ok ? "ok" : "no"}">${ok ? "Верно" : "Не то"}</div><div class="w-ans"><b>${esc(task.word[0])}</b> <span class="py">${wordPy(task.word)}</span> — ${esc(task.word[2])}</div>`);
       return;
     }

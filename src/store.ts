@@ -45,6 +45,11 @@ export type Settings = {
   fsrsW?: number[];
   /** Подключённые встроенные курсы упражнений. */
   courses?: string[];
+  /**
+   * Когда что добавлено (+время) или удалено (−время): «deck:id», «course:id», «ud:id» (своя колода), «ex:id» (курс из файла).
+   * Нужно синхронизации: удалённое на одном устройстве не возвращается с другого.
+   */
+  listAt?: Record<string, number>;
 };
 /** Счётчик новых слов за день: всего и по колодам (у каждой колоды свой лимит, как в Anki). */
 export type DayCounter = { day: string; newCount: number; byDeck?: Record<string, number> };
@@ -147,7 +152,7 @@ const ALL = ["cards", "reviews", "meta", "edits", "userDecks"] as const;
 export async function exportAll(): Promise<string> {
   const db = await open();
   const tx = db.transaction([...ALL]);
-  const [cards, reviews, settings, day, ex, exsets, course, edits, userDecks] = await Promise.all([
+  const [cards, reviews, settings, day, ex, exsets, course, reading, edits, userDecks] = await Promise.all([
     done(tx.objectStore("cards").getAll()),
     done(tx.objectStore("reviews").getAll()),
     done(tx.objectStore("meta").get("settings")),
@@ -155,10 +160,11 @@ export async function exportAll(): Promise<string> {
     done(tx.objectStore("meta").get("ex")),
     done(tx.objectStore("meta").get("exsets")),
     done(tx.objectStore("meta").get("course")),
+    done(tx.objectStore("meta").get("reading")),
     done(tx.objectStore("edits").getAll()),
     done(tx.objectStore("userDecks").getAll()),
   ]);
-  return JSON.stringify({ format: EXPORT_FORMAT, version: DB_VERSION, exportedAt: new Date().toISOString(), cards, reviews, settings, day, ex, exsets, course, edits, userDecks });
+  return JSON.stringify({ format: EXPORT_FORMAT, version: DB_VERSION, exportedAt: new Date().toISOString(), cards, reviews, settings, day, ex, exsets, course, reading, edits, userDecks });
 }
 
 export async function importAll(json: string): Promise<number> {
@@ -176,6 +182,7 @@ export async function importAll(json: string): Promise<number> {
   if (data.ex) tx.objectStore("meta").put(data.ex, "ex");
   if (data.exsets) tx.objectStore("meta").put(data.exsets, "exsets");
   if (data.course) tx.objectStore("meta").put(data.course, "course");
+  if (data.reading) tx.objectStore("meta").put(data.reading, "reading");
   await txDone(tx);
   return data.cards.length;
 }

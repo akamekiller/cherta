@@ -7,6 +7,7 @@ import type { Dialog } from "./core/exercise.ts";
 import { cardId, normSkills, pickNext, queueCounts, ALL_SKILLS, type Skill, type QPick } from "./core/skills.ts";
 import { byDay, dayOf, type DayStat } from "./core/stats.ts";
 import * as store from "./store.ts";
+import { makeBlocks, currentBlock, type Block, type Theme } from "./core/blocks.ts";
 
 const MIN = 60_000;
 const LEARN_AHEAD = 20 * MIN; // как в Anki: шаги заучивания показываем чуть раньше срока
@@ -135,7 +136,37 @@ export type DeckCounts = { due: number; learning: number; review: number; newLef
 /** Навыки колоды (как в Skritter): по умолчанию все четыре. */
 export const deckSkills = (deckId: string): Skill[] => normSkills(app.settings.deckOpts?.[deckId]?.skills);
 
-const qWords = (deck: Deck) => deck.words.map((w) => ({ id: w.id, hidden: !!app.edits.get(w.id)?.hidden }));
+/** Занятие одним уроком колоды (из экрана урока): остальные слова колоды в нём не участвуют. */
+let focus: { deckId: string; idx: Set<number> } | null = null;
+export const setFocus = (deckId: string | null, idx?: number[]) => { focus = deckId && idx ? { deckId, idx: new Set(idx) } : null; };
+export const focusOn = () => focus;
+const qWords = (deck: Deck) => deck.words.map((w, i) => ({ id: w.id, hidden: !!app.edits.get(w.id)?.hidden || (focus?.deckId === deck.id && !focus.idx.has(i)) }));
+
+/* ---------- уроки по словам (блоки колоды) ---------- */
+
+let themes: Record<string, Theme[]> = {};
+let themesP: Promise<void> | null = null;
+/** Темы готовых колод (data/themes.json) — грузятся один раз. */
+export const loadThemes = () => (themesP ??= fetch("data/themes.json").then((r) => r.json()).then((j) => { themes = j; }).catch(() => { themesP = null; }));
+const blockCache = new WeakMap<Deck, Block[]>();
+/** Уроки колоды: темы (если есть) или по 20 слов. */
+export function deckBlocks(deck: Deck): Block[] {
+  let b = blockCache.get(deck);
+  if (!b) { b = makeBlocks(deck.words.map((w) => w.han), themes[deck.id]); blockCache.set(deck, b); }
+  return b;
+}
+/** Слово начато (есть карточка хоть одного навыка) или скрыто — для выбора текущего урока. */
+export const wordStarted = (w: Word) => !!app.edits.get(w.id)?.hidden || ALL_SKILLS.some((sk) => app.cards.has(cardId(w.id, sk)));
+/** Слово выучено: карточка «написание» (или любого навыка) уже в повторении. */
+export const wordKnown = (w: Word) => ALL_SKILLS.some((sk) => app.cards.get(cardId(w.id, sk))?.state === "review");
+/** Неначатые слова текущего урока — из них берутся новые слова. */
+function newPool(deck: Deck): Set<number> | undefined {
+  if (focus?.deckId === deck.id) return undefined;
+  const blocks = deckBlocks(deck);
+  if (blocks.length < 2) return undefined;
+  const cur = currentBlock(blocks, (i) => wordStarted(deck.words[i]));
+  return cur < 0 ? undefined : new Set(blocks[cur].idx.filter((i) => !wordStarted(deck.words[i])));
+}
 const getCard = (id: string) => app.cards.get(id);
 /** Порядок новых слов в колоде: вперемешку (по умолчанию) или как в колоде. */
 export const deckOrder = (deckId: string): "random" | "seq" => (app.settings.deckOpts?.[deckId]?.order === "seq" ? "seq" : "random");
@@ -148,7 +179,7 @@ const qOpts = (deckId: string, exclude?: string, rnd?: () => number) => ({
 /** Счётчики колоды: к повторению, на шаге заучивания, новых на сегодня (по лимиту колоды). */
 export function countsFor(deck: Deck): DeckCounts {
   rollDay();
-  return queueCounts(qWords(deck), getCard, qOpts(deck.id));
+  return queueCounts(qWords(deck), getCard, { ...qOpts(deck.id), ...(focus?.deckId === deck.id ? { newWordsLeft: focus.idx.size } : {}) });
 }
 
 export const newLimit = (deckId: string) => app.settings.deckOpts?.[deckId]?.newPerDay ?? app.settings.newPerDay;
@@ -188,6 +219,24 @@ export async function deleteDeck(id: string) {
   }
 }
 
+/** Удалить/убрать сразу несколько колод (например, всю группу). Прогресс по словам остаётся. */
+export async function deleteDecks(ids: string[]) {
+  const set = new Set(ids);
+  const gone: Record<string, number> = {};
+  for (const id of ids) if (app.userDecks.some((d) => d.id === id)) {
+    if (id === CHAR_DECK) await updateSettings({ charDeck: false });
+    await store.deleteUserDeck(id);
+    gone[`ud:${id}`] = -Date.now();
+  }
+  if (Object.keys(gone).length) await updateSettings({ listAt: { ...(app.settings.listAt ?? {}), ...gone } });
+  app.userDecks = app.userDecks.filter((d) => !set.has(d.id));
+  const opts = { ...(app.settings.deckOpts ?? {}) };
+  for (const id of ids) delete opts[id];
+  await updateSettings({ added: (app.settings.added ?? []).filter((x) => !set.has(x)), deckOpts: opts });
+  rebuildDeckList();
+  if (app.deck && set.has(app.deck.id)) { app.deck = null; app.baseDeck = null; await loadFirstDeck(); }
+}
+
 function rebuildDeckList() {
   const opts = app.settings.deckOpts ?? {};
   app.decks = [
@@ -211,6 +260,7 @@ async function fetchDeckFile(id: string): Promise<DeckFile> {
 }
 
 async function loadDeckById(id: string) {
+  await loadThemes();
   app.baseDeck = loadDeck(await fetchDeckFile(id));
   applyEdits();
 }
@@ -306,6 +356,7 @@ export async function toggleInUserDeck(deckId: string, row: [string, string, str
 
 export async function saveUserDeck(d: store.UserDeck) {
   await store.putUserDeck(d);
+  if ((app.settings.listAt?.[`ud:${d.id}`] ?? 0) <= 0) await stamp(`ud:${d.id}`, true);
   app.userDecks = await store.allUserDecks();
   rebuildDeckList();
   if (app.deck?.id === d.id) await loadDeckById(d.id);
@@ -313,6 +364,7 @@ export async function saveUserDeck(d: store.UserDeck) {
 
 export async function removeUserDeck(id: string) {
   await store.deleteUserDeck(id);
+  await stamp(`ud:${id}`, false);
   app.userDecks = await store.allUserDecks();
   rebuildDeckList();
   if (app.deck?.id === id) { app.deck = null; app.baseDeck = null; await loadFirstDeck(); }
@@ -367,15 +419,13 @@ export function counts(): DeckCounts {
 
 /** Следующая карточка текущей колоды: слово и навык. */
 export type NextCard = { word: Word; skill: Skill; fresh: QPick["fresh"] };
-/** Режим занятия «только повторения» (план «Сегодня»): новые слова не начинаются. */
-let reviewOnly = false;
-export const setReviewOnly = (on: boolean) => { reviewOnly = on; };
-
 export function nextCard(excludeCardId?: string): NextCard | null {
   rollDay();
   const d = app.deck;
   if (!d) return null;
-  const p = pickNext(qWords(d), getCard, { ...qOpts(d.id, excludeCardId, Math.random), reviewOnly });
+  // занятие одним уроком — выбор пользователя, дневной лимит новых слов на него не действует
+  const lesson = focus?.deckId === d.id ? { newWordsLeft: focus.idx.size } : {};
+  const p = pickNext(qWords(d), getCard, { ...qOpts(d.id, excludeCardId, Math.random), newPool: newPool(d), ...lesson });
   return p ? { word: d.words[p.word], skill: p.skill, fresh: p.fresh } : null;
 }
 
@@ -438,9 +488,21 @@ export const LEECH = 4;
 export const isLeech = (w: Word) => lapsesOf(w) >= LEECH;
 
 export async function updateSettings(patch: Partial<store.Settings>) {
-  app.settings = { ...app.settings, ...patch };
+  const at = { ...(app.settings.listAt ?? {}) };
+  stampDiff(at, "deck:", app.settings.added, patch.added);
+  stampDiff(at, "course:", app.settings.courses, patch.courses);
+  app.settings = { ...app.settings, ...patch, listAt: { ...at, ...(patch.listAt ?? {}) } };
   await store.setMeta("settings", app.settings);
 }
+
+/** Отметить, что добавлено/удалено (для синхронизации). */
+function stampDiff(at: Record<string, number>, prefix: string, before: string[] | undefined, after: string[] | undefined) {
+  if (!after) return;
+  const now = Date.now(), b = new Set(before ?? []), a = new Set(after);
+  for (const id of a) if (!b.has(id)) at[prefix + id] = now;
+  for (const id of b) if (!a.has(id)) at[prefix + id] = -now;
+}
+const stamp = (key: string, on: boolean) => updateSettings({ listAt: { ...(app.settings.listAt ?? {}), [key]: on ? Date.now() : -Date.now() } });
 
 
 /* ---------- словарь (大БКРС) ---------- */
@@ -544,4 +606,10 @@ export function exDialogs(): Promise<Dialog[]> {
 /** Свои наборы упражнений (текст файла хранится как есть, разбирается при открытии). */
 export type ExSetFile = { id: string; title: string; text: string; addedAt: number };
 export const loadExSets = async () => (await store.getMeta<ExSetFile[]>("exsets")) ?? [];
-export async function saveExSets(list: ExSetFile[]) { await store.setMeta("exsets", list); }
+export async function saveExSets(list: ExSetFile[]) {
+  const before = (await loadExSets()).map((x) => x.id);
+  await store.setMeta("exsets", list);
+  const at = { ...(app.settings.listAt ?? {}) };
+  stampDiff(at, "ex:", before, list.map((x) => x.id));
+  await updateSettings({ listAt: at });
+}

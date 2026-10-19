@@ -22,3 +22,18 @@ test("mergeBackups: карточки, журнал, колоды, курсы", (
   assert.equal(m.exsets.length, 2);
   assert.deepEqual(m.course["b:hsk1"][0], { words: 1, recog: 0.9 });
 });
+
+test("удалённое на одном устройстве не возвращается с другого", () => {
+  const ud = (id: string) => ({ id, title: id, words: [["甲", "jia3", "x"]], createdAt: 1 });
+  const local = { cards: [], reviews: [], userDecks: [ud("u-a")], exsets: [], settings: { added: ["hsk3-1"], courses: ["hsk1"], listAt: { "deck:hsk3-2": -200, "ud:u-b": -300, "course:hsk2": -150, "ex:s-1": -100 } } };
+  const remote = { cards: [], reviews: [], userDecks: [ud("u-a"), ud("u-b")], exsets: [{ id: "s-1", title: "x", text: "", addedAt: 1 }], settings: { added: ["hsk3-1", "hsk3-2", "hsk3-3"], courses: ["hsk1", "hsk2"], listAt: { "deck:hsk3-2": 100, "deck:hsk3-3": 120, "ex:s-1": 50 } } };
+  const m = mergeBackups(local, remote);
+  assert.deepEqual(m.settings.added.sort(), ["hsk3-1", "hsk3-3"]);
+  assert.deepEqual(m.settings.courses, ["hsk1"]);
+  assert.deepEqual(m.userDecks.map((d: { id: string }) => d.id), ["u-a"]);
+  assert.equal(m.exsets.length, 0);
+  assert.equal(m.settings.listAt["deck:hsk3-2"], -200);
+  // добавили снова позже удаления — колода есть
+  const again = mergeBackups({ ...local, settings: { ...local.settings, added: ["hsk3-1", "hsk3-2"], listAt: { "deck:hsk3-2": 500 } } }, remote);
+  assert.ok(again.settings.added.includes("hsk3-2"));
+});

@@ -10,7 +10,6 @@ import { initBook, bookWriter } from "./ui/book.ts";
 import { initStats } from "./ui/stats.ts";
 import { initExercise } from "./ui/exercise.ts";
 import { initTones } from "./ui/tones.ts";
-import { initToday } from "./ui/today.ts";
 import { initReading } from "./ui/reading.ts";
 import { initSync, autoSync } from "./ui/sync.ts";
 import { initRemind } from "./ui/remind.ts";
@@ -32,7 +31,6 @@ async function boot() {
   initStats();
   initExercise();
   initTones();
-  initToday();
   initReading();
   initSettings();
   try {

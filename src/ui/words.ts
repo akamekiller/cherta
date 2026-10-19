@@ -14,7 +14,6 @@ import { onShow, show } from "./nav.ts";
 import { openEntry } from "./entry.ts";
 import { initHandwrite } from "./handwrite.ts";
 import { initVoice } from "./voice.ts";
-import { renderToday } from "./today.ts";
 import { kind, status, itemHTML, otherWord, fromHit, hskList, loadHskList, dictNow, loadDict, wordByHan, type ViewMode } from "./lookup.ts";
 
 type Filter = "all" | "new" | "learn" | "review" | "hidden" | "leech";
@@ -202,10 +201,9 @@ async function renderDictHome() {
   const my = ++token;
   const items = await Promise.all(list.slice(0, 20).map((h) => wordByHan(h)));
   if (my !== token) return;
-  box.innerHTML = `<div id="w-today"></div><p class="hint">Ищите любое слово: иероглифами, пиньинем без тонов, по-русски, рисованием ✍ или голосом.</p>`
+  box.innerHTML = `<p class="hint">Ищите любое слово: иероглифами, пиньинем без тонов, по-русски, рисованием ✍ или голосом.</p>`
     + (items.length ? `<h3 class="grp-title"><span>Недавно открытые</span><button class="link-btn small" data-clear-recent>Очистить</button></h3>${listHTML(items)}` : "")
     + (deck ? `<button class="deck-opt" data-deck-words><span>Слова колоды «${esc(deck.title)}»<small>${deck.words.length} ${plural(deck.words.length, "слово", "слова", "слов")} — список, статус, фильтры</small></span><span class="pick-btn">→</span></button>` : "");
-  renderToday($("w-today"));
 }
 
 /* ---------- отрисовка ---------- */

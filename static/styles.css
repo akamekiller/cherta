@@ -451,8 +451,13 @@ input[type=range]{width:100%;accent-color:var(--jade)}
 .dt-group svg{width:16px;height:16px;flex:none;transition:transform .15s}
 .dt-group[aria-expanded="false"] svg{transform:rotate(-90deg)}
 .dt-row[hidden]{display:none}
-.dt-group:first-child{border-top:0}
-.dt-group+.dt-row{border-top:1px solid var(--line)}
+.dt-ghead{display:flex;align-items:stretch;border-top:1px solid var(--line);background:var(--paper)}
+.dt-ghead:first-child{border-top:0}
+.dt-ghead .dt-group{border-top:0;flex:1;min-width:0}
+.dt-gmenu{flex:none;width:44px;display:grid;place-items:center;border:0;background:none;color:var(--muted);cursor:pointer;padding:8px 0 0}
+.dt-gmenu svg{width:18px;height:18px}
+.dt-gmenu:hover{color:var(--ink)}
+.dt-ghead+.dt-row{border-top:1px solid var(--line)}
 /* Почерк: своё письмо рядом с образцом */
 .chip.hand{cursor:pointer;font:inherit;font-size:12.5px;font-weight:600}
 .hand-box{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--paper)}
@@ -546,7 +551,7 @@ input[type=range]{width:100%;accent-color:var(--jade)}
 .src-pick svg{width:18px;height:18px;flex:none;color:var(--muted)}
 .bk-strip{gap:4px}
 .bk-cell{flex:1 1 26px;max-width:38px;width:auto;height:auto;aspect-ratio:1;font-size:clamp(15px,5.6vw,26px)}
-.pick-decks .grp-title{position:static;margin-top:12px}
+
 .pick-decks .deck-list{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--sheet)}
 .entry-actions .icon-btn{flex:none;width:46px;height:auto}
 
@@ -645,20 +650,6 @@ input[type=range]{width:100%;accent-color:var(--jade)}
 .tg-all{grid-column:1/-1}
 #tn-stage button{font-size:14px}
 /* «Сегодня» */
-.today{display:flex;flex-direction:column;gap:10px}
-.today-head{display:flex;justify-content:space-between;align-items:baseline}
-.today-head b{font:600 18px var(--f-ui)}
-.today-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
-.today-list li{display:flex;align-items:center;gap:10px}
-.today-list .ti{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--paper);font:500 15px var(--f-han);color:var(--jade)}
-.today-list li.done .ti{background:var(--jade);color:var(--on-accent);font:600 14px var(--f-ui)}
-.today-list li.done .tt b{color:var(--muted);text-decoration:line-through}
-.today-list .tt{display:flex;flex-direction:column;min-width:0}
-.today-list .tt b{font-weight:600;font-size:14.5px;overflow-wrap:anywhere}
-.today-list .tt small{font-size:12.5px;color:var(--muted)}
-.today-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border:1px solid var(--jade);border-radius:var(--r);background:var(--jade-soft);font-size:14px}
-.today-next{margin-top:4px}
-#w-today:empty{display:none}
 /* Сворачиваемые уровни и разделы курсов */
 .fold-head{display:flex;align-items:center;gap:8px;width:100%;padding:10px 4px 4px;border:0;background:none;color:var(--muted);font:600 13.5px var(--f-ui);text-align:left;cursor:pointer}
 .fold-head span{flex:1;color:var(--ink)}
@@ -697,7 +688,61 @@ input[type=range]{width:100%;accent-color:var(--jade)}
 .sync-in{flex-wrap:nowrap}.sync-in input{flex:1;min-width:0;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);font:inherit}
 #rm-time{padding:6px 8px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);font:inherit}
 .note.danger{color:var(--bad)}
-.td-more{align-self:flex-start;margin-top:2px;padding:2px 0;border:0;background:none;color:var(--jade);font:500 12.5px var(--f-ui);cursor:pointer}
-.td-groups{display:flex;flex-direction:column;gap:2px;margin-top:4px;font-size:12.5px;color:var(--muted)}
-.td-groups[hidden]{display:none}
-.today-list li:has(.td-groups:not([hidden])){align-items:flex-start}
+html{scrollbar-gutter:stable}
+/* выбор колоды: строка + «состав» */
+.pick-decks{display:flex;flex-direction:column;gap:6px}
+.pick-decks .deck-list[hidden]{display:none}
+.pick-row{display:flex;align-items:stretch;border-top:1px solid var(--line)}
+.pick-row:first-child{border-top:0}
+.pick-row .deck-opt{flex:1;min-width:0;border-top:0}
+.pick-row[aria-current="true"]{background:var(--jade-soft)}
+.pick-eye{flex:none;width:46px;border:0;border-left:1px solid var(--line);background:none;color:var(--muted);display:grid;place-items:center;cursor:pointer}
+.pick-eye svg{width:19px;height:19px}
+.pick-eye:hover{color:var(--ink)}
+.peek-chars{display:flex;flex-wrap:wrap;gap:4px;max-height:40vh;overflow-y:auto}
+.peek-chars span{width:40px;height:40px;display:grid;place-items:center;border:1px solid var(--line);border-radius:8px;font:400 22px var(--f-han)}
+.peek-chars span.off{opacity:.3;text-decoration:line-through}
+.peek-chars button{width:40px;height:40px;display:grid;place-items:center;border:1px solid var(--line);border-radius:8px;background:none;color:var(--ink);font:400 22px var(--f-han);cursor:pointer}
+.peek-chars button[aria-pressed="false"]{opacity:.3;text-decoration:line-through}
+.peek-chars small{align-self:center;color:var(--muted);font-size:12.5px;margin-left:4px}
+.peek-words summary{cursor:pointer;color:var(--jade);font-weight:600;font-size:14px}
+.peek-words>div{display:flex;flex-direction:column;gap:4px;margin-top:8px;max-height:40vh;overflow-y:auto}
+.pw{display:flex;gap:10px;font-size:14px}.pw b{font:500 17px var(--f-han);min-width:56px}.pw span{color:var(--muted);min-width:0;overflow-wrap:anywhere}
+.bk-set{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;padding:8px 12px;border:1px dashed var(--line);border-radius:var(--r);background:none;color:var(--muted);font:500 13.5px var(--f-ui);cursor:pointer;text-align:left}
+.bk-set b{color:var(--jade);font-weight:600;white-space:nowrap}
+.bk-set[hidden]{display:none}
+.pick-decks .grp-title{position:static;margin-top:12px;background:none;align-items:center}
+#rd-list .tools .primary{grid-column:1/-1}
+/* уроки по словам в колоде */
+.blk-prev{font-family:var(--f-han);font-size:14px;color:var(--ink);opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lesson-row .cc-bar{margin-top:4px;height:4px}
+.lesson-list[hidden]{display:none}
+.blk-words{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.bw{display:flex;align-items:center;gap:10px;padding:8px 10px;border-top:1px solid var(--line)}
+.bw:first-child{border-top:0}
+.bw-han{font:500 22px var(--f-han);min-width:64px}
+.bw-t{flex:1;min-width:0;display:flex;flex-direction:column}
+.bw-t small{color:var(--muted);font-size:12.5px;overflow-wrap:anywhere}
+.bw-st{flex:none;width:14px;text-align:center;font-weight:700;color:var(--muted)}
+.bw-st.ok{color:var(--good)}.bw-st.mid{color:var(--warn)}
+/* курс: цель урока, теория, правило в ошибке */
+.l-goal{margin:2px 0 4px;font-size:14.5px;color:var(--ink)}
+.l-goal::before{content:"Цель: ";color:var(--jade);font-weight:600}
+.theory-ask{display:flex;flex-direction:column;gap:6px;border-color:var(--jade)}
+.theory-ask b{font-size:16px}
+.step-row.theory{border-style:dashed}
+.step-row.theory .sn{background:none;font-size:16px}
+.th-goal p{margin:4px 0 0;font-size:15px}
+.gram{display:flex;flex-direction:column;gap:8px}
+.gram p{margin:0;line-height:1.55;font-size:15px}
+.gram-t{display:flex;align-items:center;gap:10px;margin:0;font:600 17px var(--f-ui)}
+.gram-n{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--jade);color:var(--on-accent);font:600 13px var(--f-mono)}
+.g-exs{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:8px}
+.g-ex{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center}
+.g-ex .g-ru{grid-column:1/-1;color:var(--muted);font-size:13.5px}
+.rule-hint{margin-top:8px;padding:10px 12px;border-radius:10px;background:var(--jade-soft);font-size:14px}
+.rule-hint p{margin:4px 0 0;line-height:1.5}
+.py-opt{font-size:18px}
+#ex-pyt{margin-left:auto}
+#ex-pyt[aria-pressed="false"]{opacity:.6;text-decoration:line-through}
+#ex .ex-zh .u{display:inline-flex;align-items:flex-end;white-space:nowrap}

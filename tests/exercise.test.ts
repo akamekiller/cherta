@@ -1,7 +1,7 @@
 // Упражнения на перевод — на выдуманных предложениях.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { tilesFor, checkAssembled, ruCloseness, pickLesson, record, zhKey, type ExItem } from "../src/core/exercise.ts";
+import { stepName, pinyinOptions, tilesFor, checkAssembled, ruCloseness, pickLesson, record, zhKey, type ExItem } from "../src/core/exercise.ts";
 
 const A: ExItem = { zh: "甲乙丙。", ru: "первый второй третий", t: ["甲", "乙丙", "。"] };
 const B: ExItem = { zh: "丁戊，己。", ru: "четвёртый пятый", t: ["丁", "戊", "，", "己", "。"] };
@@ -149,18 +149,21 @@ test("parseExSet: слова урока, уровень и описание ку
 
 test("lessonSteps: шаги по содержимому урока", () => {
   const s = parseExSet(COURSE, "c", (z) => [...z]);
-  assert.deepEqual(lessonSteps(s.lessons[0]), ["words", "recog", "gap", "build", "listen", "dict", "write", "dialog"]);
+  assert.deepEqual(lessonSteps(s.lessons[0]), ["words", "dialog", "recog", "gap", "build", "listen", "dict", "write"]);
   assert.deepEqual(lessonSteps(s.lessons[1]), ["words"]);
 });
 
 test("stepOpen и lessonDone: шаг открыт, когда предыдущие пройдены", () => {
   const steps = ["words", "recog", "gap"] as const;
   assert.equal(stepOpen([...steps], {}, 0), true);
-  assert.equal(stepOpen([...steps], {}, 1), false);
-  assert.equal(stepOpen([...steps], { words: 1 }, 1), true);
-  assert.equal(stepOpen([...steps], { words: 1, recog: PASS - 0.01 }, 2), false);
-  assert.equal(lessonDone([...steps], { words: 1, recog: 0.8, gap: 0.9 }), true);
+  // теория необязательна: следующий шаг открыт и без неё
+  assert.equal(stepOpen([...steps], {}, 1), true);
+  assert.equal(stepOpen([...steps], {}, 2), false);
+  assert.equal(stepOpen([...steps], { recog: PASS - 0.01 }, 2), false);
+  assert.equal(stepOpen([...steps], { recog: PASS }, 2), true);
+  assert.equal(lessonDone([...steps], { recog: 0.8, gap: 0.9 }), true);
   assert.equal(lessonDone([...steps], { words: 1, recog: 0.8 }), false);
+  assert.equal(lessonDone(["words"], { words: 1 }), true);
 });
 
 test("stepTasks: узнавание в обе стороны, сборка — плитками, перевод — вводом", () => {
@@ -201,4 +204,42 @@ test("reviewTasks: смесь предложений и слов из пройд
 test("parseExSet: разделы «###» относятся к следующим урокам", () => {
   const s = parseExSet("# К\n### Начало\n## 1\n你好。 | Привет.\n## 2\n谢谢。 | Спасибо.\n### Дальше\n## 3\n再见。 | Пока.\n", "c", (z) => [...z]);
   assert.deepEqual(s.lessons.map((l) => l.section), ["Начало", "Начало", "Дальше"]);
+});
+
+test("теория урока: цель, правила, примеры и задания на выбор", () => {
+  const s = parseExSet(`# К
+## 1. Урок
+= Научиться говорить «甲».
++ 甲 | jia3 | первый
+& Правило 甲
+% Объяснение раз.
+% Объяснение два.
+%e 甲乙。 | Пример.
+%x 甲___。 | Перевод. | 乙* | 丙
+%x без пропуска | x | a* | b
+& Второе
+%x ___乙。 | | 甲 | 丙*
+甲乙丙。 | Предложение.`, "c", (z) => [...z]);
+  const l = s.lessons[0];
+  assert.equal(l.goal, "Научиться говорить «甲».");
+  assert.equal(l.grammar!.length, 2);
+  assert.deepEqual(l.grammar![0].text, ["Объяснение раз.", "Объяснение два."]);
+  assert.deepEqual(l.grammar![0].ex, [["甲乙。", "Пример."]]);
+  assert.deepEqual(l.grammar![0].x, [{ zh: "甲___。", ru: "Перевод.", o: ["乙", "丙"], a: 0 }]);
+  assert.equal(l.grammar![1].x[0].a, 1);
+  assert.equal(l.sents.length, 1);
+  assert.equal(stepName("gap", l), "Грамматика");
+  const gap = stepTasks("gap", l, {}, () => 0.3);
+  assert.equal(gap.filter((t) => t.kind === "choice").length, 2);
+});
+
+test("pinyinOptions: верный, другие тоны того же слога и чтения той же длины", () => {
+  let k = 0;
+  const r = () => ((k = (k * 7 + 3) % 10) / 10);
+  const o = pinyinOptions("ni3 hao3", ["xie4 xie5", "ma1", "zai4 jian4"], r);
+  assert.equal(o.length, 4);
+  assert.ok(o.includes("ni3 hao3"));
+  assert.equal(new Set(o).size, 4);
+  assert.ok(o.every((x) => x.split(" ").length === 2));
+  assert.deepEqual(pinyinOptions("bu4/2 shi4", [], () => 0)[0].split(" ")[0].startsWith("bu"), true);
 });

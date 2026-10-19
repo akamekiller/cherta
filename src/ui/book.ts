@@ -18,7 +18,10 @@ import { openSheet, closeSheet } from "./sheet.ts";
 
 type Src = "deck" | "text";
 const LS = "cherta.book";
+type SetEdit = { skip: string[]; add: string };
 const st = { v: 2, src: "deck" as Src, deckId: "", text: "", total: 10, trace: 3, pos: {} as Record<string, number>, shuffle: true, seed: "1",
+  /** Правка набора колоды для тетради: какие иероглифы пропустить и какие добавить (колода не меняется). */
+  sets: {} as Record<string, SetEdit>,
   print: { perRow: 10, traces: 3, rowsPerChar: 1, count: 12, labels: true, all: false } };
 try {
   const saved = JSON.parse(localStorage.getItem(LS) ?? "{}");
@@ -52,8 +55,56 @@ async function loadSource(): Promise<string[]> {
   // колод нет — сразу «Свой текст», с примером, чтобы было что писать
   if (!st.deckId) { st.src = "text"; st.text ||= "你好 谢谢 中国"; save(); srcWords = []; return uniqueChars([st.text]); }
   srcWords = (await deckWords(st.deckId))?.words ?? [];
-  return uniqueChars(srcWords.map((w) => w.han));
+  return applySet(uniqueChars(srcWords.map((w) => w.han)));
 }
+
+/** Набор колоды с правками: без пропущенных, плюс добавленные. */
+function applySet(base: string[]): string[] {
+  const e = st.sets[key()];
+  return e ? applySet0(base, e) : base;
+}
+
+/** Посмотреть и изменить набор: тап по иероглифу — убрать/вернуть, поле — добавить свои. */
+async function openSetEditor() {
+  srcWords = (await deckWords(st.deckId))?.words ?? [];
+  const base = uniqueChars(srcWords.map((w) => w.han));
+  const k = key();
+  const e: SetEdit = { skip: [...(st.sets[k]?.skip ?? [])], add: st.sets[k]?.add ?? "" };
+  const draw = (root: HTMLElement) => {
+    const skip = new Set(e.skip);
+    const n = applySet0(base, e).length;
+    root.querySelector("#bs-n")!.textContent = `В тетради: ${n} ${plural(n, "иероглиф", "иероглифа", "иероглифов")}${e.skip.length ? ` · убрано ${e.skip.length}` : ""}`;
+    root.querySelector("#bs-chars")!.innerHTML = base.map((c) => `<button data-ch="${esc(c)}" aria-pressed="${!skip.has(c)}">${esc(c)}</button>`).join("");
+  };
+  openSheet(`Набор: ${deckTitle(st.deckId)}`, `<div class="stack">
+      <p class="hint" id="bs-n"></p>
+      <p class="hint">Нажмите на иероглиф, чтобы убрать его из тетради (или вернуть). Колода при этом не меняется.</p>
+      <div class="peek-chars" id="bs-chars"></div>
+      <label class="field"><span class="label">Добавить свои иероглифы</span><input id="bs-add" value="${esc(e.add)}" placeholder="Например: 机床 车间" autocomplete="off"></label>
+      <div class="row"><button class="btn" id="bs-none">Убрать все</button><button class="btn" id="bs-all">Вернуть все</button></div>
+      <button class="btn primary wide" id="bs-ok">Готово</button>
+    </div>`, (root) => {
+    draw(root);
+    root.querySelector("#bs-chars")!.addEventListener("click", (ev) => {
+      const b = (ev.target as HTMLElement).closest<HTMLButtonElement>("[data-ch]");
+      if (!b) return;
+      const c = b.dataset.ch!;
+      e.skip = e.skip.includes(c) ? e.skip.filter((x) => x !== c) : [...e.skip, c];
+      draw(root);
+    });
+    root.querySelector<HTMLInputElement>("#bs-add")!.addEventListener("input", (ev) => { e.add = (ev.target as HTMLInputElement).value; draw(root); });
+    root.querySelector("#bs-none")!.addEventListener("click", () => { e.skip = [...base]; draw(root); });
+    root.querySelector("#bs-all")!.addEventListener("click", () => { e.skip = []; draw(root); });
+    root.querySelector("#bs-ok")!.addEventListener("click", () => {
+      if (e.skip.length || e.add.trim()) st.sets[k] = { skip: e.skip, add: e.add.trim() }; else delete st.sets[k];
+      st.pos[k] = 0;
+      save();
+      closeSheet();
+      render();
+    });
+  });
+}
+const applySet0 = (base: string[], e: SetEdit) => { const skip = new Set(e.skip); return uniqueChars([base.filter((c) => !skip.has(c)).join(""), e.add]); };
 
 /** Открыть тетрадь с выбранной колодой (из меню колоды и после «+ В тетрадь»). */
 export function useBookDeck(id: string) {
@@ -88,6 +139,12 @@ async function render() {
   chars = st.shuffle && st.src === "deck" ? [...list].sort((a, b) => hashStr(st.seed + a) - hashStr(st.seed + b)) : list;
   setPickLabel("bk-src", st.src === "text" ? "Свой текст" : deckTitle(st.deckId));
   $("bk-text-field").hidden = st.src !== "text";
+  const bs = $("bk-set");
+  bs.hidden = st.src !== "deck";
+  if (st.src === "deck") {
+    const ed = st.sets[key()];
+    bs.innerHTML = `<span>Набор: ${chars.length} ${plural(chars.length, "иероглиф", "иероглифа", "иероглифов")}${ed ? " (изменён)" : ""}</span><b>Посмотреть и изменить</b>`;
+  }
   $<HTMLInputElement>("bk-text").value = st.text;
   const empty = !chars.length;
   for (const id of ["bk-pad", "bk-strip"]) $(id).hidden = empty;
@@ -98,7 +155,7 @@ async function render() {
     $("bk-han").textContent = "";
     $("bk-py").innerHTML = "";
     $("bk-ru").textContent = "";
-    $("bk-status").textContent = st.src === "text" ? "Впишите иероглифы или слова — по ним будут прописи." : "В колоде нет слов. Добавьте их кнопкой «+ В тетрадь» в карточке слова или выберите другую колоду.";
+    $("bk-status").textContent = st.src === "text" ? "Впишите иероглифы или слова — по ним будут прописи." : st.sets[key()] ? "Все иероглифы убраны из набора — откройте «Набор» и верните нужные." : "В колоде нет слов. Добавьте их кнопкой «+ В тетрадь» в карточке слова или выберите другую колоду.";
     return;
   }
   idx = Math.max(0, Math.min(chars.length - 1, st.pos[key()] ?? 0));
@@ -336,6 +393,7 @@ export function initBook() {
     w.animateCharacter({ onComplete: () => setTimeout(() => { if (my === gen && writer === w) { w.hideCharacter(); startCell(); } }, 500) });
   });
   $("bk-opts").addEventListener("click", openOptions);
+  $("bk-set").addEventListener("click", openSetEditor);
   $("bk-print").addEventListener("click", () => { if (chars.length) openPrint(); });
   window.addEventListener("afterprint", () => { $("print-area").innerHTML = ""; });
 }

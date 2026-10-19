@@ -87,13 +87,3 @@ test("pickNext: повторения вперемешку", async () => {
   assert.ok(seen.size > 3);
 });
 
-test("только повторения: без новых слов и новых навыков", () => {
-  const words = [{ id: "zh:甲" }, { id: "zh:乙" }];
-  const cards = new Map<string, Card>();
-  const get = (id: string) => cards.get(id);
-  assert.equal(pickNext(words, get, opts({ reviewOnly: true })), null);
-  cards.set("zh:甲", mk("zh:甲", "review", NOW + 86_400_000));
-  assert.equal(pickNext(words, get, opts({ reviewOnly: true })), null);
-  cards.set("zh:乙", mk("zh:乙", "review", NOW - 5));
-  assert.deepEqual(pickNext(words, get, opts({ reviewOnly: true })), { word: 1, skill: "write", fresh: null });
-});

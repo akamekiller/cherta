@@ -71,11 +71,16 @@ export type Dialog = { id: string; title: string; theme?: string; level?: number
 /** Слово урока: иероглифы, пиньинь (как в колоде), значение. */
 export type LessonWord = [string, string, string];
 /** section — раздел курса (тема, уровень), к которому относится урок: строка «### Раздел» перед уроками. */
-export type Lesson = { title: string; words: LessonWord[]; sents: Sent[]; dialogs: Dialog[]; section?: string };
+/** Грамматика урока: заголовок, объяснение (абзацы), примеры [китайский, перевод], задания на выбор (___ — пропуск). */
+export type GramX = { zh: string; ru: string; o: string[]; a: number };
+export type Gram = { title: string; text: string[]; ex: [string, string][]; x: GramX[] };
+export type Lesson = { title: string; words: LessonWord[]; sents: Sent[]; dialogs: Dialog[]; section?: string; goal?: string; grammar?: Gram[] };
 export type ExSet = { id: string; title: string; lessons: Lesson[]; level?: number; about?: string };
 export type Kind = "tr" | "gap" | "listen" | "dict" | "dialog";
 /** Задание: предложение (перевод, пропуск, аудирование), диалог или слово (узнавание: иероглифы → значение или наоборот). */
-export type Task = { kind: Exclude<Kind, "dialog">; sent: Sent; tiles?: boolean } | { kind: "dialog"; dialog: Dialog } | { kind: "word"; word: LessonWord; dir: "zh" | "ru" };
+export type Task = { kind: Exclude<Kind, "dialog">; sent: Sent; tiles?: boolean } | { kind: "dialog"; dialog: Dialog }
+  | { kind: "word"; word: LessonWord; dir: "zh" | "ru" | "py" }
+  | { kind: "choice"; x: GramX; rule: Gram };
 
 export const KINDS: { id: Kind; name: string; hint: string }[] = [
   { id: "tr", name: "Перевод", hint: "написать по-китайски рукой или с клавиатуры" },
@@ -189,6 +194,7 @@ export function parseExSet(text: string, id: string, seg: (zh: string) => string
   let lesson: Lesson | null = null;
   let dialog: Dialog | null = null;
   let section: string | undefined;
+  let gram: Gram | null = null;
   const ensureLesson = () => (lesson ??= (set.lessons.push({ title: "Без раздела", words: [], sents: [], dialogs: [], ...(section ? { section } : {}) }), set.lessons[set.lessons.length - 1]));
   const split = (l: string) => l.split(/\s*[|\t]\s*/).map((x) => x.trim());
   let n = 0;
@@ -196,7 +202,7 @@ export function parseExSet(text: string, id: string, seg: (zh: string) => string
     const line = raw.trim();
     if (!line) { dialog = null; continue; }
     if (line.startsWith("### ")) { section = line.slice(4).trim() || undefined; lesson = null; dialog = null; continue; }
-    if (line.startsWith("## ")) { lesson = { title: line.slice(3).trim(), words: [], sents: [], dialogs: [], ...(section ? { section } : {}) }; set.lessons.push(lesson); dialog = null; continue; }
+    if (line.startsWith("## ")) { gram = null; lesson = { title: line.slice(3).trim(), words: [], sents: [], dialogs: [], ...(section ? { section } : {}) }; set.lessons.push(lesson); dialog = null; continue; }
     if (line.startsWith("# ")) { set.title ||= line.slice(2).trim(); continue; }
     const meta = /^#(level|about):\s*(.*)$/i.exec(line);
     if (meta) {
@@ -204,6 +210,18 @@ export function parseExSet(text: string, id: string, seg: (zh: string) => string
       continue;
     }
     if (line.startsWith("#")) continue;
+    // теория урока: «= цель», «& правило», «% объяснение», «%e пример | перевод», «%x 我___学生。 | перевод | 是* | 有»
+    if (line.startsWith("= ")) { ensureLesson().goal = line.slice(2).trim(); dialog = null; continue; }
+    if (line.startsWith("& ")) { gram = { title: line.slice(2).trim(), text: [], ex: [], x: [] }; (ensureLesson().grammar ??= []).push(gram); dialog = null; continue; }
+    if (line.startsWith("%") && gram) {
+      if (line.startsWith("%e ")) { const [zh, ru = ""] = split(line.slice(3)); if (zh) gram.ex.push([zh, ru]); }
+      else if (line.startsWith("%x ")) {
+        const [zh, ru = "", ...opts] = split(line.slice(3));
+        const a = opts.findIndex((o) => o.endsWith("*"));
+        if (zh.includes("___") && opts.length >= 2 && a >= 0) gram.x.push({ zh, ru, o: opts.map((o) => o.replace(/\*$/, "").trim()), a });
+      } else gram.text.push(line.slice(1).trim());
+      continue;
+    }
     if (line.startsWith("+")) {
       const [han, py = "", ru = ""] = split(line.slice(1));
       if (han && HAN.test(han)) ensureLesson().words.push([han, py, ru]);
@@ -230,7 +248,7 @@ export function parseExSet(text: string, id: string, seg: (zh: string) => string
     dialog = null;
     ensureLesson().sents.push({ id: `${id}:${zhRaw}`, zh: zhRaw, ru, t: seg(zhRaw), lv: 0 });
   }
-  set.lessons = set.lessons.filter((l) => l.sents.length || l.dialogs.length || l.words.length);
+  set.lessons = set.lessons.filter((l) => l.sents.length || l.dialogs.length || l.words.length || l.grammar?.length);
   set.title ||= "Мой набор";
   return set;
 }
@@ -260,41 +278,52 @@ export function planSession(sents: Sent[], dialogs: Dialog[], kinds: Kind[], pro
 /* ======================= курсы: урок по шагам ======================= */
 
 export type StepId = "words" | "recog" | "gap" | "build" | "listen" | "dict" | "write" | "dialog";
+/** Порядок как в учебнике: теория → текст урока → упражнения от простых к сложным. Id шагов прежние (прогресс сохраняется). */
 export const STEPS: { id: StepId; name: string; hint: string }[] = [
-  { id: "words", name: "Слова урока", hint: "послушать и запомнить" },
-  { id: "recog", name: "Узнавание", hint: "иероглифы ↔ значение" },
-  { id: "gap", name: "Пропуски", hint: "вставить слово в предложение" },
+  { id: "words", name: "Теория", hint: "цель урока, новые слова, грамматика" },
+  { id: "dialog", name: "Текст урока", hint: "прочитать, послушать, ответить" },
+  { id: "recog", name: "Слова", hint: "значение, иероглифы, чтение" },
+  { id: "gap", name: "Грамматика", hint: "правила урока и пропуски" },
   { id: "build", name: "Сборка фраз", hint: "собрать перевод из слов" },
   { id: "listen", name: "Аудирование", hint: "услышать и собрать" },
   { id: "dict", name: "Диктант", hint: "услышать и написать" },
   { id: "write", name: "Перевод", hint: "написать по-китайски" },
-  { id: "dialog", name: "Диалог", hint: "прочитать и ответить" },
 ];
+/** Название шага в этом уроке: без грамматики «Теория» — это «Слова урока», «Грамматика» — «Пропуски». */
+export function stepName(id: StepId, l: Lesson): string {
+  const g = !!l.grammar?.length;
+  if (id === "words" && !g) return "Слова урока";
+  if (id === "gap" && !g) return "Пропуски";
+  return STEPS.find((s) => s.id === id)!.name;
+}
 /** Шаг засчитан, если верно не меньше этой доли заданий. */
 export const PASS = 0.7;
 
 /** Шаги, которые есть в уроке (без слов нет узнавания, без предложений — сборки и т. д.). */
 export function lessonSteps(l: Lesson): StepId[] {
   const withRu = l.sents.filter((s) => s.ru).length;
+  const gx = (l.grammar ?? []).reduce((a, g) => a + g.x.length, 0);
   const out: StepId[] = [];
-  if (l.words.length) out.push("words");
+  if (l.words.length || l.grammar?.length) out.push("words");
+  if (l.dialogs.length) out.push("dialog");
   if (l.words.length >= 2) out.push("recog");
-  if (l.sents.length >= 2) out.push("gap");
+  if (l.sents.length >= 2 || gx >= 2) out.push("gap");
   if (withRu >= 2) out.push("build");
   if (l.sents.length >= 2) out.push("listen");
   if (l.sents.length >= 2) out.push("dict");
   if (withRu >= 2) out.push("write");
-  if (l.dialogs.length) out.push("dialog");
   return out;
 }
 
-/** Открыт ли шаг: все предыдущие шаги урока пройдены. */
+/** Теория необязательна: её можно пропустить и открыть в любой момент. */
+const required = (s: StepId) => s !== "words";
+/** Открыт ли шаг: все предыдущие обязательные шаги урока пройдены. */
 export function stepOpen(steps: StepId[], best: Partial<Record<StepId, number>>, i: number): boolean {
-  return steps.slice(0, i).every((s) => (best[s] ?? 0) >= PASS);
+  return steps.slice(0, i).filter(required).every((s) => (best[s] ?? 0) >= PASS);
 }
 
-/** Урок пройден: все шаги засчитаны. */
-export const lessonDone = (steps: StepId[], best: Partial<Record<StepId, number>>) => steps.length > 0 && steps.every((s) => (best[s] ?? 0) >= PASS);
+/** Урок пройден: все обязательные шаги засчитаны. */
+export const lessonDone = (steps: StepId[], best: Partial<Record<StepId, number>>) => steps.some(required) ? steps.filter(required).every((s) => (best[s] ?? 0) >= PASS) : steps.length > 0 && steps.every((s) => (best[s] ?? 0) >= PASS);
 
 /** Короткое значение для вариантов ответа: до первой «;», без пометок в скобках. */
 export function shortRu(ru: string): string {
@@ -320,6 +349,29 @@ export function wordOptions(word: LessonWord, lesson: LessonWord[], course: Less
 }
 
 
+/**
+ * Варианты чтения слова (пиньинь с цифрами): верный, тот же слог с другими тонами и чтения других слов той же длины.
+ * Возвращает 4 строки (или меньше, если не из чего).
+ */
+export function pinyinOptions(py: string, others: string[], rnd: () => number): string[] {
+  const norm = (p: string) => p.trim().toLowerCase().split(/\s+/).map((x) => x.split("/")[0]).join(" ");
+  const right = norm(py);
+  const syl = right.split(" ");
+  const opts = [right];
+  const add = (o: string) => { if (opts.length < 4 && !opts.includes(o)) opts.push(o); };
+  // другие тоны: меняем тон одного слога (или двух)
+  for (let k = 0; k < 12 && opts.length < 3; k++) {
+    const i = Math.floor(rnd() * syl.length);
+    const m = /^(.*?)([1-5])$/.exec(syl[i]);
+    if (!m) break;
+    const t = 1 + Math.floor(rnd() * 4);
+    if (String(t) === m[2]) continue;
+    add(syl.map((x, j) => (j === i ? m[1] + t : x)).join(" "));
+  }
+  for (const o of shuffled(others.map(norm).filter((o) => o.split(" ").length === syl.length), rnd)) add(o);
+  return shuffled(opts, rnd);
+}
+
 /** Задания шага урока. Предложения — сначала новые и с ошибками (prog), слова — в обе стороны. */
 export function stepTasks(step: StepId, l: Lesson, prog: ExProgress, rnd: () => number): Task[] {
   // вперемешку: сначала новые и с ошибками (pickLesson), но внутри — в случайном порядке
@@ -327,19 +379,29 @@ export function stepTasks(step: StepId, l: Lesson, prog: ExProgress, rnd: () => 
   const withRu = l.sents.filter((s) => s.ru);
   switch (step) {
     case "recog": {
+      // разные виды вперемешку: значение, иероглифы, чтение (пиньинь)
       const ws = shuffled(l.words, rnd).slice(0, 8);
       const zh = ws.map((w): Task => ({ kind: "word", word: w, dir: "zh" }));
-      const ru = shuffled(ws, rnd).slice(0, Math.min(ws.length, 6)).map((w): Task => ({ kind: "word", word: w, dir: "ru" }));
-      return [...zh, ...ru];
+      const ru = shuffled(ws, rnd).slice(0, Math.min(ws.length, 5)).map((w): Task => ({ kind: "word", word: w, dir: "ru" }));
+      const py = shuffled(ws.filter((w) => w[1]), rnd).slice(0, 3).map((w): Task => ({ kind: "word", word: w, dir: "py" }));
+      return shuffled([...zh, ...ru, ...py], rnd);
     }
-    case "gap": return order(l.sents, 8).map((s) => ({ kind: "gap", sent: s }));
+    case "gap": {
+      const gx = gramTasks(l, rnd, 6);
+      return shuffled([...gx, ...order(l.sents, gx.length ? 4 : 8).map((s): Task => ({ kind: "gap", sent: s }))], rnd);
+    }
     case "build": return order(withRu, 6).map((s) => ({ kind: "tr", sent: s, tiles: true }));
     case "listen": return order(l.sents, 6).map((s) => ({ kind: "listen", sent: s }));
     case "dict": return order(l.sents, 5).map((s) => ({ kind: "dict", sent: s }));
-    case "write": return order(withRu, 5).map((s) => ({ kind: "tr", sent: s, tiles: false }));
+    case "write": return [...order(withRu, 5).map((s): Task => ({ kind: "tr", sent: s, tiles: false })), ...gramTasks(l, rnd, 2)];
     case "dialog": return l.dialogs.map((d) => ({ kind: "dialog", dialog: d }));
     default: return [];
   }
+}
+
+/** Задания на грамматику урока (выбор пропущенного), не больше n. */
+export function gramTasks(l: Lesson, rnd: () => number, n: number): Task[] {
+  return shuffled((l.grammar ?? []).flatMap((g) => g.x.map((x): Task => ({ kind: "choice", x, rule: g }))), rnd).slice(0, n);
 }
 
 /** Повторение пройденного: из нескольких уроков — слабые и давние предложения разными видами, плюс слова. */
@@ -356,6 +418,7 @@ export function reviewTasks(lessons: Lesson[], prog: ExProgress, n: number, rnd:
     else if (kind === "build" || kind === "write") out.push({ kind: "tr", sent: s, tiles: kind === "build" });
     else out.push({ kind, sent: s });
   });
-  for (const w of shuffled(words, rnd).slice(0, n - out.length)) out.push({ kind: "word", word: w, dir: rnd() < 0.5 ? "zh" : "ru" });
+  for (const l of shuffled(lessons, rnd).slice(0, 2)) out.push(...gramTasks(l, rnd, 1));
+  for (const w of shuffled(words, rnd).slice(0, Math.max(0, n - out.length))) out.push({ kind: "word", word: w, dir: rnd() < 0.5 ? "zh" : "ru" });
   return shuffled(out, rnd);
 }

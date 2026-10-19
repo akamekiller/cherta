@@ -13,14 +13,28 @@ import { onShow, onLeave } from "./nav.ts";
 import { openEntry } from "./entry.ts";
 import { wordByHan } from "./lookup.ts";
 import { openAddToDeck } from "./editor.ts";
+import { openSheet, closeSheet, confirmInline } from "./sheet.ts";
+import * as store from "../store.ts";
+import { parseTexts, emptyLib, inLib, type ReadText, type ReadLib } from "../core/reading.ts";
 
-type Text = { id: string; level: number; title: string; words: [string, string, string][]; lines: [string, string][]; q: { q: string; o: string[]; a: number }[] };
+type Text = ReadText;
 
+/** Вид (пиньинь, перевод) и свёрнутые уровни — только на этом устройстве. Библиотека и результаты — meta `reading`. */
 const LS = "cherta.read";
-const ui = { py: true, ru: false, done: {} as Record<string, number> };
+const ui = { py: true, ru: false, fold: {} as Record<string, boolean>, done: undefined as Record<string, number> | undefined };
 try { Object.assign(ui, JSON.parse(localStorage.getItem(LS) ?? "{}")); } catch { /* */ }
-const save = () => { try { localStorage.setItem(LS, JSON.stringify(ui)); } catch { /* */ } };
+const save = () => { try { const { done: _d, ...rest } = ui; localStorage.setItem(LS, JSON.stringify(rest)); } catch { /* */ } };
 
+let lib: ReadLib = emptyLib();
+async function loadLib() {
+  lib = { ...emptyLib(), ...((await store.getMeta<ReadLib>("reading")) ?? {}) };
+  // раньше результаты хранились в localStorage — переносим один раз
+  if (ui.done) { for (const [k, v] of Object.entries(ui.done)) lib.done[k] = Math.max(v, lib.done[k] ?? 0); ui.done = undefined; save(); await saveLib(); }
+}
+const saveLib = () => store.setMeta("reading", lib);
+const mine = (): Text[] => [...builtin.filter((t) => inLib(lib, t.id)), ...lib.own];
+
+let builtin: Text[] = [];
 let texts: Text[] = [];
 let cur: Text | null = null;
 let answers: (number | null)[] = [];
@@ -30,7 +44,9 @@ let dict: DictIndex | null = null;
 const extraPy = new Map<string, string>();
 
 async function ensure() {
-  if (!texts.length) texts = await (await fetch("data/texts.json")).json();
+  if (!builtin.length) builtin = await (await fetch("data/texts.json")).json();
+  await loadLib();
+  texts = mine();
   if (!hsk) {
     hsk = await hskLookup();
     for (const d of app.builtinDecks) if (/^hsk[23]-/.test(d.id)) for (const w of (await deckById(d.id)).words) lex.add(w.han);
@@ -47,18 +63,88 @@ function pyOf(w: string): string {
 const PLAY = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>`;
 const CHEV = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
 
+const lvlName = (lv: number) => (lv ? `Уровень ${lv} · HSK ${lv}` : "Без уровня");
+const TRASH = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>`;
+
 function renderList() {
   $("rd-list").hidden = false;
   $("rd-text").hidden = true;
-  const levels = [...new Set(texts.map((t) => t.level))].sort();
-  $("rd-list").innerHTML = `<p class="hint">Короткие тексты из слов своего уровня. Нажмите на слово — перевод и «в колоду».</p>`
+  texts = mine();
+  const tools = `<div class="tools"><button class="btn small primary" id="rd-cat">Добавить из готовых</button><button class="btn small" id="rd-file">Загрузить файл</button><button class="btn small" id="rd-help">Формат файла</button></div>`;
+  if (!texts.length) {
+    $("rd-list").innerHTML = `<div class="empty-start panel"><span class="han-big" aria-hidden="true">读</span><h2>Текстов пока нет</h2>
+      <p class="hint">Добавьте готовые тексты по своему уровню или загрузите свои (например, из учебника). Нажатие на слово в тексте — перевод и «в колоду».</p></div>${tools}`;
+    return;
+  }
+  const levels = [...new Set(texts.map((t) => t.level))].sort((x, y) => (x || 99) - (y || 99));
+  const unreadLv = levels.find((lv) => texts.some((t) => t.level === lv && lib.done[t.id] === undefined));
+  $("rd-list").innerHTML = tools + levels.map((lv) => {
+    const list = texts.filter((t) => t.level === lv);
+    const read = list.filter((t) => lib.done[t.id] !== undefined).length;
+    const key = `lv${lv}`;
+    const open = ui.fold[key] ?? (levels.length <= 2 || lv === unreadLv);
+    return `<button class="fold-head" data-rfold="${key}" aria-expanded="${open}"><span>${esc(lvlName(lv))}</span><small>${read}/${list.length}</small>${CHEV}</button>
+      <div class="deck-list" ${open ? "" : "hidden"}>${list.map((t) => `<div class="pick-row"><button class="deck-opt" data-text="${esc(t.id)}"><span>${esc(t.title)}<small>${t.lines.length} ${plural(t.lines.length, "предложение", "предложения", "предложений")}${t.words.length ? ` · новых слов: ${t.words.length}` : ""}${t.id.startsWith("o-") ? " · свой" : ""}</small></span>${lib.done[t.id] !== undefined ? `<span class="pick-btn on">✓</span>` : ""}</button><button class="pick-eye" data-rdel="${esc(t.id)}" aria-label="Убрать «${esc(t.title)}»">${TRASH}</button></div>`).join("")}</div>`;
+  }).join("") + `<div class="confirm" id="rd-confirm" hidden></div>`;
+}
+
+/** Каталог готовых текстов: по уровням, «+» — добавить, «Добавить все» на уровень. */
+function openCatalog() {
+  const levels = [...new Set(builtin.map((t) => t.level))].sort();
+  const row = (t: Text) => `<button class="deck-opt" data-cadd="${esc(t.id)}" aria-pressed="${inLib(lib, t.id)}"><span>${esc(t.title)}<small>${t.lines.length} ${plural(t.lines.length, "предложение", "предложения", "предложений")}${t.q.length ? ` · вопросов: ${t.q.length}` : ""}</small></span><span class="pick-btn ${inLib(lib, t.id) ? "on" : ""}">${inLib(lib, t.id) ? "✓" : "+"}</span></button>`;
+  const body = `<p class="hint">Тексты написаны для приложения: в тексте уровня N только слова HSK 1…N (старый стандарт, как в учебниках) и несколько новых слов с переводом.</p>`
     + levels.map((lv) => {
-      const list = texts.filter((t) => t.level === lv);
-      const read = list.filter((t) => ui.done[t.id] !== undefined).length;
-      return `<h3 class="grp-title"><span>Уровень ${lv} · HSK ${lv}</span><span class="grp-n">${read}/${list.length}</span></h3>
-        <div class="deck-list">${list.map((t) => `<button class="deck-opt" data-text="${t.id}"><span>${esc(t.title)}<small>${t.lines.length} ${plural(t.lines.length, "предложение", "предложения", "предложений")}${t.words.length ? ` · новых слов: ${t.words.length}` : ""}</small></span>${ui.done[t.id] !== undefined ? `<span class="pick-btn on">✓</span>` : `<span class="pick-btn">→</span>`}</button>`).join("")}</div>`;
-    }).join("");
-  void CHEV;
+      const list = builtin.filter((t) => t.level === lv);
+      return `<div class="cat-lv"><h3 class="grp-title"><span>${esc(lvlName(lv))}</span><button class="btn small" data-call="${lv}">Добавить все</button></h3><div class="deck-list">${list.map(row).join("")}</div></div>`;
+    }).join("") + `<button class="btn primary wide" id="rc-ok">Готово</button>`;
+  openSheet("Готовые тексты", `<div class="pick-decks">${body}</div>`, (root) => {
+    root.addEventListener("click", async (e) => {
+      const t = e.target as HTMLElement;
+      if (t.closest("#rc-ok")) { closeSheet(); renderList(); return; }
+      const all = t.closest<HTMLButtonElement>("[data-call]");
+      const one = t.closest<HTMLButtonElement>("[data-cadd]");
+      if (!all && !one) return;
+      const ids = all ? builtin.filter((x) => x.level === Number(all.dataset.call)).map((x) => x.id) : [one!.dataset.cadd!];
+      const on = all ? true : !inLib(lib, ids[0]);
+      for (const id of ids) lib.lib[id] = on ? Date.now() : -Date.now();
+      await saveLib();
+      for (const id of ids) {
+        const b = root.querySelector<HTMLElement>(`[data-cadd="${CSS.escape(id)}"]`);
+        if (b) b.outerHTML = row(builtin.find((x) => x.id === id)!);
+      }
+    });
+  });
+}
+
+const FORMAT_HELP = `<div class="stack"><p>Обычный текстовый файл (.txt, UTF-8). Можно просто вставить китайский текст — он разделится на предложения. Или подробно:</p>
+<pre class="fmt">=== 2 | Название текста
++ 工厂 | gong1 chang3 | завод
+我在工厂工作。 | Я работаю на заводе.
+工厂离我家不远。 | Завод недалеко от дома.
+? Где работает автор? | В школе | На заводе* | В банке</pre>
+<p class="hint">«=== уровень | название» — начало текста (в одном файле может быть много текстов), «+» — новое слово с пиньинем и переводом, «китайский | перевод» — строка (перевод можно не писать), «?» — вопрос, верный ответ со звёздочкой.</p></div>`;
+
+async function loadFile(f: File) {
+  const list = parseTexts(await f.text(), `o-${Date.now().toString(36)}`);
+  if (!list.length) { openSheet("Загрузка текстов", `<p class="note danger">В файле не нашлось китайского текста.</p>${FORMAT_HELP}`); return; }
+  const fallback = f.name.replace(/\.[^.]+$/, "");
+  for (const t of list) {
+    if (t.title === "Мой текст" && list.length === 1) t.title = fallback;
+    lib.own.push(t);
+    lib.lib[t.id] = Date.now();
+  }
+  await saveLib();
+  renderList();
+  openSheet("Загрузка текстов", `<p>Добавлено ${list.length} ${plural(list.length, "текст", "текста", "текстов")}: ${list.slice(0, 5).map((t) => `«${esc(t.title)}»`).join(", ")}${list.length > 5 ? "…" : ""}</p><button class="btn primary wide" id="rl-ok">Хорошо</button>`, (root) => {
+    root.querySelector("#rl-ok")!.addEventListener("click", closeSheet);
+  });
+}
+
+async function removeText(id: string) {
+  lib.lib[id] = -Date.now();
+  lib.own = lib.own.filter((t) => t.id !== id);
+  await saveLib();
+  renderList();
 }
 
 function tok(t: string) {
@@ -87,7 +173,7 @@ function renderText() {
     return out.join("");
   };
   $("rd-body").innerHTML = t.lines.map(([zh, ru], i) => `<div class="rd-line"><div class="rd-zh">${units(zh)}</div><button class="icon-btn small-ic" data-line="${i}" aria-label="Послушать">${PLAY}</button>${ui.ru ? `<div class="rd-tr">${esc(ru)}</div>` : ""}</div>`).join("");
-  const done = ui.done[t.id];
+  const done = lib.done[t.id];
   $("rd-q").innerHTML = t.q.length ? `<h3 class="grp-title"><span>Вопросы</span></h3>${t.q.map((q, i) => `<div class="q"><div class="q-t">${esc(q.q)}</div><div class="q-o">${q.o.map((o, j) => `<button class="chip-btn" data-q="${i}" data-o="${j}" aria-pressed="false">${esc(o)}</button>`).join("")}</div></div>`).join("")}
     <button class="btn primary wide" id="rd-check" disabled>Проверить</button><div id="rd-res"></div>` : `<button class="btn primary wide" id="rd-check">Прочитал</button>`;
   if (done !== undefined) $("rd-res")?.insertAdjacentHTML("beforeend", `<p class="hint">Уже прочитано: ${Math.round(done * 100)}% верных ответов.</p>`);
@@ -120,8 +206,8 @@ function check() {
     });
   });
   const score = t.q.length ? good / t.q.length : 1;
-  ui.done[t.id] = Math.max(ui.done[t.id] ?? 0, score);
-  save();
+  lib.done[t.id] = Math.max(lib.done[t.id] ?? 0, score);
+  void saveLib();
   $<HTMLButtonElement>("rd-check").disabled = true;
   const res = document.getElementById("rd-res");
   if (res) res.innerHTML = `<div class="chip ${score === 1 ? "ok" : score ? "mid" : "no"}">Верно ${good} из ${t.q.length}</div>`;
@@ -135,8 +221,35 @@ export function initReading() {
     if (cur) renderText(); else renderList();
   });
   onLeave("read", () => { try { speechSynthesis.cancel(); } catch { /* */ } });
+  $("rd-file-in").addEventListener("change", (e) => {
+    const inp = e.target as HTMLInputElement;
+    const f = inp.files?.[0];
+    inp.value = "";
+    if (f) loadFile(f);
+  });
   $("rd-list").addEventListener("click", (e) => {
-    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-text]");
+    const t0 = e.target as HTMLElement;
+    if (t0.closest("#rd-cat")) { openCatalog(); return; }
+    if (t0.closest("#rd-file")) { $("rd-file-in").click(); return; }
+    if (t0.closest("#rd-help")) { openSheet("Формат файла с текстами", FORMAT_HELP); return; }
+    const f = t0.closest<HTMLButtonElement>("[data-rfold]");
+    if (f) {
+      const open = f.getAttribute("aria-expanded") !== "true";
+      f.setAttribute("aria-expanded", String(open));
+      (f.nextElementSibling as HTMLElement).hidden = !open;
+      ui.fold[f.dataset.rfold!] = open;
+      save();
+      return;
+    }
+    const del = t0.closest<HTMLButtonElement>("[data-rdel]");
+    if (del) {
+      const id = del.dataset.rdel!;
+      const tt = texts.find((x) => x.id === id);
+      confirmInline($("rd-confirm"), id.startsWith("o-") ? `Удалить свой текст «${tt?.title ?? ""}»?` : `Убрать «${tt?.title ?? ""}» из списка? Вернуть можно в «Готовых».`, id.startsWith("o-") ? "Удалить" : "Убрать", () => removeText(id));
+      $("rd-confirm").scrollIntoView({ block: "nearest" });
+      return;
+    }
+    const b = t0.closest<HTMLButtonElement>("[data-text]");
     if (!b) return;
     cur = texts.find((t) => t.id === b.dataset.text) ?? null;
     extraPy.clear();

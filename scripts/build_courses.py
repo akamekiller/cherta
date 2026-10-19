@@ -78,9 +78,9 @@ def composed(t, known):
     return ok[len(t)]
 
 
-def read_text(n):
-    """Свои предложения и диалоги по урокам: {номер урока: [строки]}."""
-    path = os.path.join(os.path.dirname(__file__), "courses", f"hsk{n}-text.txt")
+def read_text(n, kind="text"):
+    """Свои предложения и диалоги (kind="text") или теория (kind="grammar") по урокам: {номер урока: [строки]}."""
+    path = os.path.join(os.path.dirname(__file__), "courses", f"hsk{n}-{kind}.txt")
     if not os.path.exists(path):
         return {}
     out, cur = {}, None
@@ -104,6 +104,12 @@ def zh_of(line):
     return zh if HAN.search(zh) else None
 
 
+def rules(n):
+    """«41 правило», «3 правила», «39 правил»."""
+    w = "правило" if n % 10 == 1 and n % 100 != 11 else "правила" if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14 else "правил"
+    return f"{n} {w}"
+
+
 def main():
     lex = lexicon()
     words_info = {}
@@ -120,6 +126,7 @@ def main():
     for n in range(1, 4):
         title, lessons, sections = load(n)
         text = read_text(n)
+        grammar = read_text(n, "grammar")
         lines = [f"# {title}", f"#level: {n}",
                  f"#about: {len(lessons)} уроков по темам, {sum(len(w) for _, w in lessons)} слов старого HSK {n}. Предложения — свои и из базы примеров 大БКРС, только из пройденных слов.", ""]
         for i, (lt, ws) in enumerate(lessons, 1):
@@ -130,6 +137,29 @@ def main():
             for w in ws:
                 py, ru = words_info.get(w) or EXTRA[w]
                 lines.append(f"+ {w} | {py} | {ru}")
+            # теория урока: цель, правила, примеры, задания на выбор (примеры — только из пройденных слов)
+            gl = [l for l in grammar.get(i, []) if l.strip()]
+            for l in gl:
+                zh = None
+                if l.startswith("%e "):
+                    zh = l[3:].split("|")[0].strip()
+                elif l.startswith("%x "):
+                    parts = [x.strip() for x in l[3:].split("|")]
+                    right = next((o[:-1] for o in parts[2:] if o.endswith("*")), None)
+                    if "___" not in parts[0] or right is None:
+                        problems += 1
+                        print(f"HSK{n} урок {i}: задание без ___ или без верного ответа: «{parts[0]}»")
+                        continue
+                    zh = parts[0].replace("___", right)
+                if zh:
+                    ok = known | NAMES | set(COMPOSED)
+                    # кусок, который целиком складывается из известных слов, понятен (看中国电影 = 看 + 中国 + 电影)
+                    runs = re.findall(r"[\u4e00-\u9fff]+", zh)
+                    bad = [t for r in runs if not composed(r, ok) for t in segment(r, lex) if t not in ok and not composed(t, ok)]
+                    if bad:
+                        problems += 1
+                        print(f"HSK{n} урок {i} (теория): незнакомые слова {' '.join(bad)} в «{zh}»")
+            lines += gl
             own = text.get(i, [])
             # проверка своих текстов: все слова должны быть уже пройдены
             for l in own:
@@ -174,8 +204,9 @@ def main():
         open(os.path.join(ROOT, "data", "courses", fname), "w", encoding="utf8", newline="\n").write("\n".join(lines) + "\n")
         index.append({"id": f"hsk{n}", "file": fname, "title": title, "level": n, "lessons": len(lessons),
                       "words": sum(len(w) for _, w in lessons),
-                      "about": f"Для начинающих: {len(lessons)} уроков по темам, {sum(len(w) for _, w in lessons)} слов." if n == 1 else
-                               f"{len(lessons)} уроков по темам, {sum(len(w) for _, w in lessons)} слов. Продолжение курса HSK {n - 1}."})
+                      "about": (f"Для начинающих: {len(lessons)} уроков, {sum(len(w) for _, w in lessons)} слов" if n == 1 else
+                                f"{len(lessons)} уроков, {sum(len(w) for _, w in lessons)} слов, продолжение курса HSK {n - 1}")
+                               + f". В каждом уроке — теория с грамматикой ({rules(sum(1 for ls in grammar.values() for l in ls if l.startswith("& ")))} на курс), текст урока и задания от простых к сложным."})
     index.append(build_life(corpus, toks, known, used))
     index.append(build_own("eng"))
     json.dump(index, open(os.path.join(ROOT, "data", "courses", "index.json"), "w", encoding="utf8"), ensure_ascii=False, indent=1)

@@ -11,6 +11,7 @@ import { initStats } from "./ui/stats.ts";
 import { initExercise } from "./ui/exercise.ts";
 import { initTones } from "./ui/tones.ts";
 import { initReading } from "./ui/reading.ts";
+import { initHsk } from "./ui/hsk.ts";
 import { initSync, autoSync } from "./ui/sync.ts";
 import { initRemind } from "./ui/remind.ts";
 import { initSettings, penWriter } from "./ui/settings.ts";
@@ -32,6 +33,7 @@ async function boot() {
   initExercise();
   initTones();
   initReading();
+  initHsk();
   initSettings();
   try {
     await init();

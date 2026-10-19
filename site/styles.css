@@ -764,3 +764,66 @@ html{scrollbar-gutter:stable}
 #wh-theme:empty,#wh-key:empty{display:none}
 #wh-themes .chip-btn[hidden]{display:none}
 .chip-btn.more{color:var(--jade);border-style:dashed}
+/* примеры в карточке слова (как в Trainchinese): слово выделено, пиньинь, ▶ */
+.ex-tools{display:flex;justify-content:space-between;align-items:center;padding-bottom:6px}
+.ex-row{display:flex;align-items:flex-start;gap:8px}
+.ex-row .ex-zh{flex:1;min-width:0}
+.ex-hl{color:var(--jade);font-weight:600}
+.ex-py{font:400 13px/1.4 var(--f-ui);color:var(--jade);opacity:.85;overflow-wrap:anywhere}
+#d-ex-py[aria-pressed="false"]{opacity:.6;text-decoration:line-through}
+/* Экзамен HSK */
+.hk-card{display:flex;flex-direction:column;gap:2px;text-align:left;border:1px solid var(--line);cursor:pointer;color:var(--ink);font:inherit;width:100%}
+.hk-card b{font:600 17px var(--f-ui)}
+.hk-card small{color:var(--muted);font-size:13px}
+.hk-card .zh,.hk-instr .zh{font-family:var(--f-han);color:var(--muted);font-weight:400}
+.hk-secs{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.hk-hist{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.hk-h{display:flex;justify-content:space-between;gap:8px;padding:10px 12px;border-top:1px solid var(--line);font-size:14px}
+.hk-h:first-child{border-top:0}
+.hk-h b.ok,.hk-total.ok b{color:var(--good)}.hk-h b.no,.hk-total.no b{color:var(--bad, #c0392b)}
+.hk-timer{margin-left:auto;font:600 14px var(--f-mono);color:var(--muted)}
+.hk-timer.low{color:var(--bad, #c0392b)}
+.hk-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.hk-instr{margin:2px 0 6px;font-size:14.5px}
+.hk-audio .btn{display:inline-flex;align-items:center;gap:8px}
+.hk-audio .btn svg{width:16px;height:16px}
+.hk-audio small{color:var(--muted);font-size:12px}
+.hk-pic{font-size:84px;line-height:1.1;text-align:center;padding:6px 0}
+.hk-text{font:400 22px/1.7 var(--f-han);overflow-wrap:anywhere}
+.hk-q{font:500 19px/1.6 var(--f-han);margin-top:4px}
+.hk-text ruby,.hk-q ruby,.hk-opt ruby{ruby-position:over}
+.hk-text rt,.hk-q rt,.hk-opt rt{font:500 11px var(--f-ui)}
+.hk-opts{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.hk-opts.pics{display:grid;grid-template-columns:repeat(3,1fr)}
+.hk-opts.tf{display:grid;grid-template-columns:1fr 1fr}
+.hk-opt{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--sheet);color:var(--ink);font:inherit;cursor:pointer;text-align:left}
+.hk-opts.pics .hk-opt{flex-direction:column;gap:2px;padding:8px 4px}
+.hk-opts.pics .hk-o{font-size:52px;line-height:1.15}
+.hk-opts.tf .hk-opt{justify-content:center;font-weight:600}
+.hk-l{font:600 13px var(--f-mono);color:var(--muted)}
+.hk-o{font:400 19px/1.5 var(--f-han)}
+.hk-opts.tf .hk-o{font:600 15px var(--f-ui)}
+.hk-opt[aria-pressed="true"]{border-color:var(--jade);background:var(--jade-soft)}
+.hk-opt.right{border-color:var(--good);background:color-mix(in srgb,var(--good) 15%,transparent)}
+.hk-opt.wrong{border-color:var(--bad, #c0392b);background:color-mix(in srgb,var(--bad, #c0392b) 12%,transparent)}
+.hk-blank{display:inline-flex;flex-direction:column;align-items:center;min-width:2.2em;margin:0 3px;border-bottom:2px solid var(--jade);vertical-align:bottom;line-height:1.2}
+.hk-blank small{font:500 12px var(--f-ui);color:var(--jade)}
+.hk-ans{min-height:52px}
+.hk-rev{margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--paper);display:flex;flex-direction:column;gap:6px;font-size:14px}
+.hk-tr .zh,.hk-wq .zh{font-family:var(--f-han);font-size:16px}
+.hk-ru{color:var(--muted)}
+.hk-result{display:flex;flex-direction:column;gap:8px}
+.hk-total{display:flex;align-items:baseline;justify-content:center;gap:6px}
+.hk-total b{font:700 44px var(--f-ui)}
+.hk-total span{color:var(--muted)}
+.hk-sec{display:grid;grid-template-columns:90px 1fr 34px 40px;align-items:center;gap:8px;font-size:14px}
+.hk-sec small{color:var(--muted)}
+.hk-wrong{display:flex;flex-direction:column;gap:4px;padding:10px 0;border-top:1px solid var(--line)}
+.hk-wq{display:flex;flex-direction:column;gap:3px;font-size:14px}
+.hk-wq .no{color:var(--bad, #c0392b)}
+.hk-mini{font-size:32px}
+.hk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:6px}
+.hk-cell{height:40px;border:1px solid var(--line);border-radius:8px;background:var(--sheet);color:var(--ink);font:600 13px var(--f-mono);cursor:pointer}
+.hk-cell.on{background:var(--jade-soft);border-color:var(--jade)}
+.hk-cell.cur{outline:2px solid var(--jade)}
+#hk-card .grp-title{position:static;background:none;margin-top:6px}

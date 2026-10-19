@@ -55,6 +55,10 @@ writeFileSync(join(out, "data/dialogs.json"), JSON.stringify(JSON.parse(readFile
 writeFileSync(join(out, "data/texts.json"), JSON.stringify(JSON.parse(readFileSync(join(root, "data/texts.json"), "utf8"))));
 // Темы готовых колод — уроки по словам (python scripts/build_themes.py → data/themes.json)
 writeFileSync(join(out, "data/themes.json"), readFileSync(join(root, "data/themes.json"), "utf8"));
+// Экзамен HSK: банк заданий (python scripts/build_hsk.py → data/hsk/)
+mkdirSync(join(out, "data/hsk"), { recursive: true });
+const hskIndex = JSON.parse(readFileSync(join(root, "data/hsk/index.json"), "utf8"));
+for (const x of hskIndex) writeFileSync(join(out, "data/hsk", x.file), readFileSync(join(root, "data/hsk", x.file), "utf8"));
 // Встроенные курсы упражнений (python scripts/build_courses.py → data/courses)
 const coursesOut = join(out, "data/courses");
 mkdirSync(coursesOut, { recursive: true });
@@ -70,7 +74,7 @@ if (!existsSync(join(out, "data/strokes/00.json"))) {
 // 6. Service worker со списком файлов оболочки
 const shell = ["./", "index.html", "app.js", "styles.css", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png",
   "data/decks/index.json", ...decks.map((d) => `data/decks/${d.id}.json`),
-  "data/dialogs.json", "data/texts.json", "data/themes.json", "data/decomp.json", "data/courses/index.json", ...courses.map((c) => `data/courses/${c.file}`)];
+  "data/dialogs.json", "data/texts.json", "data/themes.json", ...hskIndex.map((x) => `data/hsk/${x.file}`), "data/decomp.json", "data/courses/index.json", ...courses.map((c) => `data/courses/${c.file}`)];
 writeFileSync(join(out, "sw.js"), readFileSync(join(root, "static/sw.js"), "utf8")
   .replace("__VERSION__", VERSION).replace("__SHELL_FILES__", JSON.stringify(shell)));
 writeFileSync(join(out, ".nojekyll"), "");

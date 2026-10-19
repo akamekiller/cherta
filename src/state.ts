@@ -576,6 +576,21 @@ export async function dictArticle(han: string): Promise<DictArticle | null> {
   return (await p)[han] ?? null;
 }
 
+/** Примеры к слову из базы 大БКРС (dict/x/, build_wordex.py): [[китайский, русский], …]; нет данных — пусто. */
+const exShards = new Map<number, Promise<Record<string, [string, string][]>>>();
+export async function dictWordEx(han: string): Promise<[string, string][]> {
+  const m = await loadDictMeta();
+  if (!(m as { wordex?: number }).wordex) return [];
+  const n = dictShardOf(han, m.shards);
+  let p = exShards.get(n);
+  if (!p) {
+    p = fetch(`${dictBase}x/${shardFile(n)}?v=${m.v}`).then((r) => (r.ok ? r.json() : {}));
+    p.catch(() => exShards.delete(n));
+    exShards.set(n, p);
+  }
+  try { return (await p)[han] ?? []; } catch { return []; }
+}
+
 /** Сколько карточек пройдено сегодня. */
 export const todayCount = () => app.days.get(dayOf(Date.now()))?.count ?? 0;
 

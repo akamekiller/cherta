@@ -181,9 +181,13 @@ def write_meta(out, extra):
     """meta.json: версия = хэш всех файлов папки (кроме самой meta). По ней приложение и service worker
     понимают, что данные пересобраны. Вызывается и из build_examples.py после ex.json."""
     h = hashlib.sha1()
-    for f in sorted(os.listdir(out)):
-        if f != "meta.json":
-            h.update(open(os.path.join(out, f), "rb").read())
+    # все файлы, включая подпапки (x/ — примеры к словам)
+    for dirpath, dirs, files in sorted(os.walk(out)):
+        dirs.sort()
+        for f in sorted(files):
+            if f != "meta.json" or dirpath != out:
+                h.update(os.path.relpath(os.path.join(dirpath, f), out).encode())
+                h.update(open(os.path.join(dirpath, f), "rb").read())
     path = os.path.join(out, "meta.json")
     old = json.load(open(path, encoding="utf8")) if os.path.exists(path) else {}
     with open(path, "w", encoding="utf8") as f:

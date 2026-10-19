@@ -20,7 +20,7 @@ $meta = Get-Content (Join-Path $dict "meta.json") -Raw | ConvertFrom-Json
 $tmp = Join-Path $env:TEMP "cherta-dict-publish"
 if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
 New-Item -ItemType Directory $tmp | Out-Null
-Copy-Item (Join-Path $dict "*") $tmp
+Copy-Item (Join-Path $dict "*") $tmp -Recurse
 New-Item -ItemType File (Join-Path $tmp ".nojekyll") | Out-Null
 @"
 # Данные словаря для «Черты»

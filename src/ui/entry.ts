@@ -1,5 +1,5 @@
 /** Карточка слова: шапка (слово, пиньинь, кратко, статус) и вкладки Значения · Примеры · Слова · Черты. */
-import { cardOf, words, isHidden, dictArticle } from "../state.ts";
+import { cardOf, words, isHidden, dictArticle, dictWordEx } from "../state.ts";
 import { splitArticle, wordsWithChar, countWithChar, pyReadings, safeHtml, type ArticleParts, type CharMode } from "../core/dict.ts";
 import type { Word } from "../core/deck.ts";
 import { formatGap } from "../core/fsrs.ts";
@@ -94,31 +94,42 @@ function setTab(t: Tab) {
 const SENSES_SHOWN = 12;
 const EX_SHOWN = 8;
 
+/** Примеры вкладки: из статьи (с пометкой значения) и из базы примеров — как в Trainchinese, у почти каждого слова. */
+type Ex = { zh: string; tr: string; html: boolean; sense?: string | null };
+let exList: Ex[] = [];
+const EXPY = "cherta.expy";
+let exPy = (() => { try { return localStorage.getItem(EXPY) !== "0"; } catch { return true; } })();
+
 async function loadArticle(w: Word) {
   const my = ++token;
   $("d-src").setAttribute("href", `https://bkrs.info/slovo.php?ch=${encodeURIComponent(w.han)}`);
   let art = null;
+  const exP = dictWordEx(w.han).catch(() => [] as [string, string][]);
   try { art = await dictArticle(w.han); } catch { /* офлайн, шард не в кэше */ }
   if (my !== token) return;
   $("d-art-more").hidden = true;
   $("d-ex-more").hidden = true;
+  parts = art ? splitArticle(art.r) : null;
   if (!art) {
     $("d-art").innerHTML = `<p class="hint">${navigator.onLine ? "В словаре этого слова нет." : "Статья недоступна офлайн: её ещё не открывали с интернетом."}</p>`;
-    $("d-ex").innerHTML = `<p class="hint">Примеров нет.</p>`;
-    return;
+  } else {
+    // другие чтения 多音字 — рядом с пиньинем
+    const readings = pyReadings(art.p);
+    if (readings.length > 1 && w.ref.length) $("d-py").insertAdjacentHTML("beforeend", ` <span class="alt-py">также ${esc(readings.slice(1).join(", "))}</span>`);
+    if (!w.ru) {
+      const d = dictNow();
+      const i = d ? d.han.indexOf(w.han) : -1;
+      if (i >= 0 && d!.ru[i]) { $("d-ru").textContent = d!.ru[i]; $("d-ru").hidden = false; }
+    }
+    renderSenses(false);
   }
-  // другие чтения 多音字 — рядом с пиньинем
-  const readings = pyReadings(art.p);
-  if (readings.length > 1 && w.ref.length) $("d-py").insertAdjacentHTML("beforeend", ` <span class="alt-py">также ${esc(readings.slice(1).join(", "))}</span>`);
-  if (!w.ru) {
-    const d = dictNow();
-    const i = d ? d.han.indexOf(w.han) : -1;
-    if (i >= 0 && d!.ru[i]) { $("d-ru").textContent = d!.ru[i]; $("d-ru").hidden = false; }
-  }
-  parts = splitArticle(art.r);
-  renderSenses(false);
+  // примеры: сначала из статьи, потом из базы (без повторов)
+  exList = (parts?.examples ?? []).flatMap((g) => g.items.map((x) => ({ zh: x.zh, tr: x.tr, html: true, sense: g.sense })));
+  const seen = new Set(exList.map((x) => x.zh.replace(/\s/g, "")));
+  for (const [zh, ru] of await exP) if (!seen.has(zh)) { seen.add(zh); exList.push({ zh, tr: ru, html: false }); }
+  if (my !== token) return;
   renderExamples(false);
-  $("d-ex-n").textContent = parts.exampleCount ? String(parts.exampleCount) : "";
+  $("d-ex-n").textContent = exList.length ? String(exList.length) : "";
 }
 
 const senseHTML = (r: ArticleParts["senses"][number]) => `<div class="ar l${Math.min(r[0], 3)}">${safeHtml(r[1])}</div>`;
@@ -133,21 +144,50 @@ function renderSenses(all: boolean) {
   more.textContent = `Показать всю статью (ещё ${list.length - SENSES_SHOWN})`;
 }
 
-function renderExamples(all: boolean) {
-  if (!parts) return;
-  let left = all ? Infinity : EX_SHOWN;
-  let html = "";
-  for (const g of parts.examples) {
-    if (left <= 0) break;
-    const items = g.items.slice(0, left);
-    left -= items.length;
-    html += `<div class="ex-group">${g.sense ? `<div class="ex-sense">${safeHtml(g.sense)}</div>` : ""}`
-      + items.map((x) => `<div class="ex"><div class="ex-zh">${esc(x.zh)}</div><div class="ex-tr">${safeHtml(x.tr)}</div></div>`).join("") + `</div>`;
+/** Пиньинь строки: деление на слова по словарю (самое длинное совпадение), чтение каждого слова. */
+let pyMap: Map<string, string> | null = null;
+function pyLine(zh: string): string {
+  const d = dictNow();
+  if (!d) return "";
+  if (!pyMap) { pyMap = new Map(); d.han.forEach((h, i) => { if (h.length <= 4 && !pyMap!.has(h)) pyMap!.set(h, d.py[i]); }); }
+  const out: string[] = [];
+  const chars = [...zh];
+  for (let i = 0; i < chars.length;) {
+    if (!/\p{Script=Han}/u.test(chars[i])) { if (/[，。！？、；：,.!?]/.test(chars[i]) && out.length) out[out.length - 1] += chars[i]; i++; continue; }
+    let L = Math.min(4, chars.length - i);
+    for (; L > 1 && !pyMap.has(chars.slice(i, i + L).join("")); L--);
+    const t = chars.slice(i, i + L).join("");
+    const p = pyMap.get(t);
+    // в индексе пиньинь уже со знаками тона (как в БКРС); у 多音字 — первое чтение
+    out.push(p ? p.split(/[,;，]/)[0].trim() : "…");
+    i += L;
   }
-  $("d-ex").innerHTML = html || `<p class="hint">Примеров в словаре нет.</p>`;
+  return out.join(" ");
+}
+
+const PLAY = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>`;
+/** Слово в примере выделено. */
+function markWord(zh: string): string {
+  const h = word?.han ?? "";
+  return h ? esc(zh).split(esc(h)).join(`<b class="ex-hl">${esc(h)}</b>`) : esc(zh);
+}
+
+function renderExamples(all: boolean) {
+  const list = all ? exList : exList.slice(0, EX_SHOWN);
+  let html = `<div class="ex-tools"><span class="hint">${exList.length ? `${exList.length} ${exList.length === 1 ? "пример" : exList.length < 5 ? "примера" : "примеров"}` : ""}</span><button class="chip-btn small" id="d-ex-py" aria-pressed="${exPy}">pīnyīn</button></div>`;
+  let sense: string | null | undefined = undefined;
+  list.forEach((x, i) => {
+    if (x.html && x.sense && x.sense !== sense) html += `<div class="ex-sense">${safeHtml(x.sense)}</div>`;
+    if (!x.html && sense !== null && i > 0 && list[i - 1].html) html += `<div class="ex-sense">Ещё примеры</div>`;
+    sense = x.html ? x.sense : null;
+    html += `<div class="ex"><div class="ex-row"><div class="ex-zh">${markWord(x.zh)}</div><button class="icon-btn small-ic" data-exsay="${i}" aria-label="Послушать">${PLAY}</button></div>`
+      + (exPy ? `<div class="ex-py">${esc(pyLine(x.zh))}</div>` : "")
+      + `<div class="ex-tr">${x.html ? safeHtml(x.tr) : esc(x.tr)}</div></div>`;
+  });
+  $("d-ex").innerHTML = exList.length ? html : `<p class="hint">Примеров пока нет.</p>`;
   const more = $("d-ex-more");
-  more.hidden = all || parts.exampleCount <= EX_SHOWN;
-  more.textContent = `Все примеры (${parts.exampleCount})`;
+  more.hidden = all || exList.length <= EX_SHOWN;
+  more.textContent = `Все примеры (${exList.length})`;
 }
 
 /* ---------- слова с иероглифом ---------- */
@@ -254,6 +294,16 @@ export function initEntry() {
   });
   $("d-art-more").addEventListener("click", () => renderSenses(true));
   $("d-ex-more").addEventListener("click", () => renderExamples(true));
+  $("d-ex").addEventListener("click", (e) => {
+    const t = e.target as HTMLElement;
+    const sb = t.closest<HTMLButtonElement>("[data-exsay]");
+    if (sb) { const x = exList[Number(sb.dataset.exsay)]; if (x) say(x.zh.replace(/\s/g, ""), 0.85); return; }
+    if (t.closest("#d-ex-py")) {
+      exPy = !exPy;
+      try { localStorage.setItem(EXPY, exPy ? "1" : "0"); } catch { /* */ }
+      renderExamples(!$("d-ex-more").hidden ? false : exList.length > EX_SHOWN);
+    }
+  });
   // ссылки «см. …» в статье и примерах
   for (const id of ["d-art", "d-ex"]) $(id).addEventListener("click", (e) => {
     const a = (e.target as HTMLElement).closest<HTMLElement>("a[data-w]");

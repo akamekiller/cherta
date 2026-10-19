@@ -3,7 +3,7 @@ import { useBookDeck } from "./book.ts";
 import { useTonesDeck } from "./tones.ts";
 import { SKILLS, type Skill } from "../core/skills.ts";
 import { app, counts, countsFor, deckById, visibleDecks, nextDueTime, words, switchDeck, newLimit, deckSkills, setDeckOpts, renameDeck, deleteDeck,
-  saveUserDeck, hskLookup, dictIndex, type DeckInfo } from "../state.ts";
+  saveUserDeck, hskLookup, dictIndex, addBuiltinDecks, removeBuiltinDeck, isAdded, type DeckInfo } from "../state.ts";
 import { countChars } from "../core/deck.ts";
 import { formatGap } from "../core/fsrs.ts";
 import { parseImportAll, exportDeckText, fileName, type ImportRow } from "../core/importer.ts";
@@ -11,6 +11,7 @@ import { dictPyToNumeric } from "../core/dict.ts";
 import { $, esc, plural, downloadText } from "./dom.ts";
 import { onShow, show } from "./nav.ts";
 import { startSession } from "./session.ts";
+import { openDeckWords } from "./words.ts";
 import { goalLine } from "./stats.ts";
 import { openDeckEditor, userDeckById } from "./editor.ts";
 import { openSheet, closeSheet, confirmInline } from "./sheet.ts";
@@ -38,9 +39,11 @@ export async function renderHome() {
     group = g;
     return head + rowHTML(d, null).replace("<div ", `<div ${g && fold.has(g) ? "hidden " : ""}`);
   }).join("");
-  const hidden = app.decks.filter((d) => d.hidden && d.id !== app.deck?.id);
-  $("decks-hidden").hidden = !hidden.length;
-  $("decks-hidden").textContent = `Скрытые колоды: ${hidden.length}`;
+  const empty = !decks.length;
+  $("home-empty").hidden = !empty;
+  $("decks-table").hidden = empty;
+  $("goal-line").hidden = empty;
+  $("deck-catalog").hidden = empty;
   let due = 0, fresh = 0;
   for (const d of decks) {
     try {
@@ -52,7 +55,7 @@ export async function renderHome() {
     } catch { /* колода не загрузилась — строка без чисел */ }
   }
   if (my !== listToken) return;
-  $("today-line").textContent = due + fresh
+  $("today-line").textContent = empty ? "" : due + fresh
     ? `На сегодня: ${due} ${plural(due, "повторение", "повторения", "повторений")} и ${fresh} ${plural(fresh, "новое слово", "новых слова", "новых слов")}.`
     : "На сегодня всё повторено.";
 }
@@ -125,7 +128,7 @@ function openDeckMenu(id: string) {
       <button class="deck-opt" id="dm-book"><span>Писать в тетради прописей<small>Иероглифы этой колоды по клеткам</small></span></button>
       <button class="deck-opt" id="dm-tones"><span>Тренировать тоны<small>На слух и произношение по словам колоды</small></span></button>
       <button class="deck-opt" id="dm-export"><span>Экспорт в файл<small>Текст для Anki, Pleco или таблицы</small></span></button>
-      <button class="deck-opt danger" id="dm-del"><span>${d.user ? "Удалить колоду" : "Скрыть колоду"}<small>${d.user ? "Прогресс по словам сохранится" : "Вернуть можно внизу списка колод"}</small></span></button>
+      <button class="deck-opt danger" id="dm-del"><span>${d.user ? "Удалить колоду" : "Убрать из списка"}<small>${d.user ? "Прогресс по словам сохранится" : "Прогресс сохранится, вернуть — «Готовые»"}</small></span></button>
     </div>
     <div class="confirm" id="dm-confirm" hidden></div>
     <button class="btn primary wide" id="dm-save">Готово</button>`;
@@ -156,7 +159,7 @@ function openDeckMenu(id: string) {
       await save();
       openDeckEditor(userDeckById(id), () => refresh());
     });
-    q("dm-words").addEventListener("click", async () => { await save(); closeSheet(); await switchDeck(id); show("words"); });
+    q("dm-words").addEventListener("click", async () => { await save(); closeSheet(); await switchDeck(id); openDeckWords(); });
     q("dm-book").addEventListener("click", async () => { await save(); closeSheet(); useBookDeck(id); show("book"); });
     q("dm-tones").addEventListener("click", async () => { await save(); closeSheet(); useTonesDeck(id); show("tones"); });
     q("dm-export").addEventListener("click", async () => {
@@ -166,7 +169,7 @@ function openDeckMenu(id: string) {
       q("dm-export").querySelector("small")!.textContent = `Сохранено: ${rows.length} ${plural(rows.length, "слово", "слова", "слов")}`;
     });
     q("dm-del").addEventListener("click", () => confirmInline(q("dm-confirm"),
-      d.user ? `Удалить «${d.title}»? Прогресс по словам сохранится.` : `Скрыть «${d.title}» из списка?`, d.user ? "Удалить" : "Скрыть",
+      d.user ? `Удалить «${d.title}»? Прогресс по словам сохранится.` : `Убрать «${d.title}» из списка?`, d.user ? "Удалить" : "Убрать",
       async () => { await deleteDeck(id); closeSheet(); show("home"); }));
   });
 }
@@ -175,15 +178,27 @@ function refresh() {
   if (!$("deck").hidden) renderDeck(); else renderHome();
 }
 
-function openHiddenDecks() {
-  const list = app.decks.filter((d) => d.hidden);
-  openSheet("Скрытые колоды", `<div class="deck-list">${list.map((d) => `<button class="deck-opt" data-show="${esc(d.id)}"><span>${esc(d.title)}<small>${d.count} ${plural(d.count, "слово", "слова", "слов")}</small></span><span class="pick-btn">+</span></button>`).join("")}</div>`, (root) => {
+/** Каталог готовых колод: тап — добавить в свой список или убрать. */
+export function openCatalog(onDone?: () => void) {
+  const groups = new Map<string, typeof app.builtinDecks>();
+  for (const d of app.builtinDecks) { const g = d.group || "Колоды"; (groups.get(g) ?? groups.set(g, []).get(g)!).push(d); }
+  const row = (d: DeckInfo) => {
+    const on = isAdded(d.id);
+    return `<button class="deck-opt" data-cat="${esc(d.id)}" aria-pressed="${on}"><span>${esc(d.title)}<small>${d.count} ${plural(d.count, "слово", "слова", "слов")}${d.subtitle ? ` · ${esc(d.subtitle)}` : ""}</small></span><span class="pick-btn${on ? " on" : ""}">${on ? "✓" : "+"}</span></button>`;
+  };
+  const body = `<p class="hint">Нажмите, чтобы добавить колоду к себе. Прогресс по словам общий: если слово уже выучено в другой колоде, оно не начнётся заново.</p>`
+    + [...groups].map(([g, list]) => `<h3 class="grp-title"><span>${esc(g)}</span></h3><div class="deck-list">${list.map(row).join("")}</div>`).join("")
+    + `<button class="btn primary wide" id="cat-done">Готово</button>`;
+  openSheet("Готовые колоды", `<div class="pick-decks">${body}</div>`, (root) => {
     root.addEventListener("click", async (e) => {
-      const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-show]");
+      const t = e.target as HTMLElement;
+      if (t.closest("#cat-done")) { closeSheet(); renderHome(); onDone?.(); return; }
+      const b = t.closest<HTMLButtonElement>("[data-cat]");
       if (!b) return;
-      await setDeckOpts(b.dataset.show!, { hidden: false });
-      b.remove();
-      if (!root.querySelector("[data-show]")) closeSheet();
+      const id = b.dataset.cat!;
+      if (isAdded(id)) await removeBuiltinDeck(id); else await addBuiltinDecks([id]);
+      const d = app.builtinDecks.find((x) => x.id === id)!;
+      b.outerHTML = row(d);
       renderHome();
     });
   });
@@ -263,7 +278,7 @@ export function initHome() {
   });
   $("deck-back").addEventListener("click", () => show("home"));
   $("deck-menu").addEventListener("click", () => app.deck && openDeckMenu(app.deck.id));
-  $("deck-words").addEventListener("click", () => show("words"));
+  $("deck-words").addEventListener("click", openDeckWords);
   $("deck-create").addEventListener("click", () => openDeckEditor(undefined, () => renderHome()));
   $("deck-import").addEventListener("click", () => $<HTMLInputElement>("deck-import-file").click());
   $<HTMLInputElement>("deck-import-file").addEventListener("change", (e) => {
@@ -272,5 +287,6 @@ export function initHome() {
     input.value = "";
     if (f) importFile(f).catch(() => openSheet("Импорт", `<p class="note danger">Не получилось прочитать файл. Нужен текстовый файл: .txt, .tsv или .csv.</p>`));
   });
-  $("decks-hidden").addEventListener("click", openHiddenDecks);
+  $("deck-catalog").addEventListener("click", () => openCatalog());
+  $("deck-catalog-empty").addEventListener("click", () => openCatalog());
 }

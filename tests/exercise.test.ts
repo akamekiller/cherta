@@ -114,3 +114,86 @@ test("план занятия: виды по кругу, диалог один �
   assert.deepEqual(plan.filter((t) => t.kind !== "dialog").map((t) => t.kind).slice(0, 4), ["tr", "gap", "tr", "gap"]);
   assert.equal(parseCorpus([["我们。", "Мы.", "我们 。", 1]])[0].t.length, 2);
 });
+
+/* ---------- курсы ---------- */
+import { lessonSteps, stepOpen, lessonDone, stepTasks, wordOptions, shortRu, reviewTasks, PASS } from "../src/core/exercise.ts";
+
+const COURSE = `# Тестовый курс
+#level: 2
+#about: Описание курса
+## Урок 1. Еда
++ 苹果 | ping2 guo3 | яблоко
++ 米饭 | mi3 fan4 | варёный рис; рис (блюдо)
++ 茶 | cha2 | чай
+你吃苹果。 | Ты ешь яблоко.
+我喝茶。 | Я пью чай.
+他吃米饭。
+@ Обед
+A: 你吃什么？ | Что ты ешь?
+B: 米饭。 | Рис.
+? Что ест B? | Рис* | Чай
+## Урок 2. Только слова
++ 水 | shui3 | вода
+`;
+
+test("parseExSet: слова урока, уровень и описание курса", () => {
+  const s = parseExSet(COURSE, "c", (z) => [...z]);
+  assert.equal(s.level, 2);
+  assert.equal(s.about, "Описание курса");
+  assert.equal(s.lessons.length, 2);
+  assert.deepEqual(s.lessons[0].words[0], ["苹果", "ping2 guo3", "яблоко"]);
+  assert.equal(s.lessons[0].sents.length, 3);
+  assert.equal(s.lessons[0].dialogs.length, 1);
+  assert.equal(s.lessons[1].words.length, 1);
+});
+
+test("lessonSteps: шаги по содержимому урока", () => {
+  const s = parseExSet(COURSE, "c", (z) => [...z]);
+  assert.deepEqual(lessonSteps(s.lessons[0]), ["words", "recog", "gap", "build", "listen", "write", "dialog"]);
+  assert.deepEqual(lessonSteps(s.lessons[1]), ["words"]);
+});
+
+test("stepOpen и lessonDone: шаг открыт, когда предыдущие пройдены", () => {
+  const steps = ["words", "recog", "gap"] as const;
+  assert.equal(stepOpen([...steps], {}, 0), true);
+  assert.equal(stepOpen([...steps], {}, 1), false);
+  assert.equal(stepOpen([...steps], { words: 1 }, 1), true);
+  assert.equal(stepOpen([...steps], { words: 1, recog: PASS - 0.01 }, 2), false);
+  assert.equal(lessonDone([...steps], { words: 1, recog: 0.8, gap: 0.9 }), true);
+  assert.equal(lessonDone([...steps], { words: 1, recog: 0.8 }), false);
+});
+
+test("stepTasks: узнавание в обе стороны, сборка — плитками, перевод — вводом", () => {
+  const s = parseExSet(COURSE, "c", (z) => [...z]);
+  const l = s.lessons[0];
+  const rec = stepTasks("recog", l, {}, () => 0.3);
+  assert.ok(rec.some((t) => t.kind === "word" && t.dir === "zh"));
+  assert.ok(rec.some((t) => t.kind === "word" && t.dir === "ru"));
+  const build = stepTasks("build", l, {}, () => 0.3);
+  assert.ok(build.length >= 2 && build.every((t) => t.kind === "tr" && t.tiles === true));
+  const write = stepTasks("write", l, {}, () => 0.3);
+  assert.ok(write.every((t) => t.kind === "tr" && t.tiles === false && t.sent.ru));
+  assert.equal(stepTasks("dialog", l, {}, () => 0.3).length, 1);
+});
+
+test("wordOptions: верный вариант и без повторов", () => {
+  const ws: [string, string, string][] = [["一", "yi1", "один"], ["二", "er4", "два"], ["三", "san1", "три"], ["四", "si4", "четыре"], ["五", "wu3", "пять"]];
+  const o = wordOptions(ws[0], ws, ws, "zh", () => 0.5);
+  assert.equal(o.length, 4);
+  assert.ok(o.includes("один"));
+  assert.equal(new Set(o).size, 4);
+  const h = wordOptions(ws[1], ws.slice(0, 2), ws, "ru", () => 0.1);
+  assert.ok(h.includes("二"));
+});
+
+test("shortRu: первое значение без пометок", () => {
+  assert.equal(shortRu("варёный рис; рис (блюдо)"), "варёный рис");
+  assert.equal(shortRu("(разг.) привет"), "привет");
+});
+
+test("reviewTasks: смесь предложений и слов из пройденных уроков", () => {
+  const s = parseExSet(COURSE, "c", (z) => [...z]);
+  const t = reviewTasks(s.lessons, {}, 8, () => 0.4);
+  assert.ok(t.length > 0 && t.length <= 8);
+  assert.ok(t.some((x) => x.kind === "word"));
+});

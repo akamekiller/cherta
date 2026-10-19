@@ -48,6 +48,8 @@ const words = () => srcWords;
 async function loadSource(): Promise<string[]> {
   if (st.src === "text") { srcWords = []; return uniqueChars([st.text]); }
   if (!st.deckId || !app.decks.some((d) => d.id === st.deckId)) st.deckId = app.deck?.id ?? app.decks[0]?.id ?? "";
+  // колод нет — сразу «Свой текст», с примером, чтобы было что писать
+  if (!st.deckId) { st.src = "text"; st.text ||= "你好 谢谢 中国"; save(); srcWords = []; return uniqueChars([st.text]); }
   srcWords = (await deckWords(st.deckId))?.words ?? [];
   return uniqueChars(srcWords.map((w) => w.han));
 }

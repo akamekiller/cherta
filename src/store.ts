@@ -35,6 +35,10 @@ export type Settings = {
   dailyGoal: number;
   /** Настройки отдельных колод (id → настройки). */
   deckOpts: Record<string, DeckOpts>;
+  /** Готовые колоды, которые пользователь добавил к себе (сначала список пуст). undefined — старые данные до этой настройки. */
+  added?: string[];
+  /** Подключённые встроенные курсы упражнений. */
+  courses?: string[];
 };
 /** Счётчик новых слов за день: всего и по колодам (у каждой колоды свой лимит, как в Anki). */
 export type DayCounter = { day: string; newCount: number; byDeck?: Record<string, number> };
@@ -42,7 +46,7 @@ export type DayCounter = { day: string; newCount: number; byDeck?: Record<string
 export type DeckOpts = { title?: string; hidden?: boolean; newPerDay?: number; skills?: string[] };
 export type Review = { id: string; at: number; grade: Grade; state: Card["state"]; mistakes: number };
 
-export const DEFAULT_SETTINGS: Settings = { newPerDay: 10, pinyin: true, voice: true, deck: "hsk3-1", theme: "auto", pen: "brush", ink: "auto", keepStrokes: true, penSize: 1, vibrate: true, dailyGoal: 30, deckOpts: {} };
+export const DEFAULT_SETTINGS: Settings = { newPerDay: 10, pinyin: true, voice: true, deck: "", theme: "auto", pen: "brush", ink: "auto", keepStrokes: true, penSize: 1, vibrate: true, dailyGoal: 30, deckOpts: {} };
 const DB_NAME = "cherta";
 const DB_VERSION = 2;
 const EXPORT_FORMAT = "cherta-progress";

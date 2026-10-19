@@ -51,6 +51,12 @@ for (const d of decks) {
 writeFileSync(join(decksOut, "index.json"), JSON.stringify(index));
 // Диалоги для упражнений (написаны для приложения)
 writeFileSync(join(out, "data/dialogs.json"), JSON.stringify(JSON.parse(readFileSync(join(root, "data/dialogs.json"), "utf8"))));
+// Встроенные курсы упражнений (python scripts/build_courses.py → data/courses)
+const coursesOut = join(out, "data/courses");
+mkdirSync(coursesOut, { recursive: true });
+const courses = JSON.parse(readFileSync(join(root, "data/courses/index.json"), "utf8"));
+writeFileSync(join(coursesOut, "index.json"), JSON.stringify(courses));
+for (const c of courses) writeFileSync(join(coursesOut, c.file), readFileSync(join(root, "data/courses", c.file), "utf8"));
 
 // 5. Данные черт должны быть собраны заранее (scripts/build-strokes.mjs)
 if (!existsSync(join(out, "data/strokes/00.json"))) {
@@ -60,7 +66,7 @@ if (!existsSync(join(out, "data/strokes/00.json"))) {
 // 6. Service worker со списком файлов оболочки
 const shell = ["./", "index.html", "app.js", "styles.css", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png",
   "data/decks/index.json", ...decks.map((d) => `data/decks/${d.id}.json`),
-  "data/dialogs.json"];
+  "data/dialogs.json", "data/courses/index.json", ...courses.map((c) => `data/courses/${c.file}`)];
 writeFileSync(join(out, "sw.js"), readFileSync(join(root, "static/sw.js"), "utf8")
   .replace("__VERSION__", VERSION).replace("__SHELL_FILES__", JSON.stringify(shell)));
 writeFileSync(join(out, ".nojekyll"), "");

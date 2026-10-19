@@ -392,7 +392,9 @@ input[type=range]{width:100%;accent-color:var(--jade)}
 .dt-name small{font-size:12.5px;color:var(--muted)}
 .dt-menu{border:0;background:none;color:var(--muted);width:40px;height:44px;display:grid;place-items:center;cursor:pointer;border-radius:10px}
 .dt-menu svg{width:18px;height:18px}
-.deck-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.deck-actions{display:flex;gap:8px}.deck-actions>.btn{flex:1 1 0;min-width:0;padding-inline:8px}
+.empty-start{display:flex;flex-direction:column;gap:12px;text-align:center;align-items:center;padding:28px 20px}.empty-start h2{margin:0;font:600 20px var(--f-ui)}.empty-start .hint{max-width:34ch;margin:0 auto}
+.han-big{font:700 56px var(--f-han);color:var(--jade);line-height:1}
 #decks-hidden{align-self:center}
 .deck-over{display:flex;flex-direction:column;gap:14px;text-align:center;padding-top:8px}
 .deck-over .deck-name{margin:0;font-size:26px}
@@ -587,3 +589,58 @@ input[type=range]{width:100%;accent-color:var(--jade)}
 .ex-opts{border-top:0;padding-block:0}
 #ex-kinds,#ex-lessons{justify-content:flex-start;padding:0}
 .tr-in-row input::placeholder{font:400 15px var(--f-ui)}
+/* «Слова»: начальный экран словаря */
+.grp-title .link-btn.small{padding:0 2px;font-size:12.5px}
+.src-note{text-align:center;margin-top:8px}
+#w-home .deck-opt{margin-top:4px}
+#w-deckbar .label{flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Курсы упражнений */
+.course-card{display:flex;flex-direction:column;align-items:stretch;gap:6px;text-align:left;font:inherit;color:var(--ink);cursor:pointer;width:100%}
+.course-card:hover{border-color:var(--jade)}
+.cc-title{font:600 18px var(--f-ui)}
+.cc-sub,.cc-next{font-size:13.5px;color:var(--muted)}
+.cc-next{color:var(--jade)}
+.cc-bar{height:6px;border-radius:999px;background:var(--line);overflow:hidden}
+.cc-bar i{display:block;height:100%;background:var(--jade)}
+.c-actions{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.lesson-list,.step-list{display:flex;flex-direction:column;background:var(--sheet);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.step-list{background:none;border:0;gap:8px}
+.lesson-row,.step-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border:0;border-top:1px solid var(--line);background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer;width:100%}
+.lesson-row:first-child{border-top:0}
+.step-row{border:1px solid var(--line);border-radius:var(--r);background:var(--sheet)}
+.step-row:disabled{opacity:.55;cursor:default}
+.lesson-row.cur,.step-row.cur{box-shadow:inset 3px 0 0 var(--jade)}
+.ln,.sn{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font:600 13px var(--f-mono);background:var(--paper);color:var(--muted)}
+.lesson-row.done .ln{background:var(--jade);color:var(--on-accent)}
+.lt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.lt b{font-weight:600;overflow-wrap:anywhere}
+.lt small{font-size:12.5px;color:var(--muted)}
+.lp{display:flex;gap:3px;margin-top:3px}
+.lp i{width:14px;height:4px;border-radius:2px;background:var(--line)}
+.lp i.on{background:var(--jade)}
+.st{flex:none;font:600 13px var(--f-mono);color:var(--muted)}
+.st.ok{color:var(--good)}.st.mid{color:var(--warn)}.st.go{color:var(--jade);font-size:18px}
+.wq{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0}
+.wq-han{font:500 48px/1.1 var(--f-han)}
+.wq .py{font-size:17px}
+.w-opts{display:grid;gap:8px}
+.w-opts.han{grid-template-columns:1fr 1fr}
+.opt-btn{border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:12px;padding:12px 14px;font:inherit;font-size:15.5px;text-align:left;cursor:pointer}
+.opt-btn.han{font:500 26px var(--f-han);text-align:center}
+.opt-btn.right{border-color:var(--good);background:color-mix(in srgb,var(--good) 14%,transparent)}
+.opt-btn.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,transparent)}
+.opt-btn:disabled{cursor:default;color:var(--ink)}
+.w-ans b{font:500 22px var(--f-han)}
+.item.lw{display:flex;align-items:center;gap:12px;cursor:default}.item.lw .txt{flex:1;min-width:0}
+.item.lw .h{border:0;background:none;color:var(--ink);font:500 26px var(--f-han);cursor:pointer;padding:0;min-width:2.2em;text-align:left}
+/* Тоны: сетка сочетаний */
+.tn-grid{display:grid;grid-template-columns:22px repeat(5,1fr);gap:4px;align-items:center}
+.tg-h{font:600 13px var(--f-mono);text-align:center}
+.tg-c{height:38px;border:1px solid var(--line);border-radius:8px;background:var(--sheet);color:var(--muted);font:500 11.5px var(--f-mono);cursor:pointer;padding:0}
+.tg-c.none{opacity:.3;cursor:default}
+.tg-c.good{background:color-mix(in srgb,var(--good) 22%,var(--sheet));color:var(--ink)}
+.tg-c.mid{background:color-mix(in srgb,var(--warn) 22%,var(--sheet));color:var(--ink)}
+.tg-c.bad{background:color-mix(in srgb,var(--bad) 22%,var(--sheet));color:var(--ink)}
+.tg-c.on{outline:2px solid var(--jade);outline-offset:1px}
+.tg-all{grid-column:1/-1}
+#tn-stage button{font-size:14px}

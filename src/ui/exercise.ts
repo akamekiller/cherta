@@ -1,42 +1,44 @@
 /**
- * Упражнения. Источник: колода (предложения из корпуса БКРС под её слова), тема (диалоги + предложения),
- * свой набор из файла (уроки учебника и т. п.). Виды: перевод на китайский (клавиатура, рукой или плитками),
- * пропуски, аудирование, диалоги с вопросами. Занятие — N заданий, прогресс по предложениям в meta «ex».
+ * Упражнения — курсы. Курс → урок → шаги по нарастающей: слова урока → узнавание → пропуски → сборка фраз →
+ * аудирование → перевод с вводом → диалог. Следующий шаг открывается, когда предыдущий пройден (≥ 70%).
+ * Курсы: встроенные (data/courses, подключаются по желанию) и свои из файла (уроки учебника и т. п.).
+ * «Своя практика» — предложения корпуса под слова своей колоды, как раньше.
  */
-import { app, hskLookup, deckById, exCorpus, exDialogs, loadExSets, saveExSets, dictIndex, type ExSetFile } from "../state.ts";
+import { app, hskLookup, deckById, exCorpus, loadExSets, saveExSets, dictIndex, updateSettings, saveUserDeck, switchDeck, type ExSetFile } from "../state.ts";
 import {
-  KINDS, parseCorpus, segment, sentencesFor, gapTask, diffZh, parseExSet, planSession, tilesFor, checkAssembled, isWordTok, record,
-  type Kind, type Sent, type Dialog, type Task, type ExProgress, type ExSet,
+  KINDS, STEPS, PASS, parseCorpus, segment, sentencesFor, gapTask, diffZh, parseExSet, planSession, tilesFor, checkAssembled, isWordTok, record,
+  lessonSteps, stepOpen, lessonDone, stepTasks, reviewTasks, wordOptions, shortRu,
+  type Kind, type Sent, type Dialog, type Task, type ExProgress, type ExSet, type StepId, type LessonWord,
 } from "../core/exercise.ts";
 import { dictPyToNumeric, type DictIndex } from "../core/dict.ts";
+import { normalizePinyin } from "../core/importer.ts";
 import { parseRef } from "../core/pinyin.ts";
 import * as store from "../store.ts";
 import { say, sayAll } from "../speech.ts";
 import { $, esc, pinyinHTML, plural } from "./dom.ts";
-import { onShow, onLeave } from "./nav.ts";
+import { onShow, onLeave, show } from "./nav.ts";
 import { openEntry } from "./entry.ts";
 import { wordByHan } from "./lookup.ts";
 import { openAddToDeck } from "./editor.ts";
 import { openSheet, closeSheet, confirmInline } from "./sheet.ts";
-import { setPickLabel } from "./deckpick.ts";
+import { pickDeck, setPickLabel } from "./deckpick.ts";
 import { mountHwPad, type HwPad } from "./hwpad.ts";
 
-/* ---------- настройки экрана ---------- */
+/* ---------- настройки ---------- */
 
-const LS = "cherta.ex2";
-const ui = { src: "", lesson: -1, kinds: ["tr", "gap", "listen", "dialog"] as Kind[], n: 10, pinyin: true, trMode: "type" as "type" | "tiles" };
+const LS = "cherta.ex3";
+const ui = { kinds: ["tr", "gap", "listen"] as Kind[], n: 10, pinyin: true, trMode: "type" as "type" | "tiles", freeDeck: "" };
 try { Object.assign(ui, JSON.parse(localStorage.getItem(LS) ?? "{}")); } catch { /* */ }
 const save = () => { try { localStorage.setItem(LS, JSON.stringify(ui)); } catch { /* */ } };
-
-/** Темы с диалогами и соответствующие колоды «Жизнь в Китае». */
-const THEME_DECK: Record<string, string> = { "Магазин": "life-shop", "Транспорт": "life-transport", "Общежитие": "life-dorm", "Банк": "life-bank", "Врач": "life-doctor", "Университет": "life-uni" };
 
 /* ---------- словарь для пиньиня и деления на слова ---------- */
 
 let hsk: ((h: string) => { py: string; ru: string } | undefined) | null = null;
-let hskWords = new Set<string>();
+const hskWords = new Set<string>();
 let dict: DictIndex | null = null;
 let dictWords: Set<string> | null = null;
+/** Пиньинь слов текущего курса (из строк «+ слово | пиньинь | значение»). */
+const coursePy = new Map<string, string>();
 
 async function ensureLex() {
   if (!hsk) {
@@ -45,36 +47,308 @@ async function ensureLex() {
   }
   if (!dict) dictIndex().then((d) => { dict = d; dictWords = new Set(d.han.filter((w) => w.length <= 4)); }).catch(() => {});
 }
-const lexHas = (w: string) => hskWords.has(w) || !!dictWords?.has(w);
+const lexHas = (w: string) => hskWords.has(w) || coursePy.has(w) || !!dictWords?.has(w);
 const seg = (zh: string) => segment(zh, lexHas, 4);
 
 function pyOf(w: string): string {
-  const e = hsk?.(w);
-  let p = e?.py ?? "";
+  let p = coursePy.get(w) ?? hsk?.(w)?.py ?? "";
   if (!p && dict) { const i = dict.han.indexOf(w); if (i >= 0) p = dictPyToNumeric(dict.py[i], w) ?? ""; }
   if (!p) return "";
   try { return pinyinHTML(parseRef(p)); } catch { return ""; }
 }
 
+/** Пиньинь над словами в текущем занятии. */
+let pyOn = true;
 const tokHTML = (t: string, extra = "") => isWordTok(t)
-  ? `<button class="w${extra}" data-w="${esc(t)}">${ui.pinyin ? `<small class="py">${pyOf(t)}</small>` : ""}<span>${esc(t)}</span></button>`
+  ? `<button class="w${extra}" data-w="${esc(t)}">${pyOn ? `<small class="py">${pyOf(t)}</small>` : ""}<span>${esc(t)}</span></button>`
   : `<span class="p">${esc(t)}</span>`;
 
-/* ---------- источники ---------- */
+/* ---------- курсы ---------- */
+
+type BuiltinInfo = { id: string; file: string; title: string; level: number; lessons: number; words: number; about: string };
+type Course = { key: string; title: string; set: ExSet; builtin?: string; fileId?: string };
+type CourseProg = Record<string, Record<number, Partial<Record<StepId, number>>>>;
+
+let builtinList: BuiltinInfo[] = [];
+let sets: ExSetFile[] = [];
+const parsed = new Map<string, ExSet>();
+let progCourse: CourseProg = {};
+
+async function loadBuiltinList(): Promise<BuiltinInfo[]> {
+  if (!builtinList.length) {
+    try { builtinList = await (await fetch("data/courses/index.json")).json(); } catch { builtinList = []; }
+  }
+  return builtinList;
+}
+
+async function builtinSet(b: BuiltinInfo): Promise<ExSet> {
+  const key = `b:${b.id}`;
+  if (!parsed.has(key)) {
+    const r = await fetch(`data/courses/${b.file}`);
+    if (!r.ok) throw new Error("курс не загрузился");
+    const s = parseExSet(await r.text(), key, seg);
+    s.title = b.title;
+    parsed.set(key, s);
+  }
+  return parsed.get(key)!;
+}
+
+function fileSet(f: ExSetFile): ExSet {
+  const key = `f:${f.id}`;
+  if (!parsed.has(key)) {
+    const s = parseExSet(f.text, key, seg);
+    s.title = f.title || s.title;
+    parsed.set(key, s);
+  }
+  return parsed.get(key)!;
+}
+
+/** Мои курсы: подключённые встроенные + свои из файлов. */
+async function myCourses(): Promise<Course[]> {
+  await ensureLex();
+  const list = await loadBuiltinList();
+  const out: Course[] = [];
+  for (const id of app.settings.courses ?? []) {
+    const b = list.find((x) => x.id === id);
+    if (!b) continue;
+    try { out.push({ key: `b:${id}`, title: b.title, set: await builtinSet(b), builtin: id }); } catch { /* офлайн и не в кэше */ }
+  }
+  for (const f of sets) out.push({ key: `f:${f.id}`, title: f.title, set: fileSet(f), fileId: f.id });
+  return out;
+}
+
+const lessonBest = (c: Course, i: number) => progCourse[c.key]?.[i] ?? {};
+const doneLessons = (c: Course) => c.set.lessons.filter((l, i) => lessonDone(lessonSteps(l), lessonBest(c, i))).length;
+/** Первый незаконченный урок. */
+const nextLesson = (c: Course) => {
+  const i = c.set.lessons.findIndex((l, k) => !lessonDone(lessonSteps(l), lessonBest(c, k)));
+  return i < 0 ? c.set.lessons.length - 1 : i;
+};
+const startedLessons = (c: Course) => c.set.lessons.map((_, i) => i).filter((i) => Object.keys(lessonBest(c, i)).length);
+
+function rememberWords(c: Course) {
+  coursePy.clear();
+  for (const l of c.set.lessons) for (const w of l.words) {
+    // пиньинь в файле может быть со знаками тонов («xué xí») — переводим в формат колоды
+    const n = w[1] ? normalizePinyin(w[1], w[0]) : null;
+    if (n) { w[1] = n; coursePy.set(w[0], n); }
+  }
+}
+
+/* ---------- экран «Мои курсы» ---------- */
+
+let courses: Course[] = [];
+let course: Course | null = null;
+let lessonIdx = 0;
+
+function views(v: "home" | "course" | "lesson" | "setup" | "run") {
+  $("ex-home").hidden = v !== "home";
+  $("ex-course").hidden = v !== "course";
+  $("ex-lesson").hidden = v !== "lesson";
+  $("ex-setup").hidden = v !== "setup";
+  $("ex-run").hidden = v !== "run";
+  window.scrollTo(0, 0);
+}
+
+async function renderHome() {
+  views("home");
+  $("ex-courses").innerHTML = `<p class="hint">Загружаю…</p>`;
+  sets = await loadExSets();
+  progCourse = (await store.getMeta<CourseProg>("course")) ?? {};
+  courses = await myCourses();
+  if (!courses.length) {
+    $("ex-courses").innerHTML = `<div class="empty-start panel"><span class="han-big" aria-hidden="true">课</span><h2>Курсов пока нет</h2>
+      <p class="hint">Курс — уроки по порядку: слова, узнавание, сборка фраз, аудирование, перевод и диалог. Добавьте готовый курс или загрузите свой файл (например, уроки учебника).</p></div>`;
+    return;
+  }
+  $("ex-courses").innerHTML = courses.map((c) => {
+    const n = c.set.lessons.length, done = doneLessons(c), next = nextLesson(c);
+    const pct = Math.round((100 * done) / Math.max(1, n));
+    return `<button class="course-card panel" data-course="${esc(c.key)}">
+      <span class="cc-title">${esc(c.title)}</span>
+      <span class="cc-sub">${done ? `Пройдено ${done} из ${n} ${plural(n, "урока", "уроков", "уроков")}` : `${n} ${plural(n, "урок", "урока", "уроков")}`}${c.fileId ? " · из файла" : ""}</span>
+      <span class="cc-bar"><i style="width:${pct}%"></i></span>
+      <span class="cc-next">${done >= n ? "Курс пройден — можно повторять" : `Дальше: ${esc(c.set.lessons[next].title)}`}</span>
+    </button>`;
+  }).join("");
+}
+
+/* ---------- каталог курсов ---------- */
+
+const FORMAT_HELP = `<p class="hint">Обычный текстовый файл (.txt, UTF-8). Строки:</p>
+<pre class="fmt"># Мой курс
+## Урок 1. Знакомство
++ 你好 | ni3 hao3 | здравствуй
++ 名字 | ming2 zi | имя
+你好！ | Привет!
+你叫什么名字？ | Как тебя зовут?
+@ Знакомство
+A: 你好！我叫王明。 | Привет! Меня зовут Ван Мин.
+B: 你好！ | Привет!
+? Как зовут A? | Ли Юэ | Ван Мин*</pre>
+<p class="hint"><b>#</b> — название, <b>##</b> — урок, <b>+</b> — слово урока (иероглифы | пиньинь | значение), «китайский | русский» — предложение (вместо | можно Tab), <b>@</b> — диалог (до пустой строки), <b>?</b> — вопрос к диалогу, верный вариант со звёздочкой. Перевод можно не писать — тогда предложение будет только в пропусках и аудировании.</p>`;
+
+async function openCatalog() {
+  const list = await loadBuiltinList();
+  const on = (id: string) => (app.settings.courses ?? []).includes(id);
+  const row = (b: BuiltinInfo) => `<button class="deck-opt" data-cadd="${esc(b.id)}" aria-pressed="${on(b.id)}"><span>${esc(b.title)}<small>${esc(b.about)}</small></span><span class="pick-btn${on(b.id) ? " on" : ""}">${on(b.id) ? "✓" : "+"}</span></button>`;
+  const body = `<p class="hint">Готовые курсы: свои темы уроков, предложения только из пройденных слов, диалоги. Нажмите, чтобы добавить.</p>
+    <div class="deck-list">${list.map(row).join("")}</div>
+    <h3 class="grp-title"><span>Свой курс из файла</span></h3>
+    <p class="hint">Например, уроки учебника. Файл хранится только на этом устройстве.</p>
+    <div class="tools"><button class="btn small" id="cat-file">Загрузить файл</button><button class="btn small" id="cat-help">Формат файла</button></div>
+    <button class="btn primary wide" id="cat-ok">Готово</button>`;
+  openSheet("Курсы", `<div class="pick-decks">${body}</div>`, (root) => {
+    root.addEventListener("click", async (e) => {
+      const t = e.target as HTMLElement;
+      if (t.closest("#cat-ok")) { closeSheet(); renderHome(); return; }
+      if (t.closest("#cat-file")) { closeSheet(); $<HTMLInputElement>("ex-set-file").click(); return; }
+      if (t.closest("#cat-help")) { openSheet("Формат файла курса", FORMAT_HELP); return; }
+      const b = t.closest<HTMLButtonElement>("[data-cadd]");
+      if (!b) return;
+      const id = b.dataset.cadd!;
+      const cur = app.settings.courses ?? [];
+      await updateSettings({ courses: on(id) ? cur.filter((x) => x !== id) : [...cur, id] });
+      b.outerHTML = row(list.find((x) => x.id === id)!);
+    });
+  });
+}
+
+async function loadFile(f: File) {
+  await ensureLex();
+  const text = await f.text();
+  const id = `s-${Date.now().toString(36)}`;
+  const p = parseExSet(text, `f:${id}`, seg);
+  const n = p.lessons.reduce((a, l) => a + l.sents.length + l.dialogs.length + l.words.length, 0);
+  if (!n) { openSheet("Загрузка курса", `<p class="note danger">В файле не нашлось ни слов, ни предложений, ни диалогов.</p>${FORMAT_HELP}`); return; }
+  sets = [...sets, { id, title: p.title === "Мой набор" ? f.name.replace(/\.[^.]+$/, "") : p.title, text, addedAt: Date.now() }];
+  await saveExSets(sets);
+  await renderHome();
+  const c = courses.find((x) => x.fileId === id);
+  if (c) openCourse(c.key);
+}
+
+/* ---------- курс: список уроков ---------- */
+
+function openCourse(key: string) {
+  const c = courses.find((x) => x.key === key);
+  if (!c) { renderHome(); return; }
+  course = c;
+  rememberWords(c);
+  views("course");
+  const n = c.set.lessons.length, done = doneLessons(c), next = nextLesson(c);
+  const started = startedLessons(c).length;
+  $("ex-c-head").innerHTML = `<h2 class="deck-name">${esc(c.title)}</h2>
+    ${c.set.about ? `<p class="hint">${esc(c.set.about)}</p>` : ""}
+    <p class="hint">Пройдено ${done} из ${n} ${plural(n, "урока", "уроков", "уроков")}</p>
+    <div class="c-actions"><button class="btn primary wide" data-lesson="${next}">${done >= n ? "Повторить последний урок" : done || started ? `Продолжить: урок ${next + 1}` : "Начать с урока 1"}</button>
+    ${started ? `<button class="btn wide" data-review>Повторение пройденного</button>` : ""}</div>`;
+  $("ex-c-lessons").innerHTML = c.set.lessons.map((l, i) => {
+    const steps = lessonSteps(l), best = lessonBest(c, i);
+    const ok = steps.filter((s) => (best[s] ?? 0) >= PASS).length;
+    const fin = lessonDone(steps, best);
+    const cls = fin ? "done" : i === next ? "cur" : "";
+    return `<button class="lesson-row ${cls}" data-lesson="${i}"><span class="ln">${fin ? "✓" : i + 1}</span>
+      <span class="lt"><b>${esc(l.title.replace(/^\d+[.)]\s*/, ""))}</b><small>${l.words.length ? `${l.words.length} ${plural(l.words.length, "слово", "слова", "слов")} · ` : ""}${ok} из ${steps.length} ${plural(steps.length, "шага", "шагов", "шагов")}</small>
+      <span class="lp">${steps.map((s) => `<i class="${(best[s] ?? 0) >= PASS ? "on" : ""}"></i>`).join("")}</span></span></button>`;
+  }).join("");
+}
+
+function courseMenu() {
+  const c = course;
+  if (!c) return;
+  const body = `<div class="dm-list">
+      <button class="deck-opt" id="cm-decks"><span>Слова курса — в колоды<small>По колоде на урок, в группе «${esc(c.title)}»</small></span></button>
+      <button class="deck-opt danger" id="cm-del"><span>${c.fileId ? "Удалить курс" : "Убрать курс"}<small>${c.fileId ? "Файл удалится с устройства, прогресс останется" : "Прогресс сохранится, вернуть — «Добавить курс»"}</small></span></button>
+    </div><div class="confirm" id="cm-confirm" hidden></div>`;
+  openSheet(c.title, body, (root) => {
+    root.querySelector("#cm-decks")!.addEventListener("click", async () => {
+      let n = 0;
+      for (let i = 0; i < c.set.lessons.length; i++) if (c.set.lessons[i].words.length) { await lessonDeck(c, i); n++; }
+      root.querySelector("#cm-decks small")!.textContent = n ? `Готово: ${n} ${plural(n, "колода", "колоды", "колод")} в «Карточках»` : "В курсе нет слов уроков";
+    });
+    root.querySelector("#cm-del")!.addEventListener("click", () => confirmInline(root.querySelector("#cm-confirm")!, `${c.fileId ? "Удалить" : "Убрать"} «${c.title}»?`, c.fileId ? "Удалить" : "Убрать", async () => {
+      if (c.fileId) { sets = sets.filter((s) => s.id !== c.fileId); await saveExSets(sets); parsed.delete(c.key); }
+      else await updateSettings({ courses: (app.settings.courses ?? []).filter((x) => x !== c.builtin) });
+      closeSheet();
+      renderHome();
+    }));
+  });
+}
+
+/** Колода из слов урока (своя, в группе курса). Если уже есть — обновляется. */
+async function lessonDeck(c: Course, i: number): Promise<string> {
+  const id = `u-c-${c.key.replace(/[^a-z0-9]/gi, "")}-${i + 1}`;
+  const l = c.set.lessons[i];
+  const look = await hskLookup();
+  const words = l.words.map(([h, py, ru]): [string, string, string] => [h, (py && normalizePinyin(py, h)) || look(h)?.py || "", ru || look(h)?.ru || ""]).filter((w) => w[1] && w[2]);
+  const old = app.userDecks.find((d) => d.id === id);
+  await saveUserDeck({ id, title: `${c.title} · ${l.title}`, words, createdAt: old?.createdAt ?? Date.now(), group: c.title });
+  return id;
+}
+
+/* ---------- урок: шаги ---------- */
+
+function openLesson(i: number) {
+  const c = course;
+  if (!c) return;
+  lessonIdx = Math.max(0, Math.min(i, c.set.lessons.length - 1));
+  const l = c.set.lessons[lessonIdx];
+  views("lesson");
+  $("ex-l-words").hidden = true;
+  $("ex-l-num").textContent = `Урок ${lessonIdx + 1} из ${c.set.lessons.length}`;
+  $("ex-l-head").innerHTML = `<h2 class="deck-name">${esc(l.title)}</h2><p class="hint">${[
+    l.words.length && `${l.words.length} ${plural(l.words.length, "слово", "слова", "слов")}`,
+    l.sents.length && `${l.sents.length} ${plural(l.sents.length, "предложение", "предложения", "предложений")}`,
+    l.dialogs.length && `${l.dialogs.length} ${plural(l.dialogs.length, "диалог", "диалога", "диалогов")}`].filter(Boolean).join(" · ")}</p>`;
+  const steps = lessonSteps(l), best = lessonBest(c, lessonIdx);
+  const firstOpen = steps.findIndex((s) => (best[s] ?? 0) < PASS);
+  $("ex-l-steps").innerHTML = steps.map((s, k) => {
+    const info = STEPS.find((x) => x.id === s)!;
+    const open = stepOpen(steps, best, k);
+    const b = best[s];
+    const state = b !== undefined && b >= PASS ? `<span class="st ok">✓ ${Math.round(b * 100)}%</span>` : !open ? `<span class="st lock" aria-label="Закрыто">🔒</span>` : b !== undefined ? `<span class="st mid">${Math.round(b * 100)}%</span>` : `<span class="st go">→</span>`;
+    return `<button class="step-row${k === firstOpen ? " cur" : ""}" data-step="${s}" ${open ? "" : "disabled"}><span class="sn">${k + 1}</span><span class="lt"><b>${info.name}</b><small>${info.hint}</small></span>${state}</button>`;
+  }).join("") + (lessonDone(steps, best) && lessonIdx + 1 < c.set.lessons.length ? `<button class="btn primary wide" data-lesson="${lessonIdx + 1}">Следующий урок →</button>` : "")
+    + (!steps.length ? `<p class="hint">В этом уроке нет заданий.</p>` : "")
+    + `<p class="hint">Шаг засчитывается от ${Math.round(PASS * 100)}% верных ответов — тогда открывается следующий.</p>`;
+}
+
+/** Шаг «Слова урока»: список с озвучкой, «Учить карточками», «Запомнил». */
+function showWords() {
+  const c = course!;
+  const l = c.set.lessons[lessonIdx];
+  $("ex-l-steps").hidden = true;
+  const box = $("ex-l-words");
+  box.hidden = false;
+  box.innerHTML = `<div class="topbar"><button class="btn ghost small" data-words-back>← К шагам</button></div>
+    <div class="grp list">${l.words.map(([h, py, ru], i) => {
+      let p = "";
+      try { p = py ? pinyinHTML(parseRef(py)) : pyOf(h); } catch { p = pyOf(h); }
+      return `<div class="item lw"><button class="h" data-wopen="${esc(h)}">${esc(h)}</button><span class="txt"><span class="py">${p}</span><span class="ru">${esc(ru)}</span></span><button class="icon-btn small-ic" data-wsay="${i}" aria-label="Послушать">${PLAY}</button></div>`;
+    }).join("")}</div>
+    <div class="ex-btns"><button class="btn" data-words-deck>Учить карточками</button><button class="btn primary" data-words-ok>Запомнил — дальше</button></div>
+    <p class="hint" id="ex-words-msg">Карточки — своя колода урока в «Карточках»: письмо иероглифов, пиньинь и повторения по расписанию.</p>`;
+}
+
+async function saveBest(step: StepId, score: number) {
+  const c = course;
+  if (!c) return;
+  progCourse = (await store.getMeta<CourseProg>("course")) ?? {};
+  const cp = progCourse[c.key] ?? {};
+  const lb = cp[lessonIdx] ?? {};
+  lb[step] = Math.max(lb[step] ?? 0, score);
+  cp[lessonIdx] = lb;
+  progCourse[c.key] = cp;
+  await store.setMeta("course", progCourse);
+}
+
+/* ---------- своя практика (колода) ---------- */
 
 type Pool = { sents: Sent[]; dialogs: Dialog[]; focus: Set<string>; title: string };
 let corpus: Sent[] | null = null;
-let sets: ExSetFile[] = [];
-let parsedSets = new Map<string, ExSet>();
-
-async function getCorpus(): Promise<Sent[]> {
-  corpus ??= parseCorpus(await exCorpus());
-  return corpus;
-}
-
+async function getCorpus(): Promise<Sent[]> { corpus ??= parseCorpus(await exCorpus()); return corpus; }
 const levelOf = (deckId: string) => Number(/^hsk[23]-(\d)$/.exec(deckId)?.[1] ?? 2);
-
-/** Простые слова: HSK 2.0 и 3.0 до уровня L включительно. */
 async function basicWords(L: number): Promise<Set<string>> {
   const out = new Set<string>();
   for (const d of app.builtinDecks) {
@@ -84,176 +358,109 @@ async function basicWords(L: number): Promise<Set<string>> {
   return out;
 }
 
-function setOf(id: string): ExSet | null {
-  if (parsedSets.has(id)) return parsedSets.get(id)!;
-  const f = sets.find((x) => x.id === id);
-  if (!f) return null;
-  const s = parseExSet(f.text, f.id, seg);
-  s.title = f.title || s.title;
-  parsedSets.set(id, s);
-  return s;
-}
-
-async function buildPool(): Promise<Pool> {
-  const [kind, ...rest] = ui.src.split(":");
-  const id = rest.join(":");
-  if (kind === "set") {
-    const s = setOf(id);
-    if (!s) return { sents: [], dialogs: [], focus: new Set(), title: "Набор не найден" };
-    const lessons = ui.lesson >= 0 && s.lessons[ui.lesson] ? [s.lessons[ui.lesson]] : s.lessons;
-    const sents = lessons.flatMap((l) => l.sents);
-    return { sents, dialogs: lessons.flatMap((l) => l.dialogs), focus: new Set(sents.flatMap((x) => x.t.filter(isWordTok))), title: s.title };
-  }
-  const all = await exDialogs().catch(() => [] as Dialog[]);
-  if (kind === "theme") {
-    const dialogs = all.filter((d) => d.theme === id);
-    const words = new Set(dialogs.flatMap((d) => d.lines.flatMap((l) => seg(l[1]).filter(isWordTok))));
-    const deckId = THEME_DECK[id];
-    if (deckId) for (const w of (await deckById(deckId)).words) words.add(w.han);
-    const level = Math.max(2, ...dialogs.map((d) => d.level ?? 2));
-    const sents = sentencesFor(await getCorpus(), words, await basicWords(Math.min(level, 3)), 300);
-    return { sents, dialogs, focus: words, title: `Тема: ${id}` };
-  }
-  // колода
-  const deckId = id || app.deck?.id || "hsk2-1";
-  const deck = await deckById(deckId);
-  const words = new Set(deck.words.map((w) => w.han));
-  const L = levelOf(deckId);
-  const sents = sentencesFor(await getCorpus(), words, await basicWords(L), 300);
-  const lifeTheme = Object.entries(THEME_DECK).find(([, d]) => d === deckId)?.[0];
-  const dialogs = all.filter((d) => (lifeTheme ? d.theme === lifeTheme : (d.level ?? 2) <= Math.max(L, 1)));
-  return { sents, dialogs, focus: words, title: deck.title };
-}
-
-function srcTitle(): string {
-  const [kind, ...rest] = ui.src.split(":");
-  const id = rest.join(":");
-  if (kind === "set") return sets.find((s) => s.id === id)?.title ?? "Мой набор";
-  if (kind === "theme") return `Тема: ${id}`;
-  return app.decks.find((d) => d.id === id)?.title ?? "Колода";
-}
-
-async function pickSource() {
-  const all = await exDialogs().catch(() => [] as Dialog[]);
-  const themes = [...new Set(all.map((d) => d.theme).filter((x): x is string => !!x))];
-  const row = (key: string, name: string, sub: string) =>
-    `<button class="deck-opt" data-pick="${esc(key)}" aria-current="${key === ui.src}"><span>${esc(name)}<small>${esc(sub)}</small></span>${key === ui.src ? `<span class="pick-btn on">✓</span>` : ""}</button>`;
-  const groups = new Map<string, string[]>();
-  for (const d of app.decks.filter((x) => !x.hidden)) {
-    const g = d.group || (d.user ? "Свои колоды" : "Колоды");
-    (groups.get(g) ?? groups.set(g, []).get(g)!).push(row(`deck:${d.id}`, d.title, `${d.count} ${plural(d.count, "слово", "слова", "слов")} — предложения с этими словами`));
-  }
-  const body = (sets.length ? `<h3 class="grp-title"><span>Мои наборы</span></h3><div class="deck-list">${sets.map((s) => row(`set:${s.id}`, s.title, "из файла")).join("")}</div>` : "")
-    + `<h3 class="grp-title"><span>Темы с диалогами</span></h3><div class="deck-list">${themes.map((t) => row(`theme:${t}`, t, `${all.filter((d) => d.theme === t).length} ${plural(all.filter((d) => d.theme === t).length, "диалог", "диалога", "диалогов")} и предложения`)).join("")}</div>`
-    + [...groups].map(([g, rows]) => `<h3 class="grp-title"><span>${esc(g)}</span></h3><div class="deck-list">${rows.join("")}</div>`).join("");
-  openSheet("Откуда брать задания", `<div class="pick-decks">${body}</div>`, (root) => {
-    root.addEventListener("click", (e) => {
-      const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-pick]");
-      if (!b) return;
-      ui.src = b.dataset.pick!;
-      ui.lesson = -1;
-      save();
-      closeSheet();
-      renderSetup();
-    });
-  });
-}
-
-/* ---------- экран выбора ---------- */
-
-let poolCache: { key: string; pool: Promise<Pool> } | null = null;
-function currentPool(): Promise<Pool> {
-  const key = `${ui.src}|${ui.lesson}|${sets.length}`;
-  if (!poolCache || poolCache.key !== key) poolCache = { key, pool: buildPool() };
-  return poolCache.pool;
+let freePool: { key: string; pool: Promise<Pool> } | null = null;
+function currentFree(): Promise<Pool> {
+  const id = ui.freeDeck;
+  if (!freePool || freePool.key !== id) freePool = { key: id, pool: (async () => {
+    const deck = await deckById(id);
+    const words = new Set(deck.words.map((w) => w.han));
+    const sents = sentencesFor(await getCorpus(), words, await basicWords(levelOf(id)), 300);
+    return { sents, dialogs: [], focus: words, title: deck.title };
+  })() };
+  return freePool.pool;
 }
 
 async function renderSetup() {
-  $("ex-setup").hidden = false;
-  $("ex-run").hidden = true;
-  if (!ui.src) ui.src = `deck:${app.deck?.id ?? "hsk2-1"}`;
-  setPickLabel("ex-src", srcTitle());
-  $("ex-kinds").innerHTML = KINDS.map((k) => `<button class="chip-btn" data-kind="${k.id}" aria-pressed="${ui.kinds.includes(k.id)}" title="${esc(k.hint)}">${k.name}</button>`).join("");
+  views("setup");
+  if (!app.decks.some((d) => d.id === ui.freeDeck)) ui.freeDeck = app.deck?.id ?? app.decks[0]?.id ?? "";
+  setPickLabel("ex-src", app.decks.find((d) => d.id === ui.freeDeck)?.title ?? "Выберите колоду");
+  const kinds = KINDS.filter((k) => k.id !== "dialog");
+  $("ex-kinds").innerHTML = kinds.map((k) => `<button class="chip-btn" data-kind="${k.id}" aria-pressed="${ui.kinds.includes(k.id)}" title="${esc(k.hint)}">${k.name}</button>`).join("");
   $("ex-n").textContent = String(ui.n);
   $<HTMLInputElement>("ex-py").checked = ui.pinyin;
-  renderSets();
-  // уроки набора
-  const [kind, ...rest] = ui.src.split(":");
-  const set = kind === "set" ? setOf(rest.join(":")) : null;
-  $("ex-lessons").hidden = !set || set.lessons.length < 2;
-  if (set && ui.lesson >= set.lessons.length) ui.lesson = -1;
-  // много уроков — одна кнопка со списком в панели, иначе чипы
-  if (set) $("ex-lessons").innerHTML = set.lessons.length > 6
-    ? `<button class="src-pick" id="ex-lesson-pick" data-lesson-pick><span>${esc(ui.lesson < 0 ? `Все уроки (${set.lessons.length})` : set.lessons[ui.lesson].title)}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>`
-    : [`<button class="chip-btn" data-lesson="-1" aria-pressed="${ui.lesson < 0}">Все уроки</button>`,
-      ...set.lessons.map((l, i) => `<button class="chip-btn" data-lesson="${i}" aria-pressed="${ui.lesson === i}">${esc(l.title)}</button>`)].join("");
-  $("ex-src-info").textContent = "Подбираю задания…";
-  $<HTMLButtonElement>("ex-start").disabled = true;
+  const start = $<HTMLButtonElement>("ex-start");
+  start.disabled = true;
+  if (!ui.freeDeck) { $("ex-src-info").textContent = "Сначала добавьте колоду в «Карточках»."; start.textContent = "Нет колод"; return; }
+  $("ex-src-info").textContent = "Подбираю предложения…";
   try {
     await ensureLex();
-    const p = await currentPool();
-    const nd = p.dialogs.length, ns = p.sents.length;
-    $("ex-src-info").textContent = `${ns} ${plural(ns, "предложение", "предложения", "предложений")}${nd ? `, ${nd} ${plural(nd, "диалог", "диалога", "диалогов")}` : ""}`;
-    const usable = (ns && ui.kinds.some((k) => k !== "dialog")) || (nd && ui.kinds.includes("dialog"));
-    $<HTMLButtonElement>("ex-start").disabled = !usable;
-    $("ex-start").textContent = usable ? "Начать" : ns || nd ? "Выберите вид заданий" : "Нет подходящих заданий";
+    const p = await currentFree();
+    const ns = p.sents.length;
+    $("ex-src-info").textContent = `${ns} ${plural(ns, "предложение", "предложения", "предложений")}`;
+    const usable = ns > 0 && ui.kinds.length > 0;
+    start.disabled = !usable;
+    start.textContent = usable ? "Начать" : ns ? "Выберите вид заданий" : "Нет подходящих предложений";
   } catch {
     $("ex-src-info").textContent = "Не удалось загрузить предложения. Для первого раза нужен интернет.";
   }
 }
 
-function renderSets() {
-  $("ex-set-list").innerHTML = sets.length
-    ? sets.map((s) => {
-      const p = setOf(s.id);
-      const n = p ? p.lessons.reduce((a, l) => a + l.sents.length, 0) : 0;
-      const d = p ? p.lessons.reduce((a, l) => a + l.dialogs.length, 0) : 0;
-      return `<div class="deck-opt set-row-x"><button class="set-open" data-set="${esc(s.id)}"><span>${esc(s.title)}<small>${p?.lessons.length ?? 0} ${plural(p?.lessons.length ?? 0, "урок", "урока", "уроков")} · ${n} ${plural(n, "предложение", "предложения", "предложений")}${d ? ` · ${d} ${plural(d, "диалог", "диалога", "диалогов")}` : ""}</small></span></button><button class="dt-menu" data-del-set="${esc(s.id)}" aria-label="Удалить набор">×</button></div>`;
-    }).join("") + `<div class="confirm" id="ex-set-confirm" hidden></div>`
-    : `<p class="hint pad-msg">Загрузите текстовый файл с предложениями и диалогами — например, уроки учебника. Наборы хранятся только на этом устройстве.</p>`;
-}
-
-const FORMAT_HELP = `<p class="hint">Обычный текстовый файл (.txt, UTF-8). Строки:</p>
-<pre class="fmt"># Название набора
-## Урок 1. Знакомство
-你好！ | Привет!
-我是学生。 | Я студент.
-@ В магазине
-A: 你要什么？ | Что вам нужно?
-B: 我要苹果。 | Мне яблоки.
-? Что нужно B? | бананы | яблоки* | хлеб</pre>
-<p class="hint"><b>#</b> — название, <b>##</b> — урок, строка «китайский | русский» — предложение (вместо | можно Tab), <b>@</b> — начало диалога (до пустой строки), <b>?</b> — вопрос к диалогу, верный вариант со звёздочкой. Русский перевод можно не писать — тогда предложение будет только в пропусках и аудировании.</p>`;
-
 /* ---------- занятие ---------- */
 
+type Run = { mode: "step" | "review" | "free"; step?: StepId; focus: Set<string>; words: LessonWord[]; courseWords: LessonWord[]; distract: number; title: string };
+let run: Run = { mode: "free", focus: new Set(), words: [], courseWords: [], distract: 2, title: "" };
 let tasks: Task[] = [];
 let pos = 0;
 let right = 0;
 let prog: ExProgress = {};
-let pool: Pool | null = null;
 let rnd: () => number = Math.random;
 let answered = false;
-// состояние текущего задания
 let tiles: string[] = [];
 let picked: string[] = [];
 let gap: ReturnType<typeof gapTask> = null;
+let wopts: string[] = [];
 let qAns: (number | null)[] = [];
 let hwPad: HwPad | null = null;
+let poolWords: string[] = [];
 
-async function startSession() {
-  pool = await currentPool();
-  prog = (await store.getMeta<ExProgress>("ex")) ?? {};
-  rnd = Math.random;
-  tasks = planSession(pool.sents, pool.dialogs, ui.kinds, prog, ui.n, rnd);
-  if (!tasks.length) return;
+async function begin(list: Task[], r: Run) {
+  if (!list.length) return;
+  run = r;
+  tasks = list;
   pos = 0;
   right = 0;
-  $("ex-setup").hidden = true;
-  $("ex-run").hidden = false;
+  poolWords = [...new Set([...r.focus, ...list.flatMap((t) => (t.kind === "dialog" || t.kind === "word" ? [] : t.sent.t.filter(isWordTok))), ...r.courseWords.map((w) => w[0])])];
+  views("run");
   showTask();
 }
 
-const wordPool = () => [...new Set([...(pool?.focus ?? []), ...(pool?.sents ?? []).slice(0, 200).flatMap((s) => s.t.filter(isWordTok))])];
+/** Пиньинь над словами: в первом курсе всегда, дальше — в первых шагах; в переводе и диалоге — только на уровне 1. */
+function autoPinyin(step: StepId | undefined): boolean {
+  if (run.mode === "free") return ui.pinyin;
+  const lvl = course?.set.level ?? 2;
+  if (lvl <= 1) return true;
+  return step === "recog" || step === "gap" || step === "build" || step === "listen";
+}
+
+async function startStep(step: StepId) {
+  const c = course!;
+  const l = c.set.lessons[lessonIdx];
+  if (step === "words") { showWords(); return; }
+  prog = (await store.getMeta<ExProgress>("ex")) ?? {};
+  const list = stepTasks(step, l, prog, rnd = Math.random);
+  pyOn = autoPinyin(step);
+  const all = c.set.lessons.flatMap((x) => x.words);
+  await begin(list, { mode: "step", step, focus: new Set([...l.words.map((w) => w[0]), ...l.sents.flatMap((s) => s.t.filter(isWordTok))]), words: l.words, courseWords: all,
+    distract: Math.min(3, 1 + Math.floor(lessonIdx / 5)), title: STEPS.find((s) => s.id === step)!.name });
+}
+
+async function startReview() {
+  const c = course!;
+  const idx = startedLessons(c);
+  if (!idx.length) return;
+  prog = (await store.getMeta<ExProgress>("ex")) ?? {};
+  const lessons = idx.map((i) => c.set.lessons[i]);
+  pyOn = (c.set.level ?? 2) <= 1;
+  await begin(reviewTasks(lessons, prog, 12, rnd = Math.random), { mode: "review", focus: new Set(lessons.flatMap((l) => l.words.map((w) => w[0]))), words: lessons.flatMap((l) => l.words),
+    courseWords: c.set.lessons.flatMap((x) => x.words), distract: 2, title: "Повторение" });
+}
+
+async function startFree() {
+  const p = await currentFree();
+  prog = (await store.getMeta<ExProgress>("ex")) ?? {};
+  pyOn = ui.pinyin;
+  await begin(planSession(p.sents, [], ui.kinds, prog, ui.n, rnd = Math.random), { mode: "free", focus: p.focus, words: [], courseWords: [], distract: 2, title: p.title });
+}
 
 function showTask() {
   answered = false;
@@ -261,35 +468,37 @@ function showTask() {
   $("ex-gloss").hidden = true;
   $("ex-prog").style.width = `${(100 * pos) / Math.max(1, tasks.length)}%`;
   if (pos >= tasks.length) { finish(); return; }
-  $("ex-count").textContent = `${pos + 1} из ${tasks.length}`;
+  $("ex-count").textContent = `${run.title ? `${run.title} · ` : ""}${pos + 1} из ${tasks.length}`;
   const t = tasks[pos];
   const card = $("ex-card");
   if (t.kind === "dialog") { renderDialog(t.dialog); return; }
+  if (t.kind === "word") { renderWord(t.word, t.dir); return; }
   const s = t.sent;
   if (t.kind === "tr") {
     if (!s.ru) { tasks[pos] = { kind: "gap", sent: s }; showTask(); return; }
-    card.innerHTML = `<div class="ex-top"><span class="label">Переведите на китайский</span></div>
+    const mode = t.tiles === undefined ? ui.trMode : t.tiles ? "tiles" : "type";
+    card.innerHTML = `<div class="ex-top"><span class="label">${mode === "tiles" && t.tiles ? "Соберите перевод из слов" : "Переведите на китайский"}</span></div>
       <div class="ex-ru">${esc(s.ru)}</div>
-      <div class="seg tr-mode" role="group" aria-label="Как отвечать"><button data-tr="type" aria-pressed="${ui.trMode === "type"}">Написать</button><button data-tr="tiles" aria-pressed="${ui.trMode === "tiles"}">Собрать из слов</button></div>
+      ${t.tiles === undefined ? `<div class="seg tr-mode" role="group" aria-label="Как отвечать"><button data-tr="type" aria-pressed="${mode === "type"}">Написать</button><button data-tr="tiles" aria-pressed="${mode === "tiles"}">Собрать из слов</button></div>` : ""}
       <div id="ex-tr-body"></div>
       <div class="ex-res" id="ex-res" hidden></div>
       <div class="ex-btns" id="ex-btns"><button class="btn primary wide" data-act="check">Проверить</button></div>`;
-    renderTrBody(s);
+    renderTrBody(s, mode);
     return;
   }
   if (t.kind === "gap") {
-    gap = gapTask(s, pool?.focus ?? new Set(), wordPool(), rnd);
-    if (!gap) { pos++; showTask(); return; }
+    gap = gapTask(s, run.focus, poolWords, rnd);
+    if (!gap) { tasks.splice(pos, 1); showTask(); return; }
     card.innerHTML = `<div class="ex-top"><span class="label">Вставьте пропущенное слово</span><button class="icon-btn small-ic" data-act="say" aria-label="Послушать">${PLAY}</button></div>
       <div class="ex-zh">${s.t.map((x, i) => (i === gap!.at ? `<span class="gap-slot">＿＿</span>` : tokHTML(x))).join("")}</div>
       ${s.ru ? `<div class="ex-ru small">${esc(s.ru)}</div>` : ""}
-      <div class="gap-opts">${gap.options.map((o) => `<button class="tile-w" data-opt="${esc(o)}">${ui.pinyin ? `<small class="py">${pyOf(o)}</small>` : ""}<span>${esc(o)}</span></button>`).join("")}</div>
+      <div class="gap-opts">${gap.options.map((o) => `<button class="tile-w" data-opt="${esc(o)}">${pyOn ? `<small class="py">${pyOf(o)}</small>` : ""}<span>${esc(o)}</span></button>`).join("")}</div>
       <div class="ex-res" id="ex-res" hidden></div>
       <div class="ex-btns" id="ex-btns"></div>`;
     return;
   }
   // аудирование
-  tiles = tilesFor({ zh: s.zh, ru: s.ru, t: s.t }, wordPool(), rnd, Math.min(3, 1 + Math.floor(s.t.length / 5)));
+  tiles = tilesFor({ zh: s.zh, ru: s.ru, t: s.t }, poolWords, rnd, Math.min(run.distract, 1 + Math.floor(s.t.length / 5)));
   picked = [];
   card.innerHTML = `<div class="ex-top"><span class="label">Послушайте и соберите предложение</span></div>
     <div class="listen-btns"><button class="btn" data-act="say">${PLAY} Слушать</button><button class="btn" data-act="slow">Медленно</button></div>
@@ -302,10 +511,29 @@ function showTask() {
 
 const PLAY = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>`;
 
-function renderTrBody(s: Sent) {
+function wordPy(w: LessonWord): string {
+  try { return w[1] ? pinyinHTML(parseRef(w[1])) : pyOf(w[0]); } catch { return pyOf(w[0]); }
+}
+
+/** Узнавание слова: иероглифы → значение или значение → иероглифы, 4 варианта. */
+function renderWord(w: LessonWord, dir: "zh" | "ru") {
+  wopts = wordOptions(w, run.words, run.courseWords, dir, rnd);
+  $("ex-card").innerHTML = dir === "zh"
+    ? `<div class="ex-top"><span class="label">Что значит это слово?</span><button class="icon-btn small-ic" data-act="say-word" aria-label="Послушать">${PLAY}</button></div>
+       <div class="wq"><span class="wq-han">${esc(w[0])}</span>${pyOn ? `<span class="py">${wordPy(w)}</span>` : ""}</div>
+       <div class="w-opts">${wopts.map((o, i) => `<button class="opt-btn" data-wopt="${i}">${esc(o)}</button>`).join("")}</div>
+       <div class="ex-res" id="ex-res" hidden></div><div class="ex-btns" id="ex-btns"></div>`
+    : `<div class="ex-top"><span class="label">Как это по-китайски?</span></div>
+       <div class="ex-ru">${esc(shortRu(w[2]))}</div>
+       <div class="w-opts han">${wopts.map((o, i) => `<button class="opt-btn han" data-wopt="${i}">${esc(o)}</button>`).join("")}</div>
+       <div class="ex-res" id="ex-res" hidden></div><div class="ex-btns" id="ex-btns"></div>`;
+  if (dir === "zh") setTimeout(() => say(w[0]), 200);
+}
+
+function renderTrBody(s: Sent, mode: "type" | "tiles") {
   const body = $("ex-tr-body");
-  if (ui.trMode === "tiles") {
-    tiles = tilesFor({ zh: s.zh, ru: s.ru, t: s.t }, wordPool(), rnd, Math.min(3, 1 + Math.floor(s.t.length / 5)));
+  if (mode === "tiles") {
+    tiles = tilesFor({ zh: s.zh, ru: s.ru, t: s.t }, poolWords, rnd, Math.min(run.distract, 1 + Math.floor(s.t.length / 5)));
     picked = [];
     body.innerHTML = `<div class="ex-ans" id="ex-ans"></div><div class="ex-pool" id="ex-pool"></div>`;
     renderTiles();
@@ -316,8 +544,10 @@ function renderTrBody(s: Sent) {
   }
 }
 
+const trModeNow = (t: Task) => (t.kind === "tr" ? (t.tiles === undefined ? ui.trMode : t.tiles ? "tiles" : "type") : "tiles");
+
 function renderTiles() {
-  const pyT = (w: string) => (ui.pinyin && isWordTok(w) ? `<small class="py">${pyOf(w)}</small>` : "");
+  const pyT = (w: string) => (pyOn && isWordTok(w) ? `<small class="py">${pyOf(w)}</small>` : "");
   $("ex-ans").innerHTML = picked.map((w, i) => `<button class="tile-w" data-ans="${i}">${pyT(w)}<span>${esc(w)}</span></button>`).join("") || `<span class="hint">Нажимайте на слова снизу по порядку</span>`;
   const used = [...picked];
   $("ex-pool").innerHTML = tiles.map((w, i) => {
@@ -333,6 +563,8 @@ function sentenceView(s: Sent, mark?: number) {
   return `<div class="ex-zh ans">${s.t.map((x, i) => tokHTML(x, i === mark ? " hl" : "")).join("")}</div>${s.ru ? `<div class="ex-ru small">${esc(s.ru)}</div>` : ""}`;
 }
 
+const nextBtn = () => `<button class="btn primary wide" data-act="next">${pos + 1 < tasks.length ? "Дальше" : "Итог"}</button>`;
+
 async function result(ok: boolean, html: string, selfGrade = false) {
   answered = true;
   const res = $("ex-res");
@@ -343,21 +575,23 @@ async function result(ok: boolean, html: string, selfGrade = false) {
     return;
   }
   await mark(ok);
-  $("ex-btns").innerHTML = `<button class="btn primary wide" data-act="next">${pos + 1 < tasks.length ? "Дальше" : "Итог"}</button>`;
+  $("ex-btns").innerHTML = nextBtn();
 }
 
 async function mark(ok: boolean) {
   if (ok) right++;
   const t = tasks[pos];
-  prog = record(prog, t.kind === "dialog" ? t.dialog.id : t.sent.zh, ok);
+  const key = t.kind === "dialog" ? t.dialog.id : t.kind === "word" ? `w:${t.word[0]}` : t.sent.zh;
+  prog = record(prog, key, ok);
   await store.setMeta("ex", prog);
 }
 
 async function check() {
   const t = tasks[pos];
   if (t.kind === "dialog") { checkDialog(t.dialog); return; }
+  if (t.kind === "word") return;
   const s = t.sent;
-  if (t.kind === "tr" && ui.trMode === "type") {
+  if (t.kind === "tr" && trModeNow(t) === "type") {
     const mine = $<HTMLInputElement>("ex-in").value.trim();
     if (!mine) return;
     hwPad?.hide();
@@ -369,7 +603,6 @@ async function check() {
       ${sentenceView(s)}`, !ok);
     return;
   }
-  // плитки: перевод или аудирование
   const ok = checkAssembled(picked, { zh: s.zh, ru: s.ru, t: s.t });
   $("ex-ans").classList.toggle("ok", ok);
   $("ex-ans").classList.toggle("bad", !ok);
@@ -380,8 +613,7 @@ async function check() {
 
 function renderDialog(d: Dialog) {
   qAns = d.q.map(() => null);
-  const card = $("ex-card");
-  card.innerHTML = `<div class="ex-top"><span class="label">Диалог: ${esc(d.title)}</span><button class="btn small" data-act="say-all">${PLAY} Весь</button></div>
+  $("ex-card").innerHTML = `<div class="ex-top"><span class="label">Диалог: ${esc(d.title)}</span><button class="btn small" data-act="say-all">${PLAY} Весь</button></div>
     <div class="dl">${d.lines.map((l, i) => `<div class="dl-line"><span class="dl-who">${esc(l[0])}</span><div class="dl-body"><div class="ex-zh">${seg(l[1]).map((x) => tokHTML(x)).join("")}</div><div class="dl-ru" hidden>${esc(l[2])}</div></div><button class="icon-btn small-ic" data-line="${i}" aria-label="Послушать реплику">${PLAY}</button></div>`).join("")}</div>
     <button class="link-btn" data-act="ru">Показать перевод</button>
     ${d.q.length ? `<div class="dl-q">${d.q.map((q, i) => `<div class="q"><div class="q-t">${esc(q.q)}</div><div class="q-o">${q.o.map((o, j) => `<button class="chip-btn" data-q="${i}" data-o="${j}" aria-pressed="false">${esc(o)}</button>`).join("")}</div></div>`).join("")}</div>` : ""}
@@ -407,11 +639,30 @@ async function checkDialog(d: Dialog) {
   await result(ok, `<div class="chip ${ok ? "ok" : good ? "mid" : "no"}">Верно ${good} из ${d.q.length}</div>`);
 }
 
-function finish() {
+/* ---------- итог ---------- */
+
+async function finish() {
   $("ex-count").textContent = "";
+  const score = tasks.length ? right / tasks.length : 0;
+  const pct = Math.round(score * 100);
+  if (run.mode === "step" && course && run.step) {
+    await saveBest(run.step, score);
+    const l = course.set.lessons[lessonIdx];
+    const steps = lessonSteps(l);
+    const k = steps.indexOf(run.step);
+    const passed = score >= PASS;
+    const next = passed ? steps[k + 1] : undefined;
+    const lessonFin = passed && !next;
+    $("ex-card").innerHTML = `<div class="ex-done"><b>${pct}%</b>${right} из ${tasks.length} верно</div>
+      <p class="hint center">${passed ? (lessonFin ? "Урок пройден! Слова урока можно повторять карточками." : "Шаг засчитан — следующий открыт.") : `Нужно ${Math.round(PASS * 100)}%. Ошибки попадутся снова — попробуйте ещё раз.`}</p>
+      <div class="ex-btns">${passed
+        ? `<button class="btn" data-act="to-lesson">К уроку</button>${next ? `<button class="btn primary" data-act="step" data-step="${next}">${STEPS.find((s) => s.id === next)!.name} →</button>` : lessonIdx + 1 < course.set.lessons.length ? `<button class="btn primary" data-act="lesson" data-lesson="${lessonIdx + 1}">Урок ${lessonIdx + 2} →</button>` : ""}`
+        : `<button class="btn" data-act="to-lesson">К уроку</button><button class="btn primary" data-act="step" data-step="${run.step}">Ещё раз</button>`}</div>`;
+    return;
+  }
   $("ex-card").innerHTML = `<div class="ex-done"><b>${right}</b> из ${tasks.length} ${plural(tasks.length, "задания", "заданий", "заданий")} без ошибок</div>
     <p class="hint center">Ошибочные предложения вернутся в следующих занятиях.</p>
-    <div class="ex-btns"><button class="btn" data-act="setup">К выбору</button><button class="btn primary" data-act="again">Ещё ${ui.n}</button></div>`;
+    <div class="ex-btns"><button class="btn" data-act="${run.mode === "review" ? "to-course" : "setup"}">${run.mode === "review" ? "К курсу" : "Назад"}</button><button class="btn primary" data-act="again">Ещё</button></div>`;
 }
 
 async function gloss(w: string) {
@@ -427,34 +678,67 @@ async function gloss(w: string) {
 
 /* ---------- обработчики ---------- */
 
-/** Выбор урока из длинного набора: список в панели снизу. */
-function pickLesson() {
-  const [, ...rest] = ui.src.split(":");
-  const set = setOf(rest.join(":"));
-  if (!set) return;
-  const row = (i: number, name: string, sub: string) =>
-    `<button class="deck-opt" data-pick="${i}" aria-current="${ui.lesson === i}"><span>${esc(name)}<small>${esc(sub)}</small></span>${ui.lesson === i ? `<span class="pick-btn on">✓</span>` : ""}</button>`;
-  const all = set.lessons.reduce((a, l) => a + l.sents.length, 0);
-  openSheet("Урок", `<div class="pick-decks"><div class="deck-list">${row(-1, "Все уроки", `${all} предл.`)}${set.lessons.map((l, i) => row(i, l.title, `${l.sents.length} предл.${l.dialogs.length ? ` · диалогов: ${l.dialogs.length}` : ""}`)).join("")}</div></div>`, (root) => {
-    root.addEventListener("click", (e) => {
-      const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-pick]");
-      if (!b) return;
-      closeSheet();
-      ui.lesson = Number(b.dataset.pick); save(); renderSetup();
-    });
-  });
+function quitRun() {
+  try { speechSynthesis.cancel(); } catch { /* */ }
+  if (run.mode === "step") openLesson(lessonIdx);
+  else if (run.mode === "review" && course) openCourse(course.key);
+  else renderSetup();
 }
 
 export function initExercise() {
-  onShow("ex", async () => { sets = await loadExSets(); parsedSets = new Map(); renderSetup(); });
+  onShow("ex", () => { renderHome(); });
   onLeave("ex", () => { try { speechSynthesis.cancel(); } catch { /* */ } });
-  $("ex-src").addEventListener("click", pickSource);
-  $("ex-lessons").addEventListener("click", (e) => {
-    if ((e.target as HTMLElement).closest("[data-lesson-pick]")) { pickLesson(); return; }
-    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-lesson]");
-    if (!b) return;
-    ui.lesson = Number(b.dataset.lesson); save(); renderSetup();
+  $("ex-add").addEventListener("click", openCatalog);
+  $("ex-free").addEventListener("click", renderSetup);
+  $("ex-s-back").addEventListener("click", renderHome);
+  $("ex-c-back").addEventListener("click", renderHome);
+  $("ex-c-menu").addEventListener("click", courseMenu);
+  $("ex-l-back").addEventListener("click", () => course && openCourse(course.key));
+  $("ex-courses").addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-course]");
+    if (b) openCourse(b.dataset.course!);
   });
+  const onCourseClick = (e: Event) => {
+    const t = e.target as HTMLElement;
+    if (t.closest("[data-review]")) { startReview(); return; }
+    const l = t.closest<HTMLButtonElement>("[data-lesson]");
+    if (l) openLesson(Number(l.dataset.lesson));
+  };
+  $("ex-c-head").addEventListener("click", onCourseClick);
+  $("ex-c-lessons").addEventListener("click", onCourseClick);
+  $("ex-l-steps").addEventListener("click", (e) => {
+    const t = e.target as HTMLElement;
+    const l = t.closest<HTMLButtonElement>("[data-lesson]");
+    if (l) { openLesson(Number(l.dataset.lesson)); return; }
+    const s = t.closest<HTMLButtonElement>("[data-step]");
+    if (s && !s.disabled) startStep(s.dataset.step as StepId);
+  });
+  $("ex-l-words").addEventListener("click", async (e) => {
+    const t = e.target as HTMLElement;
+    const c = course;
+    if (!c) return;
+    const l = c.set.lessons[lessonIdx];
+    if (t.closest("[data-words-back]")) { $("ex-l-steps").hidden = false; openLesson(lessonIdx); return; }
+    const sw = t.closest<HTMLButtonElement>("[data-wsay]");
+    if (sw) { say(l.words[Number(sw.dataset.wsay)][0]); return; }
+    const wo = t.closest<HTMLButtonElement>("[data-wopen]");
+    if (wo) { const w = await wordByHan(wo.dataset.wopen!); openEntry(w.id, true); return; }
+    if (t.closest("[data-words-ok]")) { await saveBest("words", 1); $("ex-l-steps").hidden = false; const steps = lessonSteps(l); const nx = steps[steps.indexOf("words") + 1]; if (nx) startStep(nx); else openLesson(lessonIdx); return; }
+    if (t.closest("[data-words-deck]")) {
+      const id = await lessonDeck(c, lessonIdx);
+      await switchDeck(id);
+      show("deck");
+    }
+  });
+  $<HTMLInputElement>("ex-set-file").addEventListener("change", async (e) => {
+    const input = e.target as HTMLInputElement;
+    const f = input.files?.[0];
+    input.value = "";
+    if (f) loadFile(f).catch(() => openSheet("Загрузка курса", `<p class="note danger">Не получилось прочитать файл.</p>`));
+  });
+
+  // своя практика
+  $("ex-src").addEventListener("click", () => pickDeck("Колода для практики", ui.freeDeck, (id) => { ui.freeDeck = id; save(); renderSetup(); }));
   $("ex-kinds").addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-kind]");
     if (!b) return;
@@ -465,44 +749,8 @@ export function initExercise() {
   $("ex-n-minus").addEventListener("click", () => { ui.n = Math.max(5, ui.n - 5); save(); $("ex-n").textContent = String(ui.n); });
   $("ex-n-plus").addEventListener("click", () => { ui.n = Math.min(40, ui.n + 5); save(); $("ex-n").textContent = String(ui.n); });
   $("ex-py").addEventListener("change", (e) => { ui.pinyin = (e.target as HTMLInputElement).checked; save(); });
-  $("ex-start").addEventListener("click", startSession);
-  $("ex-quit").addEventListener("click", () => { try { speechSynthesis.cancel(); } catch { /* */ } renderSetup(); });
-
-  // свои наборы
-  $("ex-set-add").addEventListener("click", () => $<HTMLInputElement>("ex-set-file").click());
-  $("ex-set-help").addEventListener("click", () => openSheet("Формат файла с упражнениями", FORMAT_HELP));
-  $<HTMLInputElement>("ex-set-file").addEventListener("change", async (e) => {
-    const input = e.target as HTMLInputElement;
-    const f = input.files?.[0];
-    input.value = "";
-    if (!f) return;
-    await ensureLex();
-    const text = await f.text();
-    const id = `s-${Date.now().toString(36)}`;
-    const parsed = parseExSet(text, id, seg);
-    const n = parsed.lessons.reduce((a, l) => a + l.sents.length + l.dialogs.length, 0);
-    if (!n) { openSheet("Загрузка набора", `<p class="note danger">В файле не нашлось ни предложений, ни диалогов.</p>${FORMAT_HELP}`); return; }
-    sets = [...sets, { id, title: parsed.title === "Мой набор" ? f.name.replace(/\.[^.]+$/, "") : parsed.title, text, addedAt: Date.now() }];
-    await saveExSets(sets);
-    parsedSets.delete(id);
-    ui.src = `set:${id}`; ui.lesson = -1; save();
-    renderSetup();
-  });
-  $("ex-set-list").addEventListener("click", (e) => {
-    const t = e.target as HTMLElement;
-    const o = t.closest<HTMLButtonElement>("[data-set]");
-    if (o) { ui.src = `set:${o.dataset.set}`; ui.lesson = -1; save(); renderSetup(); window.scrollTo(0, 0); return; }
-    const d = t.closest<HTMLButtonElement>("[data-del-set]");
-    if (d) {
-      const id = d.dataset.delSet!;
-      confirmInline($("ex-set-confirm"), `Удалить набор «${sets.find((s) => s.id === id)?.title ?? ""}»?`, "Удалить", async () => {
-        sets = sets.filter((s) => s.id !== id);
-        await saveExSets(sets);
-        if (ui.src === `set:${id}`) ui.src = "";
-        save(); renderSetup();
-      });
-    }
-  });
+  $("ex-start").addEventListener("click", startFree);
+  $("ex-quit").addEventListener("click", quitRun);
 
   // задания
   $("ex-card").addEventListener("click", async (e) => {
@@ -510,30 +758,49 @@ export function initExercise() {
     const task = tasks[pos];
     const w = t.closest<HTMLButtonElement>("[data-w]");
     if (w) { gloss(w.dataset.w!); return; }
-    const act = t.closest<HTMLButtonElement>("[data-act]")?.dataset.act;
+    const actBtn = t.closest<HTMLButtonElement>("[data-act]");
+    const act = actBtn?.dataset.act;
     if (act === "check") { check(); return; }
     if (act === "next") { pos++; showTask(); window.scrollTo(0, 0); return; }
-    if (act === "again") { startSession(); return; }
+    if (act === "again") { if (run.mode === "review") startReview(); else startFree(); return; }
     if (act === "setup") { renderSetup(); return; }
-    if (act === "say" && task && task.kind !== "dialog") { say(task.sent.zh, 0.8); return; }
-    if (act === "slow" && task && task.kind !== "dialog") { say(task.sent.zh, 0.55); return; }
+    if (act === "to-course") { if (course) openCourse(course.key); return; }
+    if (act === "to-lesson") { openLesson(lessonIdx); return; }
+    if (act === "step") { startStep(actBtn!.dataset.step as StepId); return; }
+    if (act === "lesson") { openLesson(Number(actBtn!.dataset.lesson)); return; }
+    if (act === "say-word" && task?.kind === "word") { say(task.word[0]); return; }
+    if (act === "say" && task && task.kind !== "dialog" && task.kind !== "word") { say(task.sent.zh, 0.8); return; }
+    if (act === "slow" && task && task.kind !== "dialog" && task.kind !== "word") { say(task.sent.zh, 0.55); return; }
     if (act === "say-all" && task?.kind === "dialog") { sayAll(task.dialog.lines.map((l) => l[1]), 0.8); return; }
     if (act === "ru") { document.querySelectorAll<HTMLElement>("#ex-card .dl-ru").forEach((x) => (x.hidden = !x.hidden)); return; }
-    if (act === "hw") { const b = t.closest<HTMLButtonElement>("[data-act]")!; if (hwPad?.visible()) hwPad.hide(); else hwPad?.show(); b.setAttribute("aria-pressed", String(!!hwPad?.visible())); return; }
+    if (act === "hw") { if (hwPad?.visible()) hwPad.hide(); else hwPad?.show(); actBtn!.setAttribute("aria-pressed", String(!!hwPad?.visible())); return; }
     const line = t.closest<HTMLButtonElement>("[data-line]");
     if (line && task?.kind === "dialog") { say(task.dialog.lines[Number(line.dataset.line)][1], 0.8); return; }
     const tr = t.closest<HTMLButtonElement>("[data-tr]");
     if (tr && task?.kind === "tr" && !answered) {
       ui.trMode = tr.dataset.tr as "type" | "tiles"; save();
       document.querySelectorAll<HTMLButtonElement>("#ex-card [data-tr]").forEach((x) => x.setAttribute("aria-pressed", String(x === tr)));
-      renderTrBody(task.sent);
+      renderTrBody(task.sent, ui.trMode);
       const c = $("ex-btns").querySelector<HTMLButtonElement>("[data-act=check]");
       if (c) c.disabled = ui.trMode === "tiles";
       return;
     }
     if (answered) {
       const s = t.closest<HTMLButtonElement>("[data-self]");
-      if (s) { await mark(s.dataset.self === "1"); $("ex-btns").innerHTML = `<button class="btn primary wide" data-act="next">${pos + 1 < tasks.length ? "Дальше" : "Итог"}</button>`; }
+      if (s) { await mark(s.dataset.self === "1"); $("ex-btns").innerHTML = nextBtn(); }
+      return;
+    }
+    const wo = t.closest<HTMLButtonElement>("[data-wopt]");
+    if (wo && task?.kind === "word") {
+      const right0 = task.dir === "zh" ? shortRu(task.word[2]) : task.word[0];
+      const ok = wopts[Number(wo.dataset.wopt)] === right0;
+      document.querySelectorAll<HTMLButtonElement>("#ex-card [data-wopt]").forEach((b) => {
+        b.classList.toggle("right", wopts[Number(b.dataset.wopt)] === right0);
+        b.classList.toggle("wrong", b === wo && !ok);
+        b.disabled = true;
+      });
+      if (task.dir === "ru") say(task.word[0]);
+      await result(ok, `<div class="chip ${ok ? "ok" : "no"}">${ok ? "Верно" : "Не то"}</div><div class="w-ans"><b>${esc(task.word[0])}</b> <span class="py">${wordPy(task.word)}</span> — ${esc(task.word[2])}</div>`);
       return;
     }
     const pl = t.closest<HTMLButtonElement>("[data-pool]");

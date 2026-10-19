@@ -39,7 +39,7 @@ async function boot() {
   setTheme(app.settings.theme, app.settings.custom ?? null);
   setPen(app.settings.pen, app.settings.ink, app.settings.keepStrokes, app.settings.penSize);
   onThemeChange(() => recolor([sessionWriter(), entryWriter(), bookWriter(), penWriter()]));
-  show("home");
+  show("words");
   requestPersist();
   loadRecorded();
   if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {

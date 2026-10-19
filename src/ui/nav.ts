@@ -6,7 +6,7 @@ const TITLE: Record<string, string> = { home: "Карточки", words: "Сло
 
 const handlers: Partial<Record<View, () => void>> = {};
 const leaveHandlers: Partial<Record<View, () => void>> = {};
-let current: View = "home";
+let current: View = "words";
 
 export function onShow(v: View, f: () => void) { handlers[v] = f; }
 export function onLeave(v: View, f: () => void) { leaveHandlers[v] = f; }

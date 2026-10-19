@@ -53,10 +53,65 @@ export async function init() {
   const idx = await fetch("data/decks/index.json");
   if (!idx.ok) throw new Error("Не удалось загрузить список колод");
   app.builtinDecks = await idx.json();
+  await migrateAdded();
   rebuildDeckList();
-  const id = app.decks.some((d) => d.id === settings.deck) ? settings.deck : app.decks[0].id;
-  await loadDeckById(id);
+  await loadFirstDeck();
 }
+
+/** Текущая колода из настроек, иначе первая в списке; если колод нет — ничего. */
+async function loadFirstDeck() {
+  const id = app.decks.some((d) => d.id === app.settings.deck) ? app.settings.deck : app.decks[0]?.id;
+  if (id) await loadDeckById(id);
+  else { app.baseDeck = null; app.deck = null; }
+}
+
+/**
+ * Раньше все готовые колоды были в списке сразу. Теперь список сначала пуст, колоды добавляются из каталога.
+ * У тех, кто уже занимался, остаются колоды с прогрессом: текущая, со счётчиком новых за день и с настройками.
+ */
+async function migrateAdded() {
+  if (app.settings.added) return;
+  const keep = new Set<string>();
+  if (app.cards.size) {
+    const opts = app.settings.deckOpts ?? {};
+    if (app.settings.deck) keep.add(app.settings.deck);
+    for (const id of Object.keys(app.day.byDeck ?? {})) keep.add(id);
+    for (const [id, o] of Object.entries(opts)) if (!o.hidden) keep.add(id);
+    // и все колоды, в которых уже есть начатые слова (один раз, при переходе на пустой список)
+    const started = new Set([...app.cards.keys()].map((k) => k.split("#")[0]));
+    for (const d of app.builtinDecks) {
+      if (keep.has(d.id) || opts[d.id]?.hidden) continue;
+      try {
+        const f = await fetchDeckFile(d.id);
+        if (f.words.some(([han]) => started.has(wordId("zh", han)))) keep.add(d.id);
+      } catch { /* офлайн — колоду можно добавить потом */ }
+    }
+  }
+  const added = app.builtinDecks.map((d) => d.id).filter((id) => keep.has(id));
+  await updateSettings({ added });
+}
+
+/** Добавить готовые колоды в свой список. */
+export async function addBuiltinDecks(ids: string[]) {
+  const added = [...new Set([...(app.settings.added ?? []), ...ids])].filter((id) => app.builtinDecks.some((d) => d.id === id));
+  const opts = { ...(app.settings.deckOpts ?? {}) };
+  for (const id of ids) if (opts[id]?.hidden) { const { hidden: _h, ...rest } = opts[id]; if (Object.keys(rest).length) opts[id] = rest; else delete opts[id]; }
+  await updateSettings({ added, deckOpts: opts });
+  rebuildDeckList();
+  if (!app.deck) await loadFirstDeck();
+}
+
+/** Убрать готовую колоду из своего списка (прогресс по словам сохраняется). */
+export async function removeBuiltinDeck(id: string) {
+  await updateSettings({ added: (app.settings.added ?? []).filter((x) => x !== id) });
+  rebuildDeckList();
+  if (app.deck?.id === id) {
+    app.deck = null; app.baseDeck = null;
+    await loadFirstDeck();
+  }
+}
+
+export const isAdded = (id: string) => app.decks.some((d) => d.id === id);
 
 /* ---------- все колоды: для списка со счётчиками ---------- */
 
@@ -124,18 +179,15 @@ export async function deleteDeck(id: string) {
     await removeUserDeck(id);
     await setDeckOpts(id, { title: "", hidden: false, newPerDay: undefined });
   } else {
-    await setDeckOpts(id, { hidden: true });
-    if (app.deck?.id === id) {
-      const next = app.decks.find((d) => !d.hidden);
-      if (next) await switchDeck(next.id);
-    }
+    await removeBuiltinDeck(id);
   }
 }
 
 function rebuildDeckList() {
   const opts = app.settings.deckOpts ?? {};
   app.decks = [
-    ...app.builtinDecks.map((d) => ({ ...d, baseTitle: d.baseTitle ?? d.title, title: opts[d.id]?.title || d.baseTitle || d.title, hidden: !!opts[d.id]?.hidden })),
+    ...app.builtinDecks.filter((d) => (app.settings.added ?? []).includes(d.id))
+      .map((d) => ({ ...d, baseTitle: d.baseTitle ?? d.title, title: opts[d.id]?.title || d.baseTitle || d.title, hidden: false })),
     // свои колоды — группами: сначала без группы («Свои колоды»), затем по названию группы, внутри — по времени создания
     ...[...app.userDecks].sort((a, b) => (a.group ?? "").localeCompare(b.group ?? "") || a.createdAt - b.createdAt)
       .map((d) => ({ id: d.id, title: d.title, baseTitle: d.title, subtitle: "Своя колода", group: d.group || "Свои колоды", lang: "zh", count: d.words.length, user: true, hidden: !!opts[d.id]?.hidden })),
@@ -177,9 +229,10 @@ export async function reloadAll() {
   app.days = byDay(await store.allReviews());
   app.day = (await store.getMeta<store.DayCounter>("day")) ?? { day: "", newCount: 0, byDeck: {} };
   rollDay();
+  await migrateAdded();
   rebuildDeckList();
-  const id = app.decks.some((d) => d.id === app.settings.deck) ? app.settings.deck : app.decks[0].id;
-  await loadDeckById(id);
+  app.deck = null; app.baseDeck = null;
+  await loadFirstDeck();
 }
 
 export const words = () => app.deck?.words ?? [];
@@ -257,7 +310,7 @@ export async function removeUserDeck(id: string) {
   await store.deleteUserDeck(id);
   app.userDecks = await store.allUserDecks();
   rebuildDeckList();
-  if (app.deck?.id === id) await switchDeck(app.decks[0].id);
+  if (app.deck?.id === id) { app.deck = null; app.baseDeck = null; await loadFirstDeck(); }
 }
 
 /* ---------- очередь ---------- */

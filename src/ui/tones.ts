@@ -4,7 +4,7 @@
  *  «Произношение» — говоришь слово в микрофон, кривая высоты голоса рисуется поверх образцовых кривых тонов;
  *  для каждого слога — примерная оценка, на какой тон похоже.
  */
-import { app } from "../state.ts";
+import { app, deckById } from "../state.ts";
 import { pickDeck, deckWords, deckTitle, setPickLabel } from "./deckpick.ts";
 import { hasRecording, loadRecorded, say } from "../speech.ts";
 import { mark } from "../core/pinyin.ts";
@@ -14,10 +14,18 @@ import { $, esc, pinyinHTML } from "./dom.ts";
 import { onShow, onLeave } from "./nav.ts";
 
 type Tab = "listen" | "speak";
+/** Ступени: отдельные слоги → пары тонов (20 сочетаний) → слова своих колод. */
+type Stage = "syl" | "pair" | "mine";
+type Stat = { n: number; ok: number };
 const LS = "cherta.tones";
-const st = { tab: "listen" as Tab, base: 0 as number, done: 0, right: 0, deckId: "" };
+const st = { tab: "listen" as Tab, stage: "syl" as Stage, base: 0 as number, done: 0, right: 0, deckId: "", combo: "", stats: {} as Record<string, Stat> };
 try { Object.assign(st, JSON.parse(localStorage.getItem(LS) ?? "{}")); } catch { /* */ }
-const save = () => { try { localStorage.setItem(LS, JSON.stringify({ tab: st.tab, base: st.base, deckId: st.deckId })); } catch { /* */ } };
+const save = () => { try { localStorage.setItem(LS, JSON.stringify({ tab: st.tab, stage: st.stage, base: st.base, deckId: st.deckId, combo: st.combo, stats: st.stats })); } catch { /* */ } };
+const STAGE_HINT: Record<Stage, string> = {
+  syl: "Один слог — один тон. Слушайте и отмечайте тон: так ухо привыкает различать все четыре.",
+  pair: "Двусложные слова: 20 сочетаний тонов. Цифры — сколько раз верно. Нажмите на клетку, чтобы тренировать только это сочетание.",
+  mine: "Слова из ваших колод (1–3 слога).",
+};
 
 const TONE_SVG: Record<number, string> = {
   1: "M4 6H28", 2: "M4 16L28 4", 3: "M4 6L14 16L28 4", 4: "M4 4L28 16",
@@ -29,23 +37,76 @@ let picked: (number | null)[] = [];
 let cur = 0;
 let checked = false;
 
-/** Слова выбранной колоды (по умолчанию — текущей). */
+/** Слова ступени: слоги и пары — из HSK 1–3 (старого) с записями, «мои» — из выбранной колоды. */
 let srcWords: Word[] = [];
+let hskBase: Word[] | null = null;
 const words = () => srcWords;
+async function baseWords(): Promise<Word[]> {
+  if (!hskBase) {
+    const out: Word[] = [];
+    const seen = new Set<string>();
+    for (const id of ["hsk2-1", "hsk2-2", "hsk2-3"]) {
+      try { for (const w of (await deckById(id)).words) if (!seen.has(w.han)) { seen.add(w.han); out.push(w); } } catch { /* офлайн */ }
+    }
+    hskBase = out;
+  }
+  return hskBase;
+}
+const comboOf = (w: Word) => w.ref.map((x) => x.t).join("");
 async function loadSource() {
-  if (!st.deckId || !app.decks.some((d) => d.id === st.deckId)) st.deckId = app.deck?.id ?? app.decks[0]?.id ?? "";
-  srcWords = (await deckWords(st.deckId))?.words ?? [];
-  setPickLabel("tn-src", deckTitle(st.deckId));
+  await loadRecorded();
+  $("tn-src").hidden = st.stage !== "mine";
+  $("tn-stage-hint").textContent = STAGE_HINT[st.stage];
+  document.querySelectorAll<HTMLButtonElement>("#tn-stage [data-stage]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.stage === st.stage)));
+  if (st.stage === "mine") {
+    if (!st.deckId || !app.decks.some((d) => d.id === st.deckId)) st.deckId = app.deck?.id ?? app.decks[0]?.id ?? "";
+    srcWords = st.deckId ? (await deckWords(st.deckId))?.words ?? [] : [];
+    setPickLabel("tn-src", st.deckId ? deckTitle(st.deckId) : "Нет колод — добавьте в «Карточках»");
+  } else {
+    const all = (await baseWords()).filter((w) => hasRecording(w.han) && w.ref.every((x) => x.t >= 1 && x.t <= 5));
+    srcWords = st.stage === "syl" ? all.filter((w) => w.ref.length === 1 && w.ref[0].t <= 4) : all.filter((w) => w.ref.length === 2 && w.ref[0].t <= 4);
+  }
+  renderGrid();
 }
 
+/** Сетка 4×5 сочетаний тонов (ступень «пары»): верно / всего. */
+function renderGrid() {
+  const g = $("tn-grid");
+  g.hidden = st.stage !== "pair";
+  if (st.stage !== "pair") return;
+  const have = new Set(srcWords.map(comboOf));
+  let html = `<span></span>${[1, 2, 3, 4, 5].map((t) => `<span class="tg-h t${t}">${t === 5 ? "·" : t}</span>`).join("")}`;
+  for (const a of [1, 2, 3, 4]) {
+    html += `<span class="tg-h t${a}">${a}</span>`;
+    for (const b of [1, 2, 3, 4, 5]) {
+      const k = `${a}${b}`, s0 = st.stats[k];
+      const cls = !have.has(k) ? "none" : !s0 ? "" : s0.ok / s0.n >= 0.8 ? "good" : s0.ok / s0.n >= 0.5 ? "mid" : "bad";
+      html += `<button class="tg-c ${cls}${st.combo === k ? " on" : ""}" data-combo="${k}" ${have.has(k) ? "" : "disabled"} aria-label="Тоны ${a}-${b}">${s0 ? `${s0.ok}/${s0.n}` : ""}</button>`;
+    }
+  }
+  g.innerHTML = html + (st.combo ? `<button class="link-btn tg-all" data-combo="">Все сочетания</button>` : "");
+}
+
+/** Ключ статистики слова на ступени: тон слога или сочетание. */
+const statKey = (w: Word) => (st.stage === "syl" ? `t${w.ref[0].t}` : st.stage === "pair" ? comboOf(w) : "");
+
 /** Открыть «Тоны» с выбранной колодой (из меню колоды). */
-export function useTonesDeck(id: string) { st.deckId = id; save(); }
+export function useTonesDeck(id: string) { st.deckId = id; st.stage = "mine"; save(); }
 
 /** Слова колоды, 1–3 слога; сначала с записью озвучки (в своих колодах записей может не быть — тогда голос браузера). */
 function nextWord(): Word | null {
   const short = words().filter((w) => w.ref.length && w.ref.length <= 3);
   const rec = short.filter((w) => hasRecording(w.han));
-  const list = rec.length ? rec : short;
+  let list = rec.length ? rec : short;
+  if (st.stage === "pair" && st.combo) list = list.filter((w) => comboOf(w) === st.combo);
+  else if (st.stage !== "mine" && list.length) {
+    // чаще — то, что хуже получается: тон (сочетание) с наименьшей долей верных, неопробованные — первыми
+    const keys = [...new Set(list.map(statKey))];
+    const score = (k: string) => { const s0 = st.stats[k]; return s0 ? (s0.ok + 1) / (s0.n + 2) : 0; };
+    keys.sort((a, b) => score(a) - score(b));
+    const pickK = keys[Math.random() < 0.6 ? 0 : Math.floor(Math.random() * keys.length)];
+    list = list.filter((w) => statKey(w) === pickK);
+  }
   if (!list.length) return null;
   let w = list[Math.floor(Math.random() * list.length)];
   if (list.length > 1 && w.id === word?.id) w = list[(list.indexOf(w) + 1) % list.length];
@@ -65,7 +126,7 @@ async function listenNext() {
   word = nextWord();
   checked = false;
   $("tn-l-res").hidden = true;
-  if (!word) { $("tn-l-syl").innerHTML = `<p class="hint">В этой колоде нет подходящих слов (1–3 слога). Выберите другую колоду.</p>`; return; }
+  if (!word) { $("tn-l-syl").innerHTML = `<p class="hint">${st.stage === "mine" ? (st.deckId ? "В этой колоде нет подходящих слов (1–3 слога). Выберите другую колоду." : "Колод пока нет. Добавьте готовые или свои в «Карточках» — или тренируйтесь на слогах и парах.") : "Нет слов с записями — нужен интернет при первом запуске."}</p>`; return; }
   picked = word.ref.map(() => null);
   cur = 0;
   renderListen();
@@ -91,6 +152,8 @@ function listenCheck() {
   checked = true;
   const ok = acceptedTones(word.ref.map((x) => x.t), word.ref.map((x) => x.alt)).every((acc, i) => acc.includes(picked[i] ?? 0));
   st.done++; if (ok) st.right++;
+  const k = statKey(word);
+  if (k) { const s0 = st.stats[k] ?? { n: 0, ok: 0 }; st.stats[k] = { n: s0.n + 1, ok: s0.ok + (ok ? 1 : 0) }; save(); renderGrid(); }
   $("tn-l-res").hidden = false;
   $("tn-l-res").innerHTML = `<span class="chip ${ok ? "ok" : "no"}">${ok ? "Верно" : "Не совсем"}</span> <span class="tn-word">${esc(word.han)}</span> <span class="py">${pinyinHTML(word.ref)}</span> <span class="hint">${esc(word.ru)}</span>`;
   renderListen();
@@ -196,6 +259,17 @@ export function initTones() {
   const start = async () => { await loadSource(); render(); if (st.tab === "listen") listenNext(); else speakNext(); };
   onShow("tones", start);
   $("tn-src").addEventListener("click", () => pickDeck("Слова для тонов", st.deckId, (id) => { st.deckId = id; save(); start(); }));
+  $("tn-stage").addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-stage]");
+    if (!b) return;
+    st.stage = b.dataset.stage as Stage; st.done = 0; st.right = 0; save(); start();
+  });
+  $("tn-grid").addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-combo]");
+    if (!b || b.disabled) return;
+    st.combo = st.combo === b.dataset.combo ? "" : b.dataset.combo!; save(); renderGrid();
+    if (st.tab === "listen") listenNext(); else speakNext();
+  });
   onLeave("tones", stopRec);
   $("tn-tabs").addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-tab]");

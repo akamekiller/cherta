@@ -23,6 +23,21 @@ BASE = set("的了吗呢吧啊我你他她们是不也都很这那有在一二�
 COMPOSED = set("黄色 蓝色 绿色 这边 那边 外面 南方 河边 画画 每天 一杯 两杯 红色 白色 黑色 晴天 阴天 一点儿 好的 好玩 同事 走路 洗手 来到 这是 那是 这儿 那儿 哪儿 哪里 这里 那里 下面 上面 里面 前边 后边 这个 那个 这些 那些 不是 没有 一下 吃饭 一个 两个 几个 多大 怎么样 十五 二十 二十一 十九 四十 一日 九月 十月 星期一 星期三 什么时候 今年 明年".split())
 NAMES = set("王明 李月 安娜 大卫 小王 小李 老王 王 李 张 马丁".split())
 PER_LESSON = 10
+
+
+def clean_sent(zh, ru, t):
+    """Отсеять обрывки и «субтитры» из корпуса: многоточия, повторы слов, крики, слишком короткие."""
+    if any(x in zh + ru for x in ("…", "...", "——", "--", "呵", "哈哈", "嗯", "哦", "啊啊")):
+        return False
+    if not 5 <= len(zh) <= 22 or len(set(t)) < 3:
+        return False
+    if any(t.count(x) > 2 or (len(x) == 1 and t.count(x) > 1 and x not in "的了是在我你他她有不也就都和") for x in t):
+        return False
+    if re.search(r"[А-ЯЁ]{3,}", ru) or re.search(r"[!?]{2,}|!\s*!", ru) or re.search(r"(\b\w+\b)[, ]+\1\b", ru.lower()):
+        return False
+    if re.search(r"(.)、\1|(.)，\2", zh):
+        return False
+    return True
 # слова, которых нет в списке уровня, но без них не обойтись (说 в старом HSK 1 есть только в 说话)
 EXTRA = {"说": ("shuo1", "говорить, сказать"), "足球": ("zu2 qiu2", "футбол"), "对": ("dui4", "верно, да; к, по отношению к"), "天": ("tian1", "день; небо"), "饭": ("fan4", "еда; варёный рис"), "车": ("che1", "машина"), "等": ("deng3", "ждать"), "头": ("tou2", "голова"), "风": ("feng1", "ветер")}
 
@@ -180,7 +195,7 @@ def main():
                 if not t or zh in used or zh in own_zh or not ru:
                     continue
                 hit = sum(1 for x in t if x in wset)
-                if hit and all(x in known for x in t):
+                if hit and all(x in known for x in t) and clean_sent(zh, ru, t):
                     cand.append((-hit * 2 + len(zh) / 6 + len(ru) / 50, zh, ru))
             cand.sort()
             for _, zh, ru in cand[:PER_LESSON]:
@@ -256,7 +271,7 @@ def build_life(corpus, toks, known_hsk, used):
                 hit = sum(1 for x in t if x in wset)
                 unknown = sum(1 for x in t if x not in ok)
                 # бытовых предложений мало: допускаем одно незнакомое слово, но такие — ниже
-                if hit and unknown <= 1 and len(t) >= 2:
+                if hit and unknown <= 1 and len(t) >= 2 and clean_sent(zh, ru, t):
                     cand.append((unknown * 5 - hit * 2 + len(zh) / 6 + len(ru) / 50, zh, ru))
             cand.sort()
             for _, zh, ru in cand[:PER_LESSON]:

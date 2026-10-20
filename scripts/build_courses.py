@@ -142,6 +142,7 @@ def main():
     used = set()
     os.makedirs(os.path.join(ROOT, "data", "courses"), exist_ok=True)
     index = []
+    few = 99
     problems = 0
     for n in range(1, 4):
         title, lessons, sections = load(n)
@@ -190,7 +191,14 @@ def main():
                 if bad:
                     problems += 1
                     print(f"HSK{n} урок {i}: незнакомые слова {' '.join(bad)} в «{zh}»")
-            own_sents = [l for l in own if l and not l.startswith(("@", "?")) and not re.match(r"^[A-Za-z]{1,3}[:：]", l)]
+            own_sents = []
+            for l in own:
+                if l and not l.startswith(("@", "?")) and not re.match(r"^[A-Za-z]{1,3}[:：]", l):
+                    z = l.split("|")[0].strip()
+                    if z not in used:  # одно и то же предложение — только в первом уроке, где оно встретилось
+                        used.add(z)
+                        own_sents.append(l)
+            few = min(few, len(own_sents))
             own_zh = {l.split("|")[0].strip() for l in own_sents}
             lines += own_sents
             # корпус: есть слово урока, все слова известны, короткие выше
@@ -232,7 +240,7 @@ def main():
     index.append(life)
     index.append(build_own("eng"))
     json.dump(index, open(os.path.join(ROOT, "data", "courses", "index.json"), "w", encoding="utf8"), ensure_ascii=False, indent=1)
-    print("уроков:", sum(x["lessons"] for x in index), "проблем в своих текстах:", problems)
+    print("уроков:", sum(x["lessons"] for x in index), "проблем в своих текстах:", problems, "меньше всего предложений в уроке HSK:", few)
 
 
 def build_own(key):

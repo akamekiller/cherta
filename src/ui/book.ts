@@ -2,7 +2,8 @@
  * Тетрадь прописей: один иероглиф — ряд клеток. Первые по бледному контуру, остальные по памяти,
  * каждая клетка проверяется. Плюс печать прописей на A4 (через окно печати браузера → «Сохранить как PDF»).
  */
-import { app, hskLookup, dictIndex } from "../state.ts";
+import { app, hskLookup, dictIndex, loadThemes, deckBlocks } from "../state.ts";
+import type { Block } from "../core/blocks.ts";
 import type { Word } from "../core/deck.ts";
 import { pickDeck, deckWords, deckTitle, setPickLabel } from "./deckpick.ts";
 import { hashStr } from "../core/skills.ts";
@@ -22,6 +23,8 @@ type SetEdit = { skip: string[]; add: string };
 const st = { v: 2, src: "deck" as Src, deckId: "", text: "", total: 10, trace: 3, pos: {} as Record<string, number>, shuffle: true, seed: "1",
   /** Правка набора колоды для тетради: какие иероглифы пропустить и какие добавить (колода не меняется). */
   sets: {} as Record<string, SetEdit>,
+  /** Урок колоды (тема из «Уроков по словам»), который пишется в тетради: номер блока, -1 или нет — вся колода. */
+  block: {} as Record<string, number>,
   print: { perRow: 10, traces: 3, rowsPerChar: 1, count: 12, labels: true, all: false } };
 try {
   const saved = JSON.parse(localStorage.getItem(LS) ?? "{}");
@@ -44,6 +47,11 @@ let gen = 0;
 export const bookWriter = () => writer;
 
 const key = () => (st.src === "deck" ? `deck:${st.deckId}` : "text");
+/** Уроки текущей колоды (темы или по 20 слов) и выбранный урок. */
+let blocks: Block[] = [];
+const curBlock = () => { const b = st.block[key()]; return st.src === "deck" && b !== undefined && b >= 0 && b < blocks.length ? b : -1; };
+/** Позиция запоминается отдельно для каждого урока. */
+const posKey = () => key() + (curBlock() >= 0 ? `#${curBlock()}` : "");
 
 /** Слова колоды-источника (для иероглифов, пиньиня и значения). */
 let srcWords: Word[] = [];
@@ -54,8 +62,50 @@ async function loadSource(): Promise<string[]> {
   if (!st.deckId || !app.decks.some((d) => d.id === st.deckId)) st.deckId = app.deck?.id ?? app.decks[0]?.id ?? "";
   // колод нет — сразу «Свой текст», с примером, чтобы было что писать
   if (!st.deckId) { st.src = "text"; st.text ||= "你好 谢谢 中国"; save(); srcWords = []; return uniqueChars([st.text]); }
-  srcWords = (await deckWords(st.deckId))?.words ?? [];
-  return applySet(uniqueChars(srcWords.map((w) => w.han)));
+  return applySet(await deckBase());
+}
+
+/** Иероглифы колоды или выбранного урока — без правок набора. */
+async function deckBase(): Promise<string[]> {
+  const [deck] = await Promise.all([deckWords(st.deckId), loadThemes()]);
+  srcWords = deck?.words ?? [];
+  blocks = deck ? deckBlocks(deck) : [];
+  if (blocks.length < 2) blocks = [];
+  const b = curBlock();
+  const ws = b >= 0 ? blocks[b].idx.map((i) => srcWords[i]) : srcWords;
+  return uniqueChars(ws.map((w) => w.han));
+}
+
+/** Выбор урока колоды: вся колода или один урок (как «Уроки по словам» в карточках). */
+function pickBlock() {
+  const cur = curBlock();
+  const n = (b: Block) => uniqueChars(b.idx.map((i) => srcWords[i]?.han ?? "")).length;
+  const row = (b: Block, i: number) => `<button class="lesson-row ${i === cur ? "cur" : ""}" data-blk="${i}"><span class="ln">${i + 1}</span>
+      <span class="lt"><b>${esc(b.title)}</b><small class="blk-prev">${esc(b.idx.slice(0, 8).map((k) => srcWords[k]?.han ?? "").join(" "))}${b.idx.length > 8 ? " …" : ""}</small>
+      <small>${n(b)} ${plural(n(b), "иероглиф", "иероглифа", "иероглифов")}</small></span></button>`;
+  const secs: { name: string; idx: number[] }[] = [];
+  blocks.forEach((b, i) => {
+    if (!secs.length || secs[secs.length - 1].name !== b.section) secs.push({ name: b.section, idx: [] });
+    secs[secs.length - 1].idx.push(i);
+  });
+  const all = uniqueChars(srcWords.map((w) => w.han)).length;
+  openSheet(`Урок: ${deckTitle(st.deckId)}`, `<div class="stack">
+      <div class="lesson-list"><button class="lesson-row ${cur < 0 ? "cur" : ""}" data-blk="-1"><span class="ln">∞</span><span class="lt"><b>Вся колода</b><small>${all} ${plural(all, "иероглиф", "иероглифа", "иероглифов")}</small></span></button></div>
+      ${secs.map((sec) => {
+        const open = secs.length === 1 || sec.idx.includes(cur) || (cur < 0 && sec === secs[0]);
+        return `<details class="bk-sec" ${open ? "open" : ""}>${sec.name ? `<summary>${esc(sec.name)} <small>${sec.idx.length}</small></summary>` : ""}<div class="lesson-list">${sec.idx.map((i) => row(blocks[i], i)).join("")}</div></details>`;
+      }).join("")}
+    </div>`, (root) => {
+    root.addEventListener("click", (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>("[data-blk]");
+      if (!b) return;
+      const v = Number(b.dataset.blk);
+      if (v < 0) delete st.block[key()]; else st.block[key()] = v;
+      save();
+      closeSheet();
+      void render();
+    });
+  });
 }
 
 /** Набор колоды с правками: без пропущенных, плюс добавленные. */
@@ -66,8 +116,7 @@ function applySet(base: string[]): string[] {
 
 /** Посмотреть и изменить набор: тап по иероглифу — убрать/вернуть, поле — добавить свои. */
 async function openSetEditor() {
-  srcWords = (await deckWords(st.deckId))?.words ?? [];
-  const base = uniqueChars(srcWords.map((w) => w.han));
+  const base = await deckBase();
   const k = key();
   const e: SetEdit = { skip: [...(st.sets[k]?.skip ?? [])], add: st.sets[k]?.add ?? "" };
   const draw = (root: HTMLElement) => {
@@ -97,7 +146,7 @@ async function openSetEditor() {
     root.querySelector("#bs-all")!.addEventListener("click", () => { e.skip = []; draw(root); });
     root.querySelector("#bs-ok")!.addEventListener("click", () => {
       if (e.skip.length || e.add.trim()) st.sets[k] = { skip: e.skip, add: e.add.trim() }; else delete st.sets[k];
-      st.pos[k] = 0;
+      st.pos[posKey()] = 0;
       save();
       closeSheet();
       render();
@@ -107,9 +156,10 @@ async function openSetEditor() {
 const applySet0 = (base: string[], e: SetEdit) => { const skip = new Set(e.skip); return uniqueChars([base.filter((c) => !skip.has(c)).join(""), e.add]); };
 
 /** Открыть тетрадь с выбранной колодой (из меню колоды и после «+ В тетрадь»). */
-export function useBookDeck(id: string) {
+export function useBookDeck(id: string, block?: number) {
   st.src = "deck";
   st.deckId = id;
+  if (block !== undefined) st.block[`deck:${id}`] = block;
   save();
 }
 
@@ -139,6 +189,12 @@ async function render() {
   chars = st.shuffle && st.src === "deck" ? [...list].sort((a, b) => hashStr(st.seed + a) - hashStr(st.seed + b)) : list;
   setPickLabel("bk-src", st.src === "text" ? "Свой текст" : deckTitle(st.deckId));
   $("bk-text-field").hidden = st.src !== "text";
+  const bb = $("bk-block");
+  bb.hidden = st.src !== "deck" || !blocks.length;
+  if (!bb.hidden) {
+    const b = curBlock();
+    bb.innerHTML = `<span>${b >= 0 ? `Урок ${b + 1}. ${esc(blocks[b].title)}` : `Вся колода · ${blocks.length} ${plural(blocks.length, "урок", "урока", "уроков")}`}</span><b>Выбрать урок</b>`;
+  }
   const bs = $("bk-set");
   bs.hidden = st.src !== "deck";
   if (st.src === "deck") {
@@ -158,14 +214,14 @@ async function render() {
     $("bk-status").textContent = st.src === "text" ? "Впишите иероглифы или слова — по ним будут прописи." : st.sets[key()] ? "Все иероглифы убраны из набора — откройте «Набор» и верните нужные." : "В колоде нет слов. Добавьте их кнопкой «+ В тетрадь» в карточке слова или выберите другую колоду.";
     return;
   }
-  idx = Math.max(0, Math.min(chars.length - 1, st.pos[key()] ?? 0));
+  idx = Math.max(0, Math.min(chars.length - 1, st.pos[posKey()] ?? 0));
   startChar();
 }
 
 async function startChar() {
   const ch = chars[idx];
   const my = ++gen;
-  st.pos[key()] = idx;
+  st.pos[posKey()] = idx;
   save();
   $("bk-han").textContent = ch;
   $("bk-py").innerHTML = "";
@@ -263,12 +319,12 @@ function openOptions() {
       }
       const sh = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-shuffle]");
       if (sh) {
-        st.shuffle = sh.dataset.shuffle === "1"; st.pos[key()] = 0; save();
+        st.shuffle = sh.dataset.shuffle === "1"; st.pos[posKey()] = 0; save();
         root.querySelectorAll("[data-shuffle]").forEach((x) => x.setAttribute("aria-pressed", String(x === sh)));
         reordered = true;
       }
       if ((e.target as HTMLElement).closest("#bo-reshuffle")) {
-        st.shuffle = true; st.seed = String(Date.now()); st.pos[key()] = 0; save();
+        st.shuffle = true; st.seed = String(Date.now()); st.pos[posKey()] = 0; save();
         root.querySelectorAll("[data-shuffle]").forEach((x) => x.setAttribute("aria-pressed", String((x as HTMLElement).dataset.shuffle === "1")));
         reordered = true;
       }
@@ -394,6 +450,7 @@ export function initBook() {
   });
   $("bk-opts").addEventListener("click", openOptions);
   $("bk-set").addEventListener("click", openSetEditor);
+  $("bk-block").addEventListener("click", pickBlock);
   $("bk-print").addEventListener("click", () => { if (chars.length) openPrint(); });
   window.addEventListener("afterprint", () => { $("print-area").innerHTML = ""; });
 }

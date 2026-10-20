@@ -176,6 +176,7 @@ function openBlock(i: number) {
       <div class="row"><button class="btn small" id="bl-all">▶ Все слова</button><span class="hint">${ws.length} ${plural(ws.length, "слово", "слова", "слов")}</span></div>
       <div class="blk-words">${b.idx.map((k) => { const w = d.words[k]; return `<div class="bw">${mark(k)}<b class="bw-han">${esc(w.han)}</b><span class="bw-t"><span class="py">${w.ref.length ? pinyinHTML(w.ref) : esc(w.py)}</span><small>${esc(w.ru)}</small></span><button class="icon-btn small-ic" data-say="${esc(w.han)}" aria-label="Послушать">${PLAY}</button></div>`; }).join("")}</div>
       <button class="btn primary wide" id="bl-learn">Учить этот урок</button>
+      <button class="btn wide" id="bl-book">Писать в тетради прописей</button>
       <p class="hint center">Карточки только из слов этого урока: новые и повторение.</p>
     </div>`, (root) => {
     root.querySelector("#bl-all")!.addEventListener("click", () => sayAll(ws.map((w) => w.han), 0.85));
@@ -183,6 +184,7 @@ function openBlock(i: number) {
       const sb = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-say]");
       if (sb) say(sb.dataset.say!);
     });
+    root.querySelector("#bl-book")!.addEventListener("click", () => { closeSheet(); useBookDeck(d.id, i); show("book"); });
     root.querySelector("#bl-learn")!.addEventListener("click", () => {
       closeSheet();
       setFocus(d.id, b.idx);

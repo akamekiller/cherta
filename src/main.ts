@@ -2,7 +2,8 @@ import { init } from "./state.ts";
 import { requestPersist } from "./store.ts";
 import { $ } from "./ui/dom.ts";
 import { initNav, show, rerender } from "./ui/nav.ts";
-import { initHome } from "./ui/home.ts";
+import { initHome, openDeck } from "./ui/home.ts";
+import { openImport } from "./ui/import.ts";
 import { initSession, sessionWriter } from "./ui/session.ts";
 import { initWords } from "./ui/words.ts";
 import { initEntry, entryWriter } from "./ui/entry.ts";
@@ -51,10 +52,27 @@ async function boot() {
   // при запуске — тихая синхронизация; если что-то пришло с другого устройства, перерисовать экран
   autoSync().then((changed) => { if (changed) rerender(); });
   requestPersist();
+  void openShared();
   loadRecorded();
   if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
     navigator.serviceWorker.register("sw.js").catch(() => { /* офлайн необязателен */ });
   }
+}
+
+/** Пришли через «Поделиться → Черта»: достать текст/файл, который сохранил service worker, и открыть импорт. */
+async function openShared() {
+  const p = new URLSearchParams(location.search);
+  if (!p.has("shared")) return;
+  history.replaceState(null, "", location.pathname);
+  try {
+    const c = await caches.open("cherta-share");
+    const r = await c.match("shared.json");
+    if (!r) return;
+    const d: { title: string; text: string; url: string; file: string; name: string } = await r.json();
+    await c.delete("shared.json");
+    const text = d.file || d.text || d.title;
+    if (text.trim()) openImport({ text, name: d.name || d.title, onDeck: (id) => void openDeck(id) });
+  } catch { /* нет кэша — ничего не делать */ }
 }
 
 boot();

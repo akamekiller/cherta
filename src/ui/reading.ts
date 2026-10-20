@@ -9,13 +9,14 @@ import { parseRef } from "../core/pinyin.ts";
 import { dictPyToNumeric, type DictIndex } from "../core/dict.ts";
 import { say, sayAll } from "../speech.ts";
 import { $, esc, pinyinHTML, plural } from "./dom.ts";
-import { onShow, onLeave } from "./nav.ts";
+import { onShow, onLeave, show } from "./nav.ts";
+import { openImport } from "./import.ts";
 import { openEntry } from "./entry.ts";
 import { wordByHan } from "./lookup.ts";
 import { openAddToDeck } from "./editor.ts";
 import { openSheet, closeSheet, confirmInline } from "./sheet.ts";
 import * as store from "../store.ts";
-import { parseTexts, emptyLib, inLib, type ReadText, type ReadLib } from "../core/reading.ts";
+import { emptyLib, inLib, type ReadText, type ReadLib } from "../core/reading.ts";
 
 type Text = ReadText;
 
@@ -70,7 +71,7 @@ function renderList() {
   $("rd-list").hidden = false;
   $("rd-text").hidden = true;
   texts = mine();
-  const tools = `<div class="tools"><button class="btn small primary" id="rd-cat">Добавить из готовых</button><button class="btn small" id="rd-file">Загрузить файл</button><button class="btn small" id="rd-help">Формат файла</button></div>`;
+  const tools = `<div class="tools"><button class="btn small primary" id="rd-cat">Добавить из готовых</button><button class="btn small" id="rd-file">Вставить или загрузить свой</button></div>`;
   if (!texts.length) {
     $("rd-list").innerHTML = `<div class="empty-start panel"><span class="han-big" aria-hidden="true">读</span><h2>Текстов пока нет</h2>
       <p class="hint">Добавьте готовые тексты по своему уровню или загрузите свои (например, из учебника). Нажатие на слово в тексте — перевод и «в колоду».</p></div>${tools}`;
@@ -117,28 +118,21 @@ function openCatalog() {
   }, () => renderList());
 }
 
-const FORMAT_HELP = `<div class="stack"><p>Обычный текстовый файл (.txt, UTF-8). Можно просто вставить китайский текст — он разделится на предложения. Или подробно:</p>
-<pre class="fmt">=== 2 | Название текста
-+ 工厂 | gong1 chang3 | завод
-我在工厂工作。 | Я работаю на заводе.
-工厂离我家不远。 | Завод недалеко от дома.
-? Где работает автор? | В школе | На заводе* | В банке</pre>
-<p class="hint">«=== уровень | название» — начало текста (в одном файле может быть много текстов), «+» — новое слово с пиньинем и переводом, «китайский | перевод» — строка (перевод можно не писать), «?» — вопрос, верный ответ со звёздочкой.</p></div>`;
-
-async function loadFile(f: File) {
-  const list = parseTexts(await f.text(), `o-${Date.now().toString(36)}`);
-  if (!list.length) { openSheet("Загрузка текстов", `<p class="note danger">В файле не нашлось китайского текста.</p>${FORMAT_HELP}`); return; }
-  const fallback = f.name.replace(/\.[^.]+$/, "");
-  for (const t of list) {
-    if (t.title === "Мой текст" && list.length === 1) t.title = fallback;
-    lib.own.push(t);
-    lib.lib[t.id] = Date.now();
-  }
+/** Добавить свои тексты в библиотеку (из окна импорта). */
+export async function addOwnTexts(list: Text[]) {
+  await ensure();
+  for (const t of list) { lib.own.push(t); lib.lib[t.id] = Date.now(); }
   await saveLib();
-  renderList();
-  openSheet("Загрузка текстов", `<p>Добавлено ${list.length} ${plural(list.length, "текст", "текста", "текстов")}: ${list.slice(0, 5).map((t) => `«${esc(t.title)}»`).join(", ")}${list.length > 5 ? "…" : ""}</p><button class="btn primary wide" id="rl-ok">Хорошо</button>`, (root) => {
-    root.querySelector("#rl-ok")!.addEventListener("click", closeSheet);
-  });
+  texts = mine();
+  if (!$("read").hidden) renderList();
+}
+
+/** Открыть свой текст в «Чтении». */
+let wantId: string | null = null;
+export function openOwnText(id: string) {
+  wantId = id;
+  cur = null;
+  show("read");
 }
 
 async function removeText(id: string) {
@@ -161,7 +155,7 @@ function renderText() {
   $("rd-text").hidden = false;
   $("rd-py").setAttribute("aria-pressed", String(ui.py));
   $("rd-ru").setAttribute("aria-pressed", String(ui.ru));
-  $("rd-head").innerHTML = `<h2 class="deck-name">${esc(t.title)}</h2><p class="hint">Уровень ${t.level}</p>`
+  $("rd-head").innerHTML = `<h2 class="deck-name">${esc(t.title)}</h2><div class="row wrap"><p class="hint">${t.level ? `Уровень ${t.level}` : "Без уровня"}</p><button class="btn small" id="rd-towords">Слова текста → в карточки</button></div>`
     + (t.words.length ? `<div class="rd-new"><span class="label">Новые слова</span>${t.words.map(([h, py, ru]) => `<div><b>${esc(h)}</b> <span class="py">${(() => { try { return pinyinHTML(parseRef(py)); } catch { return esc(py); } })()}</span> — ${esc(ru)}</div>`).join("")}</div>` : "");
   const has = (w: string) => lex.has(w) || extraPy.has(w);
   // знак препинания держится со словом перед ним, чтобы «。» не переносилось на новую строку
@@ -216,23 +210,20 @@ function check() {
 }
 
 export function initReading() {
+  $("rd-head").addEventListener("click", (e) => {
+    if ((e.target as HTMLElement).closest("#rd-towords") && cur) openImport({ mode: "cards", text: cur.lines.map((l) => l[0]).join("\n"), name: cur.title });
+  });
   onShow("read", async () => {
     $("rd-list").innerHTML = `<p class="hint">Загружаю…</p>`;
     try { await ensure(); } catch { $("rd-list").innerHTML = `<p class="hint">Тексты не загрузились.</p>`; return; }
+    if (wantId) { cur = texts.find((t) => t.id === wantId) ?? null; wantId = null; if (cur) { extraPy.clear(); for (const [h, py] of cur.words) extraPy.set(h, py); } }
     if (cur) renderText(); else renderList();
   });
   onLeave("read", () => { try { speechSynthesis.cancel(); } catch { /* */ } });
-  $("rd-file-in").addEventListener("change", (e) => {
-    const inp = e.target as HTMLInputElement;
-    const f = inp.files?.[0];
-    inp.value = "";
-    if (f) loadFile(f);
-  });
   $("rd-list").addEventListener("click", (e) => {
     const t0 = e.target as HTMLElement;
     if (t0.closest("#rd-cat")) { openCatalog(); return; }
-    if (t0.closest("#rd-file")) { $("rd-file-in").click(); return; }
-    if (t0.closest("#rd-help")) { openSheet("Формат файла с текстами", FORMAT_HELP); return; }
+    if (t0.closest("#rd-file")) { openImport({ mode: "text" }); return; }
     const f = t0.closest<HTMLButtonElement>("[data-rfold]");
     if (f) {
       const open = f.getAttribute("aria-expanded") !== "true";

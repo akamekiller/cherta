@@ -3,11 +3,11 @@ import { useBookDeck } from "./book.ts";
 import { useTonesDeck } from "./tones.ts";
 import { SKILLS, type Skill } from "../core/skills.ts";
 import { app, counts, countsFor, deckById, visibleDecks, nextDueTime, words, switchDeck, newLimit, deckSkills, setDeckOpts, renameDeck, deleteDeck, deleteDecks, deckBlocks, wordStarted, wordKnown, setFocus,
-  saveUserDeck, hskLookup, dictIndex, deckOrder, addBuiltinDecks, removeBuiltinDeck, isAdded, refreshCharDeck, updateSettings, removeUserDeck, CHAR_DECK, type DeckInfo } from "../state.ts";
+  deckOrder, addBuiltinDecks, removeBuiltinDeck, isAdded, refreshCharDeck, updateSettings, removeUserDeck, CHAR_DECK, type DeckInfo } from "../state.ts";
 import { countChars } from "../core/deck.ts";
 import { formatGap } from "../core/fsrs.ts";
-import { parseImportAll, exportDeckText, fileName, type ImportRow } from "../core/importer.ts";
-import { dictPyToNumeric } from "../core/dict.ts";
+import { exportDeckText, fileName } from "../core/importer.ts";
+import { openImport } from "./import.ts";
 import { $, esc, plural, downloadText, pinyinHTML } from "./dom.ts";
 import { currentBlock, blockStat, type Block } from "../core/blocks.ts";
 import { say, sayAll } from "../speech.ts";
@@ -193,7 +193,7 @@ function openBlock(i: number) {
   });
 }
 
-async function openDeck(id: string) {
+export async function openDeck(id: string) {
   if (id !== app.deck?.id) await switchDeck(id);
   show("deck");
 }
@@ -316,61 +316,6 @@ export function openCatalog(onDone?: () => void) {
 
 /* ---------- импорт ---------- */
 
-/** Недостающие пиньинь и значение — из HSK, затем из словаря. */
-async function fillRows(rows: ImportRow[]): Promise<{ ok: [string, string, string][]; bad: string[] }> {
-  const hsk = await hskLookup();
-  let dict: Awaited<ReturnType<typeof dictIndex>> | null = null;
-  if (rows.some((r) => !r.py || !r.ru)) { try { dict = await dictIndex(); } catch { /* офлайн */ } }
-  const ok: [string, string, string][] = [];
-  const bad: string[] = [];
-  for (const r of rows) {
-    let { py, ru } = r;
-    if (!py || !ru) {
-      const h = hsk(r.han);
-      if (h) { py ??= h.py; ru ||= h.ru; }
-      else {
-        const i = dict ? dict.han.indexOf(r.han) : -1;
-        if (i >= 0) { py ??= dictPyToNumeric(dict!.py[i], r.han); ru ||= dict!.ru[i]; }
-      }
-    }
-    if (py && ru) ok.push([r.han, py, ru]); else bad.push(r.han);
-  }
-  return { ok, bad };
-}
-
-async function importFile(file: File) {
-  const text = await file.text();
-  const parts = parseImportAll(text, file.name);
-  const filled = await Promise.all(parts.map(async (p) => ({ ...p, ...(await fillRows(p.rows)) })));
-  const total = filled.reduce((a, p) => a + p.ok.length, 0);
-  const skipped = filled.flatMap((p) => [...p.skipped, ...p.bad]);
-  const many = filled.length > 1;
-  const body = `
-    <p class="hint">Формат: ${esc(parts[0]?.format ?? "")}. ${many ? `Колод: <b>${filled.length}</b>, слов` : "Найдено слов"}: <b>${total}</b>${skipped.length ? `, пропущено: ${skipped.length}` : ""}.</p>
-    ${many
-      ? `<label class="field"><span class="label">Группа в списке колод</span><input id="im-group" value="${esc(parts[0].group ?? file.name.replace(/\.[^.]+$/, ""))}" autocomplete="off"></label>
-         <div class="deck-list">${filled.map((p) => `<div class="deck-opt"><span>${esc(p.title)}<small>${p.ok.length} ${plural(p.ok.length, "слово", "слова", "слов")}</small></span></div>`).join("")}</div>`
-      : `<label class="field"><span class="label">Название колоды</span><input id="im-title" value="${esc(filled[0]?.title ?? "Импорт")}" autocomplete="off"></label>
-         <div class="pick-list">${(filled[0]?.ok ?? []).slice(0, 8).map((r) => `<div class="pick"><span class="h">${esc(r[0])}</span><span class="t"><span class="ru">${esc(r[2])}</span></span></div>`).join("")}</div>
-         ${(filled[0]?.ok.length ?? 0) > 8 ? `<p class="hint">…и ещё ${filled[0].ok.length - 8}</p>` : ""}`}
-    ${skipped.length ? `<details class="paste"><summary>Пропущено: ${skipped.length}</summary><p class="hint">${esc(skipped.slice(0, 60).join(", "))}${skipped.length > 60 ? "…" : ""}</p><p class="hint">Нет иероглифов, пиньиня или значения — их не нашлось ни в HSK, ни в словаре. Слова можно добавить вручную в редакторе колоды.</p></details>` : ""}
-    <button class="btn primary wide" id="im-go" ${total ? "" : "disabled"}>${many ? `Создать ${filled.length} ${plural(filled.length, "колоду", "колоды", "колод")}` : "Создать колоду"}</button>`;
-  openSheet("Импорт", body, (root) => {
-    root.querySelector("#im-go")!.addEventListener("click", async () => {
-      const t0 = Date.now();
-      if (many) {
-        const group = root.querySelector<HTMLInputElement>("#im-group")!.value.trim() || undefined;
-        for (const [k, p] of filled.entries()) if (p.ok.length) await saveUserDeck({ id: `u-${(t0 + k).toString(36)}`, title: p.title, words: p.ok, createdAt: t0 + k, ...(group ? { group } : {}) });
-      } else {
-        const title = root.querySelector<HTMLInputElement>("#im-title")!.value.trim() || filled[0].title;
-        await saveUserDeck({ id: `u-${t0.toString(36)}`, title, words: filled[0].ok, createdAt: t0, ...(filled[0].group ? { group: filled[0].group } : {}) });
-      }
-      closeSheet();
-      renderHome();
-    });
-  });
-}
-
 /** Меню группы колод: свернуть все/развернуть, убрать или удалить всю группу сразу. */
 function openGroupMenu(g: string) {
   const list = visibleDecks().filter((d) => (d.group ?? "") === g);
@@ -422,13 +367,7 @@ export function initHome() {
   $("deck-menu").addEventListener("click", () => app.deck && openDeckMenu(app.deck.id));
   $("deck-words").addEventListener("click", openDeckWords);
   $("deck-create").addEventListener("click", () => openDeckEditor(undefined, () => renderHome()));
-  $("deck-import").addEventListener("click", () => $<HTMLInputElement>("deck-import-file").click());
-  $<HTMLInputElement>("deck-import-file").addEventListener("change", (e) => {
-    const input = e.target as HTMLInputElement;
-    const f = input.files?.[0];
-    input.value = "";
-    if (f) importFile(f).catch(() => openSheet("Импорт", `<p class="note danger">Не получилось прочитать файл. Нужен текстовый файл: .txt, .tsv или .csv.</p>`));
-  });
+  $("deck-import").addEventListener("click", () => openImport({ mode: "cards", onDeck: (id) => void openDeck(id) }));
   $("deck-catalog").addEventListener("click", () => openCatalog());
   $("deck-catalog-empty").addEventListener("click", () => openCatalog());
 }

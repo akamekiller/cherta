@@ -843,3 +843,26 @@ html{scrollbar-gutter:stable}
 .hk-cnt{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:4px;color:var(--muted);font-size:13px}
 
 .hk-lv button{padding-left:4px;padding-right:4px;min-width:0}
+/* импорт */
+.im .chips-row{flex-wrap:wrap}
+.im textarea{min-height:110px;font-family:var(--f-han),var(--f-ui)}
+.im .im-tools,.im .im-sum{display:flex;flex-wrap:wrap;justify-content:flex-start;align-items:center;gap:6px 10px;margin:0;padding:0}
+.im .im-sum .hint{flex-basis:100%;margin:0}
+.im .im-sum .link-btn{padding:4px 0}
+.sheet .drop,.im.drop{outline:2px dashed var(--jade);outline-offset:4px}
+.im-list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r);background:var(--sheet);max-height:46vh;overflow:auto}
+.im-row{display:grid;grid-template-columns:auto auto 1fr auto;align-items:center;gap:6px 10px;padding:8px 12px;border-top:1px solid var(--line)}
+.im-row:first-child{border-top:0}
+.im-row.off{opacity:.55}
+.im-row input[type=checkbox]{width:20px;height:20px;accent-color:var(--jade)}
+.im-h{font:500 20px var(--f-han);color:var(--ink);white-space:nowrap}
+.im-t{display:flex;flex-direction:column;min-width:0;gap:2px}
+.im-t .py{font-size:13px}
+.im-ru{all:unset;cursor:text;font-size:13.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.im-ru:hover{color:var(--ink);text-decoration:underline dotted}
+.sheet .im-in{font:400 14px var(--f-ui);padding:5px 8px;border-radius:8px;border:1px solid var(--line);background:var(--paper);color:var(--ink);width:100%;box-sizing:border-box}
+.im-tag{font-size:12px;color:var(--muted);white-space:nowrap}
+.im-tprev p{margin:0 0 6px;display:flex;flex-direction:column}
+.im-tprev .han{font:400 17px var(--f-han)}
+.im-tprev small{color:var(--muted)}
+.sheet select{font:400 16px var(--f-ui);padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--paper);color:var(--ink);width:100%}

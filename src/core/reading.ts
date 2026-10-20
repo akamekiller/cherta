@@ -21,7 +21,15 @@ export function parseTexts(src: string, idPrefix = "o"): ReadText[] {
     out.push(cur);
     return cur;
   };
-  for (const raw of src.replace(/^﻿/, "").split(/\r?\n/)) {
+  const all = src.replace(/^﻿/, "").split(/\r?\n/);
+  // простой текст без разметки: короткая первая строка без точки в конце — это заголовок («我的周末»)
+  const marked = all.some((l) => /^\s*(===|#|\+|\?)/.test(l));
+  const body = all.map((l) => l.trim()).filter(Boolean);
+  if (!marked && body.length > 1 && HAN.test(body[0]) && [...body[0]].length <= 20 && !/[。！？.!?|]$/.test(body[0]) && !body[0].includes("|")) {
+    fileTitle = body[0];
+    all.splice(all.findIndex((l) => l.trim() === body[0]), 1);
+  }
+  for (const raw of all) {
     const line = raw.trim();
     if (!line) continue;
     const m = line.match(/^===\s*(?:(\d+)\s*\|)?\s*(.*)$/);

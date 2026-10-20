@@ -2,7 +2,7 @@
 // Оболочка приложения кэшируется при установке; данные черт, словаря и шрифты — при первом запросе.
 // Файлы словаря (репозиторий cherta-dict) запрашиваются с ?v=<версия из meta.json>: после пересборки адрес новый,
 // а старые версии того же файла удаляются из кэша.
-const VERSION = "0.30.2-mvg7n5nc";
+const VERSION = "0.31.0-mvg80ays";
 const SHELL = `cherta-shell-${VERSION}`;
 const DATA = "cherta-data-v1";
 const SHELL_FILES = ["./","index.html","app.js","styles.css","manifest.webmanifest","icons/icon.svg","icons/icon-192.png","data/decks/index.json","data/decks/hsk3-1.json","data/decks/hsk3-2.json","data/decks/hsk3-3.json","data/decks/hsk3-4.json","data/decks/hsk3-5.json","data/decks/hsk3-6.json","data/decks/hsk2-1.json","data/decks/hsk2-2.json","data/decks/hsk2-3.json","data/decks/hsk2-4.json","data/decks/hsk2-5.json","data/decks/hsk2-6.json","data/decks/radicals.json","data/decks/life-uni.json","data/decks/life-dorm.json","data/decks/life-bank.json","data/decks/life-transport.json","data/decks/life-shop.json","data/decks/life-doctor.json","data/dialogs.json","data/texts.json","data/themes.json","data/hsk/index.json","data/hsk/hsk1.txt","data/hsk/hsk2.txt","data/hsk/hsk3.txt","data/hsk/hsk4.txt","data/hsk/hsk5.txt","data/hsk/hsk6.txt","data/decomp.json","data/courses/index.json","data/courses/hsk1.txt","data/courses/hsk2.txt","data/courses/hsk3.txt","data/courses/life.txt","data/courses/eng.txt"];
@@ -20,6 +20,18 @@ self.addEventListener("activate", (e) => {
 
 self.addEventListener("fetch", (e) => {
   const req = e.request;
+  // «Поделиться → Черта» (share target): текст или файл сохраняем и открываем приложение с окном импорта
+  if (req.method === "POST" && new URL(req.url).pathname.endsWith("/share-target")) {
+    e.respondWith((async () => {
+      const fd = await req.formData();
+      const f = fd.get("file");
+      const isFile = f && typeof f !== "string";
+      const data = { title: fd.get("title") || "", text: fd.get("text") || "", url: fd.get("url") || "", file: isFile ? await f.text() : "", name: isFile ? f.name : "" };
+      await (await caches.open("cherta-share")).put("shared.json", new Response(JSON.stringify(data)));
+      return Response.redirect(new URL("./?shared=1", self.registration.scope).href, 303);
+    })());
+    return;
+  }
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   const isDict = /\/(cherta-)?dict\//.test(url.pathname) && url.searchParams.has("v");

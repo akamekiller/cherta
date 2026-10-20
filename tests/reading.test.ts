@@ -40,3 +40,11 @@ test("библиотека: последнее действие побеждае
   assert.equal(inLib(m, "t3"), true);
   assert.equal(mergeLib(undefined, undefined).own.length, 0);
 });
+
+test("parseTexts: короткая первая строка простого текста — заголовок", () => {
+  const t = parseTexts("我的周末\n上个星期六，我去了公园。天气很好。");
+  assert.equal(t[0].title, "我的周末");
+  assert.equal(t[0].lines.length, 2);
+  const u = parseTexts("我去了公园。天气很好。");
+  assert.equal(u[0].title, "Мой текст");
+});

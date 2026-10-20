@@ -20,6 +20,18 @@ self.addEventListener("activate", (e) => {
 
 self.addEventListener("fetch", (e) => {
   const req = e.request;
+  // «Поделиться → Черта» (share target): текст или файл сохраняем и открываем приложение с окном импорта
+  if (req.method === "POST" && new URL(req.url).pathname.endsWith("/share-target")) {
+    e.respondWith((async () => {
+      const fd = await req.formData();
+      const f = fd.get("file");
+      const isFile = f && typeof f !== "string";
+      const data = { title: fd.get("title") || "", text: fd.get("text") || "", url: fd.get("url") || "", file: isFile ? await f.text() : "", name: isFile ? f.name : "" };
+      await (await caches.open("cherta-share")).put("shared.json", new Response(JSON.stringify(data)));
+      return Response.redirect(new URL("./?shared=1", self.registration.scope).href, 303);
+    })());
+    return;
+  }
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   const isDict = /\/(cherta-)?dict\//.test(url.pathname) && url.searchParams.has("v");

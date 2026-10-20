@@ -15,7 +15,8 @@ export type BRule = { title: string; text: string; ex: string; x: BX[] };
 export type BLesson = { title: string; section: string; goal: string; words: string; sents: string; dialogs: BDialog[]; rules: BRule[] };
 export type BCourse = { title: string; level: number; about: string; lessons: BLesson[] };
 
-const HAN = /\p{Script=Han}/u;
+/** Китайские иероглифы или японские кандзи/кана — «есть текст курса». */
+const HAN = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u;
 const MARK = /^\s*(#|\+|@|\?|=|&|%)/;
 const clean = (s: string) => s.replace(/\r/g, "").replace(/\n+/g, " ").trim();
 const lines = (s: string) => s.replace(/\r/g, "").split("\n").map((l) => l.trim()).filter(Boolean);

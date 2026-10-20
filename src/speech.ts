@@ -134,14 +134,15 @@ export function say(text: string, rate = 0.85, lang: "zh" | "ja" = "zh") {
 }
 
 /** Прочитать несколько фраз подряд голосом устройства (диалог). */
-export function sayAll(texts: string[], rate = 0.85) {
+export function sayAll(texts: string[], rate = 0.85, lang: "zh" | "ja" = "zh") {
   if (!supported()) return;
   try {
     speechSynthesis.cancel();
     for (const t of texts) {
       const u = new SpeechSynthesisUtterance(t);
-      u.lang = "zh-CN";
-      if (voice) u.voice = voice;
+      u.lang = lang === "ja" ? "ja-JP" : "zh-CN";
+      const v = lang === "ja" ? jaVoice : voice;
+      if (v) u.voice = v;
       u.rate = rate * rateMul;
       speechSynthesis.speak(u);
     }

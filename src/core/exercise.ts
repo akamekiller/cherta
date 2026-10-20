@@ -7,7 +7,9 @@ export type ExItem = { zh: string; ru: string; t: string[] };
 export type ExProgress = Record<string, { seen: number; ok: number; last: number }>;
 
 const HAN = /\p{Script=Han}/u;
-export const isWordTok = (t: string) => HAN.test(t);
+/** Слово — китайские иероглифы или японские (кандзи, кана); пунктуация и цифры — нет. */
+const WORD = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}ー]/u;
+export const isWordTok = (t: string) => WORD.test(t);
 /** Перемешать копию массива (Фишер — Йейтс). */
 export const shuffled = <T>(a: T[], rnd: () => number) => {
   const out = [...a];
@@ -15,7 +17,41 @@ export const shuffled = <T>(a: T[], rnd: () => number) => {
   return out;
 };
 /** Китайский текст без пунктуации и пробелов — для сравнения. */
-export const zhKey = (s: string) => [...s].filter((c) => HAN.test(c) || /[0-9A-Za-z]/.test(c)).join("");
+export const zhKey = (s: string) => [...s].filter((c) => WORD.test(c) || /[0-9A-Za-z]/.test(c)).join("");
+
+/* ---------- японский текст курса ---------- */
+
+const KANA_RE = /[\u3040-\u30ff]/;
+const PUNCT_END = /^(.*?)([。、！？!?,.…「」『』（）()・]+)$/u;
+/**
+ * Японское предложение в файле курса пишется словами через пробел, у слов с кандзи — чтение в скобках:
+ * «私[わたし] は 学生[がくせい] です 。». Возвращает слова (без чтений) и чтение каждого (для каны — само слово).
+ * Знаки препинания в конце слова отделяются в своё слово.
+ */
+export function jaTokens(raw: string): { t: string[]; r: string[] } {
+  const t: string[] = [], r: string[] = [];
+  const push = (w: string, rd: string) => { if (w) { t.push(w); r.push(rd); } };
+  for (const part of raw.trim().split(/\s+/)) {
+    if (!part) continue;
+    const m = /^(.+?)\[([^\]]+)\](.*)$/.exec(part);
+    let word = m ? m[1] + m[3] : part;
+    let rd = m ? m[2] + m[3] : part;
+    const pm = PUNCT_END.exec(word);
+    if (pm && pm[1]) {
+      word = pm[1];
+      rd = rd.slice(0, rd.length - pm[2].length);
+      push(word, rd);
+      push(pm[2], "");
+      continue;
+    }
+    push(word, WORD.test(word) ? rd : /[0-9０-９]/.test(word) ? word : "");
+  }
+  return { t, r };
+}
+/** Японская строка без пробелов и чтений — как её показывать и озвучивать. */
+export const plainJa = (raw: string) => (/\s|\[/.test(raw) && KANA_RE.test(raw) ? jaTokens(raw).t.join("") : raw);
+/** Чтение японской строки каной (для проверки ответа, набранного каной или ромадзи). */
+export const readingJa = (raw: string) => jaTokens(raw).r.join("");
 
 /** Плитки: слова предложения и distract лишних слов из пула (не совпадающих со словами предложения), перемешанные. */
 export function tilesFor(item: ExItem, pool: string[], rnd: () => number, distract = 2): string[] {
@@ -65,7 +101,7 @@ export function record(prog: ExProgress, key: string, ok: boolean, now = Date.no
 /* ======================= упражнения 2.0 ======================= */
 
 /** Предложение корпуса или набора. t — слова и знаки препинания (для плиток, пропусков и подсказок). */
-export type Sent = { id: string; zh: string; ru: string; t: string[]; lv: number };
+export type Sent = { id: string; zh: string; ru: string; t: string[]; lv: number; kana?: string; /** чтения слов (японский) */ r?: string[] };
 export type Question = { q: string; o: string[]; a: number };
 export type Dialog = { id: string; title: string; theme?: string; level?: number; lines: [string, string, string][]; q: Question[] };
 /** Слово урока: иероглифы, пиньинь (как в колоде), значение. */
@@ -75,7 +111,9 @@ export type LessonWord = [string, string, string];
 export type GramX = { zh: string; ru: string; o: string[]; a: number };
 export type Gram = { title: string; text: string[]; ex: [string, string][]; x: GramX[] };
 export type Lesson = { title: string; words: LessonWord[]; sents: Sent[]; dialogs: Dialog[]; section?: string; goal?: string; grammar?: Gram[] };
-export type ExSet = { id: string; title: string; lessons: Lesson[]; level?: number; about?: string };
+export type ExSet = { id: string; title: string; lessons: Lesson[]; level?: number; about?: string; lang?: "zh" | "ja";
+  /** Японский курс: чтения слов с кандзи из предложений и слов урока (для фуриганы). */
+  furi?: Record<string, string> };
 export type Kind = "tr" | "gap" | "listen" | "dict" | "dialog";
 /** Задание: предложение (перевод, пропуск, аудирование), диалог или слово (узнавание: иероглифы → значение или наоборот). */
 export type Task = { kind: Exclude<Kind, "dialog">; sent: Sent; tiles?: boolean } | { kind: "dialog"; dialog: Dialog }
@@ -191,6 +229,14 @@ export function diffZh(mine: string, ref: string): { ref: { c: string; ok: boole
  */
 export function parseExSet(text: string, id: string, seg: (zh: string) => string[]): ExSet {
   const set: ExSet = { id, title: "", lessons: [] };
+  // японский курс: «#lang: ja» или кана в тексте (в китайском её нет)
+  const ja = /^#lang:\s*ja/im.test(text) || KANA_RE.test(text);
+  if (ja) { set.lang = "ja"; set.furi = {}; }
+  const jaSeg = (raw: string) => {
+    const { t, r } = jaTokens(raw);
+    t.forEach((w, i) => { if (HAN.test(w) && r[i] && r[i] !== w) set.furi![w] ??= r[i]; });
+    return t;
+  };
   let lesson: Lesson | null = null;
   let dialog: Dialog | null = null;
   let section: string | undefined;
@@ -204,6 +250,7 @@ export function parseExSet(text: string, id: string, seg: (zh: string) => string
     if (line.startsWith("### ")) { section = line.slice(4).trim() || undefined; lesson = null; dialog = null; continue; }
     if (line.startsWith("## ")) { gram = null; lesson = { title: line.slice(3).trim(), words: [], sents: [], dialogs: [], ...(section ? { section } : {}) }; set.lessons.push(lesson); dialog = null; continue; }
     if (line.startsWith("# ")) { set.title ||= line.slice(2).trim(); continue; }
+    if (/^#lang:/i.test(line)) continue;
     const meta = /^#(level|about):\s*(.*)$/i.exec(line);
     if (meta) {
       if (meta[1].toLowerCase() === "level") { const n = Number(meta[2]); if (n > 0) set.level = n; } else set.about = meta[2].trim();
@@ -214,17 +261,30 @@ export function parseExSet(text: string, id: string, seg: (zh: string) => string
     if (line.startsWith("= ")) { ensureLesson().goal = line.slice(2).trim(); dialog = null; continue; }
     if (line.startsWith("& ")) { gram = { title: line.slice(2).trim(), text: [], ex: [], x: [] }; (ensureLesson().grammar ??= []).push(gram); dialog = null; continue; }
     if (line.startsWith("%") && gram) {
-      if (line.startsWith("%e ")) { const [zh, ru = ""] = split(line.slice(3)); if (zh) gram.ex.push([zh, ru]); }
+      if (line.startsWith("%e ")) { const [zh, ru = ""] = split(line.slice(3)); if (zh) { if (ja) jaSeg(zh); gram.ex.push([zh, ru]); } }
       else if (line.startsWith("%x ")) {
         const [zh, ru = "", ...opts] = split(line.slice(3));
         const a = opts.findIndex((o) => o.endsWith("*"));
-        if (zh.includes("___") && opts.length >= 2 && a >= 0) gram.x.push({ zh, ru, o: opts.map((o) => o.replace(/\*$/, "").trim()), a });
+        if (zh.includes("___") && opts.length >= 2 && a >= 0) {
+          if (ja) jaSeg(zh);
+          // японский вариант может быть с чтением: «起きます[おきます]*»
+          const o = opts.map((x) => {
+            const c = x.replace(/\*$/, "").trim();
+            const m = /^(.+?)\[([^\]]+)\]$/.exec(c);
+            if (m && ja) { set.furi![m[1]] ??= m[2]; return m[1]; }
+            return c;
+          });
+          gram.x.push({ zh, ru, o, a });
+        }
       } else gram.text.push(line.slice(1).trim());
       continue;
     }
     if (line.startsWith("+")) {
       const [han, py = "", ru = ""] = split(line.slice(1));
-      if (han && HAN.test(han)) ensureLesson().words.push([han, py, ru]);
+      if (han && WORD.test(han)) {
+        ensureLesson().words.push([han, py, ru]);
+        if (ja && HAN.test(han) && py) set.furi![han] ??= py.split("/")[0].trim();
+      }
       dialog = null;
       continue;
     }
@@ -242,11 +302,14 @@ export function parseExSet(text: string, id: string, seg: (zh: string) => string
     const [zhRaw, ru = ""] = split(line);
     if (dialog) {
       const m = /^([^:：]{1,12})[:：]\s*(.+)$/.exec(zhRaw);
-      if (m && HAN.test(m[2])) { dialog.lines.push([m[1].trim(), m[2].trim(), ru]); continue; }
+      if (m && WORD.test(m[2])) { if (ja) jaSeg(m[2]); dialog.lines.push([m[1].trim(), m[2].trim(), ru]); continue; }
     }
-    if (!HAN.test(zhRaw)) continue;
+    if (!WORD.test(zhRaw)) continue;
     dialog = null;
-    ensureLesson().sents.push({ id: `${id}:${zhRaw}`, zh: zhRaw, ru, t: seg(zhRaw), lv: 0 });
+    if (ja) {
+      const t = jaSeg(zhRaw);
+      ensureLesson().sents.push({ id: `${id}:${t.join("")}`, zh: t.join(""), ru, t, lv: 0, kana: readingJa(zhRaw), r: jaTokens(zhRaw).r });
+    } else ensureLesson().sents.push({ id: `${id}:${zhRaw}`, zh: zhRaw, ru, t: seg(zhRaw), lv: 0 });
   }
   set.lessons = set.lessons.filter((l) => l.sents.length || l.dialogs.length || l.words.length || l.grammar?.length);
   set.title ||= "Мой набор";

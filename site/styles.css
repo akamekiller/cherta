@@ -962,9 +962,10 @@ html{scrollbar-gutter:stable}
 /* язык приложения (html[data-lang], ui/lang.ts): японские начертания кандзи и модули только для китайского */
 html[data-lang="ja"]{--f-han:"Noto Serif JP","Noto Serif SC","Hiragino Mincho ProN","Yu Mincho",serif}
 html[data-lang="ja"] .only-zh,html:not([data-lang="ja"]) .only-ja{display:none!important}
-html[data-lang="ja"] .dr-item:is([data-view="ex"],[data-view="read"],[data-view="hsk"],[data-view="tones"]){display:none}
+html[data-lang="ja"] .dr-item:is([data-view="read"],[data-view="hsk"],[data-view="tones"]){display:none}
+html[data-lang="ja"] :is(#ex-free,#cat-ai,#cat-build){display:none!important}
 html[data-lang="ja"] :is(#deck-create,#w-draw,#w-voice){display:none!important}
-html[data-lang="ja"] .sheet [data-mode]:is([data-mode="text"],[data-mode="course"]),html[data-lang="ja"] .sheet #im-ai{display:none!important}
+html[data-lang="ja"] .sheet [data-mode]:is([data-mode="text"]),html[data-lang="ja"] .sheet #im-ai{display:none!important}
 .lang-sw{margin:0 4px 4px;display:flex}
 .lang-sw button{flex:1;width:auto;height:auto;font:500 13px var(--f-ui);padding:8px 6px;line-height:1.25}
 .lang-sw button[aria-pressed="true"]{background:var(--jade);color:var(--on-accent)}

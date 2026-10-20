@@ -262,3 +262,28 @@ test("lessonSteps: без звука — нет аудирования и дик
   const q = _ls(l, true);
   assert.ok(!q.includes("listen") && !q.includes("dict") && q.includes("write"));
 });
+
+test("японский курс: слова через пробел, чтения в скобках, фуригана", async () => {
+  const { jaTokens, plainJa, readingJa, parseExSet, isWordTok } = await import("../src/core/exercise.ts");
+  const raw = "私[わたし] は 学生[がくせい] です。";
+  assert.deepEqual(jaTokens(raw).t, ["私", "は", "学生", "です", "。"]);
+  assert.equal(plainJa(raw), "私は学生です。");
+  assert.equal(readingJa(raw), "わたしはがくせいです");
+  assert.ok(isWordTok("です") && !isWordTok("。"));
+  const set = parseExSet(`#lang: ja\n# Курс\n## Урок 1\n+ 学生 | がくせい | студент\n+ です | です | связка\n私[わたし] は 学生[がくせい] です 。 | Я студент.\n@ Знакомство\nA: はじめまして 。 | Приятно познакомиться.\n? Кто? | студент* | врач`, "t", () => []);
+  assert.equal(set.lang, "ja");
+  const l = set.lessons[0];
+  assert.equal(l.words.length, 2);
+  assert.equal(l.sents[0].zh, "私は学生です。");
+  assert.equal(l.sents[0].kana, "わたしはがくせいです");
+  assert.deepEqual(l.sents[0].t, ["私", "は", "学生", "です", "。"]);
+  assert.equal(set.furi!["私"], "わたし");
+  assert.equal(set.furi!["学生"], "がくせい");
+  assert.equal(l.dialogs[0].lines.length, 1);
+});
+
+test("китайский курс не считается японским", async () => {
+  const { parseExSet } = await import("../src/core/exercise.ts");
+  const set = parseExSet("# К\n## У\n你好！ | Привет!", "c", (z) => [...z]);
+  assert.equal(set.lang, undefined);
+});

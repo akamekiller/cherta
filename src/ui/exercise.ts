@@ -4,10 +4,10 @@
  * Курсы: встроенные (data/courses, подключаются по желанию) и свои из файла (уроки учебника и т. п.).
  * «Своя практика» — предложения корпуса под слова своей колоды, как раньше.
  */
-import { app, hskLookup, deckById, exCorpus, loadExSets, saveExSets, dictIndex, updateSettings, saveUserDeck, switchDeck, type ExSetFile } from "../state.ts";
+import { app, hskLookup, deckById, exCorpus, loadExSets, saveExSets, dictIndex, updateSettings, saveUserDeck, switchDeck, appLang, type ExSetFile } from "../state.ts";
 import {
   KINDS, STEPS, PASS, parseCorpus, segment, sentencesFor, gapTask, diffZh, parseExSet, planSession, tilesFor, checkAssembled, isWordTok, record,
-  lessonSteps, stepOpen, lessonDone, stepTasks, reviewTasks, wordOptions, shortRu, stepName, pinyinOptions, pinyinKey,
+  lessonSteps, stepOpen, lessonDone, stepTasks, reviewTasks, wordOptions, shortRu, stepName, pinyinOptions, pinyinKey, jaTokens, plainJa,
   type Kind, type Sent, type Dialog, type Task, type ExProgress, type ExSet, type StepId, type LessonWord, type Gram, type GramX,
 } from "../core/exercise.ts";
 import { dictPyToNumeric, type DictIndex } from "../core/dict.ts";
@@ -18,7 +18,10 @@ import { say, sayAll } from "../speech.ts";
 import { $, esc, pinyinHTML, plural } from "./dom.ts";
 import { onShow, onLeave, show } from "./nav.ts";
 import { openEntry } from "./entry.ts";
-import { wordByHan } from "./lookup.ts";
+import { wordByHan, loadJDict, jWordAt } from "./lookup.ts";
+import { findJ } from "../core/jdict.ts";
+import { romajiToKana, toHiragana } from "../core/kana.ts";
+import type { Word } from "../core/deck.ts";
 import { openAddToDeck } from "./editor.ts";
 import { openSheet, closeSheet, confirmInline } from "./sheet.ts";
 import { pickDeck, setPickLabel } from "./deckpick.ts";
@@ -57,7 +60,21 @@ async function ensureLex() {
 const lexHas = (w: string) => hskWords.has(w) || coursePy.has(w) || !!dictWords?.has(w);
 const seg = (zh: string) => segment(zh, lexHas, 4);
 
-function pyOf(w: string): string {
+/* ---------- японский курс ---------- */
+
+/** Язык открытого курса: у японского — слова через пробел и фуригана, японский голос, ответ каной или ромадзи. */
+let clang: "zh" | "ja" = "zh";
+let furi: Record<string, string> = {};
+const courseRu = new Map<string, string>();
+const HANX = /\p{Script=Han}/u;
+/** Строка курса словами (с чтением каждого слова в японском). */
+const lineHTML = (z: string) => { if (clang !== "ja") return toksHTML(seg(z)); const { t, r } = jaTokens(z); return toksHTML(t, -1, r); };
+/** Озвучить строку курса нужным голосом. */
+const sayx = (t: string, rate?: number) => (clang === "ja" ? say(plainJa(t), rate ?? 0.9, "ja") : say(t, rate));
+const isJaCourse = (c: Course) => c.set.lang === "ja";
+
+function pyOf(w: string, rd?: string): string {
+  if (clang === "ja") { const r = rd || furi[w] || coursePy.get(w)?.split("/")[0]; return r && HANX.test(w) && r !== w ? esc(r) : ""; }
   let p = coursePy.get(w) ?? hsk?.(w)?.py ?? "";
   if (!p && dict) { const i = dict.han.indexOf(w); if (i >= 0) p = dictPyToNumeric(dict.py[i], w) ?? ""; }
   if (!p) return "";
@@ -66,14 +83,14 @@ function pyOf(w: string): string {
 
 /** Пиньинь над словами в текущем занятии. */
 let pyOn = true;
-const tokHTML = (t: string, extra = "") => isWordTok(t)
-  ? `<button class="w${extra}" data-w="${esc(t)}">${pyOn ? `<small class="py">${pyOf(t)}</small>` : ""}<span>${esc(t)}</span></button>`
+const tokHTML = (t: string, extra = "", rd?: string) => isWordTok(t)
+  ? `<button class="w${extra}" data-w="${esc(t)}"${rd ? ` data-r="${esc(rd)}"` : ""}>${pyOn ? `<small class="py">${pyOf(t, rd)}</small>` : ""}<span>${esc(t)}</span></button>`
   : `<span class="p">${esc(t)}</span>`;
 /** Строка слов: знак препинания держится со словом перед ним (не уезжает один на новую строку). */
-function toksHTML(toks: string[], mark = -1): string {
+function toksHTML(toks: string[], mark = -1, rd?: string[]): string {
   const out: string[] = [];
   toks.forEach((t, i) => {
-    const h = tokHTML(t, i === mark ? " hl" : "");
+    const h = tokHTML(t, i === mark ? " hl" : "", rd?.[i]);
     if (!isWordTok(t) && out.length) out[out.length - 1] = out[out.length - 1].replace(/<\/span>$/, `${h}</span>`);
     else out.push(`<span class="u">${h}</span>`);
   });
@@ -125,13 +142,15 @@ async function myCourses(): Promise<Course[]> {
   await ensureLex();
   const list = await loadBuiltinList();
   const out: Course[] = [];
-  for (const id of app.settings.courses ?? []) {
+  for (const id of appLang() === "ja" ? [] : app.settings.courses ?? []) {
     const b = list.find((x) => x.id === id);
     if (!b) continue;
     try { out.push({ key: `b:${id}`, title: b.title, set: await builtinSet(b), builtin: id }); } catch { /* офлайн и не в кэше */ }
   }
   for (const f of sets) out.push({ key: `f:${f.id}`, title: f.title, set: fileSet(f), fileId: f.id });
-  return out;
+  // курсы своего языка: в японском режиме — японские, в китайском — китайские
+  const lang = appLang();
+  return out.filter((c) => (c.set.lang ?? "zh") === lang);
 }
 
 const lessonBest = (c: Course, i: number) => progCourse[c.key]?.[i] ?? {};
@@ -145,6 +164,13 @@ const startedLessons = (c: Course) => c.set.lessons.map((_, i) => i).filter((i) 
 
 function rememberWords(c: Course) {
   coursePy.clear();
+  courseRu.clear();
+  clang = isJaCourse(c) ? "ja" : "zh";
+  furi = c.set.furi ?? {};
+  if (clang === "ja") {
+    for (const l of c.set.lessons) for (const w of l.words) { if (w[1]) coursePy.set(w[0], w[1]); courseRu.set(w[0], w[2]); }
+    return;
+  }
   for (const l of c.set.lessons) for (const w of l.words) {
     // пиньинь в файле может быть со знаками тонов («xué xí») — переводим в формат колоды
     const n = w[1] ? normalizePinyin(w[1], w[0]) : null;
@@ -238,7 +264,8 @@ B: 你好！ | Привет!
 <p class="hint"><b>#</b> — название, <b>##</b> — урок, <b>+</b> — слово урока (иероглифы | пиньинь | значение), «китайский | русский» — предложение (вместо | можно Tab), <b>@</b> — диалог (до пустой строки), <b>?</b> — вопрос к диалогу, верный вариант со звёздочкой. Перевод можно не писать — тогда предложение будет только в пропусках и аудировании.</p>`;
 
 async function openCatalog() {
-  const list = await loadBuiltinList();
+  // готовые курсы — китайские; в японском режиме — только свой курс из файла
+  const list = appLang() === "ja" ? [] : await loadBuiltinList();
   const on = (id: string) => (app.settings.courses ?? []).includes(id);
   const row = (b: BuiltinInfo) => `<button class="deck-opt" data-cadd="${esc(b.id)}" aria-pressed="${on(b.id)}"><span>${esc(b.title)}<small>${esc(b.about)}</small></span><span class="pick-btn${on(b.id) ? " on" : ""}">${on(b.id) ? "✓" : "+"}</span></button>`;
   const body = `<p class="hint">Готовые курсы: свои темы уроков, предложения только из пройденных слов, диалоги. Нажмите, чтобы добавить.</p>
@@ -380,13 +407,14 @@ async function addToCourseDeck(c: Course, lessons: number[]): Promise<{ id: stri
   const words = [...(old?.words ?? [])];
   const have = new Set(words.map((w) => w[0]));
   let added = 0;
+  const ja = isJaCourse(c);
   for (const i of lessons) for (const [h, py, ru] of c.set.lessons[i]?.words ?? []) {
     if (have.has(h)) continue;
-    const row: [string, string, string] = [h, (py && normalizePinyin(py, h)) || look(h)?.py || "", ru || look(h)?.ru || ""];
+    const row: [string, string, string] = ja ? [h, py || h, ru] : [h, (py && normalizePinyin(py, h)) || look(h)?.py || "", ru || look(h)?.ru || ""];
     if (!row[1] || !row[2]) continue;
     words.push(row); have.add(h); added++;
   }
-  if (added || !old) await saveUserDeck({ id, title: c.title, words, createdAt: old?.createdAt ?? Date.now(), group: "Курсы" });
+  if (added || !old) await saveUserDeck({ id, title: c.title, words, createdAt: old?.createdAt ?? Date.now(), group: "Курсы", ...(ja ? { lang: "ja" as const } : {}) });
   return { id, added };
 }
 
@@ -435,13 +463,14 @@ function showWords() {
   $("ex-l-steps").hidden = true;
   const box = $("ex-l-words");
   box.hidden = false;
-  const exLine = ([zh, ru]: [string, string], k: string) => `<div class="g-ex"><div class="ex-zh">${toksHTML(seg(zh))}</div><button class="icon-btn small-ic" data-gsay="${esc(k)}" data-zh="${esc(zh)}" aria-label="Послушать">${PLAY}</button>${ru ? `<div class="g-ru">${esc(ru)}</div>` : ""}</div>`;
-  box.innerHTML = `<div class="topbar"><button class="btn ghost small" data-words-back>← К шагам</button>${l.grammar?.length ? `<button class="chip-btn small" data-th-py aria-pressed="${pyOn}">pīnyīn</button>` : ""}</div>
+  const exLine = ([zh, ru]: [string, string], k: string) => `<div class="g-ex"><div class="ex-zh">${lineHTML(zh)}</div><button class="icon-btn small-ic" data-gsay="${esc(k)}" data-zh="${esc(zh)}" aria-label="Послушать">${PLAY}</button>${ru ? `<div class="g-ru">${esc(ru)}</div>` : ""}</div>`;
+  box.innerHTML = `<div class="topbar"><button class="btn ghost small" data-words-back>← К шагам</button>${l.grammar?.length ? `<button class="chip-btn small" data-th-py aria-pressed="${pyOn}">${clang === "ja" ? "ふりがな" : "pīnyīn"}</button>` : ""}</div>
     ${l.goal ? `<div class="panel th-goal"><span class="label">Цель урока</span><p>${esc(l.goal)}</p></div>` : ""}
     ${l.words.length ? `<h3 class="grp-title"><span>Новые слова</span><span class="grp-n">${l.words.length}</span></h3>
     <div class="grp list">${l.words.map(([h, py, ru], i) => {
       let p = "";
-      try { p = py ? pinyinHTML(parseRef(py)) : pyOf(h); } catch { p = pyOf(h); }
+      if (clang === "ja") p = py && py !== h ? `<span lang="ja">${esc(py.split("/").join(", "))}</span>` : "";
+      else try { p = py ? pinyinHTML(parseRef(py)) : pyOf(h); } catch { p = pyOf(h); }
       return `<div class="item lw"><button class="h" data-wopen="${esc(h)}">${esc(h)}</button><span class="txt"><span class="py">${p}</span><span class="ru">${esc(ru)}</span></span><button class="icon-btn small-ic" data-wsay="${i}" aria-label="Послушать">${PLAY}</button></div>`;
     }).join("")}</div>
     <button class="btn wide" data-words-deck>Учить слова карточками</button>
@@ -580,6 +609,7 @@ async function startReview() {
 }
 
 async function startFree() {
+  clang = "zh"; furi = {};
   const p = await currentFree();
   prog = (await store.getMeta<ExProgress>("ex")) ?? {};
   pyOn = ui.pinyin;
@@ -596,6 +626,7 @@ function showTask() {
   const t = tasks[pos];
   const card = $("ex-card");
   $("ex-pyt").setAttribute("aria-pressed", String(pyOn));
+  $("ex-pyt").textContent = clang === "ja" ? "ふりがな" : "pīnyīn";
   if (t.kind === "dialog") { renderDialog(t.dialog); return; }
   if (t.kind === "word") { renderWord(t.word, t.dir); return; }
   if (t.kind === "choice") { renderChoice(t.x, t.rule); return; }
@@ -603,7 +634,7 @@ function showTask() {
   if (t.kind === "tr") {
     if (!s.ru) { tasks[pos] = { kind: "gap", sent: s }; showTask(); return; }
     const mode = t.tiles === undefined ? ui.trMode : t.tiles ? "tiles" : "type";
-    card.innerHTML = `<div class="ex-top"><span class="label">${mode === "tiles" && t.tiles ? "Соберите перевод из слов" : "Переведите на китайский"}</span></div>
+    card.innerHTML = `<div class="ex-top"><span class="label">${mode === "tiles" && t.tiles ? "Соберите перевод из слов" : clang === "ja" ? "Переведите на японский" : "Переведите на китайский"}</span></div>
       <div class="ex-ru">${esc(s.ru)}</div>
       ${t.tiles === undefined ? `<div class="seg tr-mode" role="group" aria-label="Как отвечать"><button data-tr="type" aria-pressed="${mode === "type"}">Написать</button><button data-tr="tiles" aria-pressed="${mode === "tiles"}">Собрать из слов</button></div>` : ""}
       <div id="ex-tr-body"></div>
@@ -619,14 +650,14 @@ function showTask() {
       <div class="ex-res" id="ex-res" hidden></div>
       <div class="ex-btns" id="ex-btns"><button class="btn primary wide" data-act="check">Проверить</button></div>`;
     renderTrBody(s, "type");
-    setTimeout(() => say(s.zh, 0.8), 250);
+    setTimeout(() => sayx(s.zh, 0.8), 250);
     return;
   }
   if (t.kind === "gap") {
     gap = gapTask(s, run.focus, poolWords, rnd);
     if (!gap) { tasks.splice(pos, 1); showTask(); return; }
     card.innerHTML = `<div class="ex-top"><span class="label">Вставьте пропущенное слово</span><button class="icon-btn small-ic" data-act="say" aria-label="Послушать">${PLAY}</button></div>
-      <div class="ex-zh">${s.t.map((x, i) => (i === gap!.at ? `<span class="gap-slot">＿＿</span>` : tokHTML(x))).join("")}</div>
+      <div class="ex-zh">${s.t.map((x, i) => (i === gap!.at ? `<span class="gap-slot">＿＿</span>` : tokHTML(x, "", s.r?.[i]))).join("")}</div>
       ${s.ru ? `<div class="ex-ru small">${esc(s.ru)}</div>` : ""}
       <div class="gap-opts">${gap.options.map((o) => `<button class="tile-w" data-opt="${esc(o)}">${pyOn ? `<small class="py">${pyOf(o)}</small>` : ""}<span>${esc(o)}</span></button>`).join("")}</div>
       <div class="ex-res" id="ex-res" hidden></div>
@@ -642,18 +673,19 @@ function showTask() {
     <div class="ex-res" id="ex-res" hidden></div>
     <div class="ex-btns" id="ex-btns"><button class="btn primary wide" data-act="check" disabled>Проверить</button></div>`;
   renderTiles();
-  setTimeout(() => say(s.zh, 0.8), 250);
+  setTimeout(() => sayx(s.zh, 0.8), 250);
 }
 
 const PLAY = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>`;
 
 function wordPy(w: LessonWord): string {
+  if (clang === "ja") return w[1] && w[1] !== w[0] ? `<span lang="ja">${esc(w[1].split("/")[0])}</span>` : "";
   try { return w[1] ? pinyinHTML(parseRef(w[1])) : pyOf(w[0]); } catch { return pyOf(w[0]); }
 }
 
 /** Узнавание слова: иероглифы → значение или значение → иероглифы, 4 варианта. */
 let wRight = "";
-const markPy = (p: string) => { try { return esc(toMarked(parseRef(p))); } catch { return esc(p); } };
+const markPy = (p: string) => { if (clang === "ja") return esc(p); try { return esc(toMarked(parseRef(p))); } catch { return esc(p); } };
 function renderWord(w: LessonWord, dir: "zh" | "ru" | "py") {
   if (dir === "py") {
     wopts = pinyinOptions(w[1], [...run.words, ...run.courseWords].filter((x) => x[0] !== w[0] && x[1]).map((x) => x[1]), rnd);
@@ -671,11 +703,11 @@ function renderWord(w: LessonWord, dir: "zh" | "ru" | "py") {
        <div class="wq"><span class="wq-han">${esc(w[0])}</span>${pyOn ? `<span class="py">${wordPy(w)}</span>` : ""}</div>
        <div class="w-opts">${wopts.map((o, i) => `<button class="opt-btn" data-wopt="${i}">${esc(o)}</button>`).join("")}</div>
        <div class="ex-res" id="ex-res" hidden></div><div class="ex-btns" id="ex-btns"></div>`
-    : `<div class="ex-top"><span class="label">Как это по-китайски?</span></div>
+    : `<div class="ex-top"><span class="label">${clang === "ja" ? "Как это по-японски?" : "Как это по-китайски?"}</span></div>
        <div class="ex-ru">${esc(shortRu(w[2]))}</div>
        <div class="w-opts han">${wopts.map((o, i) => `<button class="opt-btn han" data-wopt="${i}">${esc(o)}</button>`).join("")}</div>
        <div class="ex-res" id="ex-res" hidden></div><div class="ex-btns" id="ex-btns"></div>`;
-  if (dir === "zh") setTimeout(() => say(w[0]), 200);
+  if (dir === "zh") setTimeout(() => sayx(w[0]), 200);
 }
 
 /** Грамматика: предложение с пропуском и варианты; при ошибке — напоминание правила. */
@@ -684,7 +716,7 @@ function renderChoice(x: GramX, g: Gram) {
   cOpts = x.o.map((_, i) => i);
   for (let i = cOpts.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [cOpts[i], cOpts[j]] = [cOpts[j], cOpts[i]]; }
   const [a, b = ""] = x.zh.split("___");
-  const toks = (z: string) => toksHTML(seg(z));
+  const toks = (z: string) => lineHTML(z);
   $("ex-card").innerHTML = `<div class="ex-top"><span class="label">Грамматика · ${esc(g.title)}</span></div>
     <div class="ex-zh">${toks(a)}<span class="gap-slot">＿＿</span>${toks(b)}</div>
     ${x.ru ? `<div class="ex-ru small">${esc(x.ru)}</div>` : ""}
@@ -702,6 +734,12 @@ function renderTrBody(s: Sent, mode: "type" | "tiles") {
     body.innerHTML = `<div class="ex-ans" id="ex-ans"></div><div class="ex-pool" id="ex-pool"></div>`;
     renderTiles();
   } else {
+    if (clang === "ja") {
+      body.innerHTML = `<div class="tr-in-row"><input id="ex-in" lang="ja" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Японская раскладка или ромадзи: watashi wa…" enterkeyhint="done"></div><div class="hint" id="ex-kana-prev"></div>`;
+      const inp = $<HTMLInputElement>("ex-in");
+      inp.addEventListener("input", () => { const v = inp.value; $("ex-kana-prev").textContent = /[a-z]/i.test(v) ? romajiToKana(v) : ""; });
+      return;
+    }
     body.innerHTML = `<div class="tr-in-row"><input id="ex-in" lang="zh-CN" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Китайская раскладка или «рукой»" enterkeyhint="done"><button class="icon-btn" data-act="hw" aria-label="Писать рукой" aria-pressed="false">✍</button></div><div id="ex-hw" hidden></div>`;
     hwPad = mountHwPad($("ex-hw"), (ch) => { const i = $<HTMLInputElement>("ex-in"); i.value += ch; },
       { label: "⌫", onClick: () => { const i = $<HTMLInputElement>("ex-in"); i.value = [...i.value].slice(0, -1).join(""); } });
@@ -724,7 +762,7 @@ function renderTiles() {
 }
 
 function sentenceView(s: Sent, mark?: number) {
-  return `<div class="ex-zh ans">${toksHTML(s.t, mark)}</div>${s.ru ? `<div class="ex-ru small">${esc(s.ru)}</div>` : ""}`;
+  return `<div class="ex-zh ans">${toksHTML(s.t, mark, s.r)}</div>${s.ru ? `<div class="ex-ru small">${esc(s.ru)}</div>` : ""}`;
 }
 
 const nextBtn = () => `<button class="btn primary wide" data-act="next">${pos + 1 < tasks.length ? "Дальше" : "Итог"}</button>`;
@@ -756,10 +794,18 @@ async function check() {
   if (t.kind === "word" || t.kind === "choice") return;
   const s = t.sent;
   if (t.kind === "dict" || (t.kind === "tr" && trModeNow(t) === "type")) {
-    const mine = $<HTMLInputElement>("ex-in").value.trim();
+    let mine = $<HTMLInputElement>("ex-in").value.trim();
     if (!mine) return;
     hwPad?.hide();
-    const d = diffZh(mine, s.zh);
+    // японский: ромадзи → кана; сравниваем и с записью кандзи, и с чтением каной — засчитывается лучшее
+    if (clang === "ja" && /[a-z]/i.test(mine)) mine = romajiToKana(mine, true);
+    let d = diffZh(mine, s.zh);
+    if (clang === "ja" && s.kana) {
+      // частицы は・へ・を читаются «ва・э・о» — набранные ромадзи wa/e/o засчитываем
+      const pn = (x: string) => toHiragana(x).replace(/は/g, "わ").replace(/へ/g, "え").replace(/を/g, "お");
+      const dk = diffZh(pn(mine), pn(s.kana));
+      if (dk.score > d.score) d = { ...diffZh(toHiragana(mine), s.kana), score: dk.score };
+    }
     const ok = d.score === 1;
     const refHTML = d.ref.map((x) => `<span class="${x.ok ? "c-ok" : "c-miss"}">${esc(x.c)}</span>`).join("");
     await result(ok, `<div class="chip ${ok ? "ok" : d.score >= 0.7 ? "mid" : "no"}">${ok ? "Верно" : `Совпадение ${Math.round(d.score * 100)}%`}</div>
@@ -778,7 +824,7 @@ async function check() {
 function renderDialog(d: Dialog) {
   qAns = d.q.map(() => null);
   $("ex-card").innerHTML = `<div class="ex-top"><span class="label">${run.mode === "step" && run.step === "dialog" ? "Текст урока" : "Диалог"}: ${esc(d.title)}</span><button class="btn small" data-act="say-all">${PLAY} Весь</button></div>
-    <div class="dl">${d.lines.map((l, i) => `<div class="dl-line"><span class="dl-who">${esc(l[0])}</span><div class="dl-body"><div class="ex-zh">${toksHTML(seg(l[1]))}</div><div class="dl-ru" hidden>${esc(l[2])}</div></div><button class="icon-btn small-ic" data-line="${i}" aria-label="Послушать реплику">${PLAY}</button></div>`).join("")}</div>
+    <div class="dl">${d.lines.map((l, i) => `<div class="dl-line"><span class="dl-who">${esc(l[0])}</span><div class="dl-body"><div class="ex-zh">${lineHTML(l[1])}</div><div class="dl-ru" hidden>${esc(l[2])}</div></div><button class="icon-btn small-ic" data-line="${i}" aria-label="Послушать реплику">${PLAY}</button></div>`).join("")}</div>
     <button class="link-btn" data-act="ru">Показать перевод</button>
     ${d.q.length ? `<div class="dl-q">${d.q.map((q, i) => `<div class="q"><div class="q-t">${esc(q.q)}</div><div class="q-o">${q.o.map((o, j) => `<button class="chip-btn" data-q="${i}" data-o="${j}" aria-pressed="false">${esc(o)}</button>`).join("")}</div></div>`).join("")}</div>` : ""}
     <div class="ex-res" id="ex-res" hidden></div>
@@ -831,6 +877,7 @@ async function finish() {
 
 async function gloss(w: string) {
   const box = $("ex-gloss");
+  if (clang === "ja") { glossJa(w); return; }
   const word = await wordByHan(w);
   box.innerHTML = `<div class="g-head"><b>${esc(w)}</b> <span class="py">${word.ref.length ? pinyinHTML(word.ref) : ""}</span><button class="icon-btn small-ic" data-say="${esc(w)}" aria-label="Послушать">${PLAY}</button></div><div class="g-ru">${esc(word.ru || "—")}</div>
     <div class="g-act"><button class="btn small" data-open="${esc(word.id)}">Статья</button><button class="btn small" data-add>+ В колоду</button></div>`;
@@ -838,6 +885,28 @@ async function gloss(w: string) {
   box.querySelector("[data-open]")!.addEventListener("click", () => openEntry(word.id, true));
   box.querySelector("[data-add]")!.addEventListener("click", () => openAddToDeck(word));
   box.querySelector("[data-say]")!.addEventListener("click", () => say(w));
+}
+
+/** Японское слово в занятии: чтение и значение из курса, «Статья» — японский словарь. */
+async function glossJa(w: string) {
+  const box = $("ex-gloss");
+  const r = furi[w] ?? coursePy.get(w)?.split("/")[0] ?? "";
+  let ru = courseRu.get(w) ?? "";
+  let jw: Word | null = null;
+  try {
+    const x = await loadJDict();
+    const i = findJ(x, w, r || undefined)[0];
+    if (i !== undefined) { jw = jWordAt(x, i); ru ||= x.ru[i]; }
+  } catch { /* словарь не загрузился */ }
+  box.innerHTML = `<div class="g-head"><b lang="ja">${esc(w)}</b> <span class="py" lang="ja">${r && r !== w ? esc(r) : ""}</span><button class="icon-btn small-ic" data-say aria-label="Послушать">${PLAY}</button></div><div class="g-ru">${esc(ru || "—")}</div>
+    <div class="g-act">${jw ? `<button class="btn small" data-open>Статья</button><button class="btn small" data-add>+ В колоду</button>` : ""}</div>`;
+  box.hidden = false;
+  box.querySelector("[data-say]")!.addEventListener("click", () => say(w, 0.9, "ja"));
+  if (jw) {
+    const word = jw;
+    box.querySelector("[data-open]")!.addEventListener("click", () => openEntry(word.id, true, (word as { jid?: string }).jid));
+    box.querySelector("[data-add]")!.addEventListener("click", () => openAddToDeck(word));
+  }
 }
 
 /* ---------- обработчики ---------- */
@@ -903,11 +972,11 @@ export function initExercise() {
     const l = c.set.lessons[lessonIdx];
     if (t.closest("[data-words-back]")) { $("ex-l-steps").hidden = false; openLesson(lessonIdx); return; }
     const sw = t.closest<HTMLButtonElement>("[data-wsay]");
-    if (sw) { say(l.words[Number(sw.dataset.wsay)][0]); return; }
+    if (sw) { sayx(l.words[Number(sw.dataset.wsay)][0]); return; }
     const gs = t.closest<HTMLButtonElement>("[data-gsay]");
-    if (gs) { say(gs.dataset.zh!, 0.8); return; }
+    if (gs) { sayx(gs.dataset.zh!, 0.8); return; }
     const tw = t.closest<HTMLButtonElement>("[data-w]");
-    if (tw) { say(tw.dataset.w!); return; }
+    if (tw) { sayx(tw.dataset.w!); return; }
     if (t.closest("[data-th-py]")) { pyOn = !pyOn; ui.pyMode = pyOn ? "on" : "off"; save(); const y = window.scrollY; showWords(); window.scrollTo(0, y); return; }
     const wo = t.closest<HTMLButtonElement>("[data-wopen]");
     if (wo) { const w = await wordByHan(wo.dataset.wopen!); openEntry(w.id, true); return; }
@@ -959,15 +1028,15 @@ export function initExercise() {
     if (act === "to-lesson") { openLesson(lessonIdx); return; }
     if (act === "step") { startStep(actBtn!.dataset.step as StepId); return; }
     if (act === "lesson") { openLesson(Number(actBtn!.dataset.lesson)); return; }
-    if (act === "say-word" && task?.kind === "word") { say(task.word[0]); return; }
-    if (act === "say" && task && task.kind !== "dialog" && task.kind !== "word" && task.kind !== "choice") { say(task.sent.zh, 0.8); return; }
-    if (act === "slow" && task && task.kind !== "dialog" && task.kind !== "word" && task.kind !== "choice") { say(task.sent.zh, 0.55); return; }
-    if (act === "say-x" && task?.kind === "choice") { say(filled(task.x), 0.8); return; }
-    if (act === "say-all" && task?.kind === "dialog") { sayAll(task.dialog.lines.map((l) => l[1]), 0.8); return; }
+    if (act === "say-word" && task?.kind === "word") { sayx(task.word[0]); return; }
+    if (act === "say" && task && task.kind !== "dialog" && task.kind !== "word" && task.kind !== "choice") { sayx(task.sent.zh, 0.8); return; }
+    if (act === "slow" && task && task.kind !== "dialog" && task.kind !== "word" && task.kind !== "choice") { sayx(task.sent.zh, 0.55); return; }
+    if (act === "say-x" && task?.kind === "choice") { sayx(filled(task.x), 0.8); return; }
+    if (act === "say-all" && task?.kind === "dialog") { sayAll(task.dialog.lines.map((l) => (clang === "ja" ? plainJa(l[1]) : l[1])), 0.8, clang); return; }
     if (act === "ru") { document.querySelectorAll<HTMLElement>("#ex-card .dl-ru").forEach((x) => (x.hidden = !x.hidden)); return; }
     if (act === "hw") { if (hwPad?.visible()) hwPad.hide(); else hwPad?.show(); actBtn!.setAttribute("aria-pressed", String(!!hwPad?.visible())); return; }
     const line = t.closest<HTMLButtonElement>("[data-line]");
-    if (line && task?.kind === "dialog") { say(task.dialog.lines[Number(line.dataset.line)][1], 0.8); return; }
+    if (line && task?.kind === "dialog") { sayx(task.dialog.lines[Number(line.dataset.line)][1], 0.8); return; }
     const tr = t.closest<HTMLButtonElement>("[data-tr]");
     if (tr && task?.kind === "tr" && !answered) {
       ui.trMode = tr.dataset.tr as "type" | "tiles"; save();
@@ -992,9 +1061,9 @@ export function initExercise() {
         b.disabled = true;
       });
       const full = filled(task.x);
-      say(full, 0.8);
+      sayx(full, 0.8);
       await result(ok, `<div class="chip ${ok ? "ok" : "no"}">${ok ? "Верно" : "Не так"}</div>
-        <div class="ex-zh ans">${toksHTML(seg(full))}<button class="icon-btn small-ic" data-act="say-x" aria-label="Послушать">${PLAY}</button></div>
+        <div class="ex-zh ans">${lineHTML(full)}<button class="icon-btn small-ic" data-act="say-x" aria-label="Послушать">${PLAY}</button></div>
         ${ok ? "" : `<div class="rule-hint"><b>${esc(task.rule.title)}</b>${task.rule.text[0] ? `<p>${esc(task.rule.text[0])}</p>` : ""}</div>`}`);
       return;
     }
@@ -1006,7 +1075,7 @@ export function initExercise() {
         b.classList.toggle("wrong", b === wo && !ok);
         b.disabled = true;
       });
-      if (task.dir !== "zh") say(task.word[0]);
+      if (task.dir !== "zh") sayx(task.word[0]);
       await result(ok, `<div class="chip ${ok ? "ok" : "no"}">${ok ? "Верно" : "Не то"}</div><div class="w-ans"><b>${esc(task.word[0])}</b> <span class="py">${wordPy(task.word)}</span> — ${esc(task.word[2])}</div>`);
       return;
     }

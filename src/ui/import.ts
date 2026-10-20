@@ -294,7 +294,7 @@ export function openImport(o: ImportOpts = {}) {
     /* события */
     const loadFile = async (f: File) => {
       try { src.value = await f.text(); name = f.name; } catch { prev.innerHTML = `<p class="note danger">Не получилось прочитать файл. Нужен текстовый: .txt, .tsv или .csv.</p>`; return; }
-      if (!o.mode) setMode(/^##\s/m.test(src.value) && /^[+@&]/m.test(src.value) ? "course" : looksLikeText(src.value) && src.value.length > 40 && !/\t/.test(src.value) ? "text" : "cards"); else void update();
+      if (!o.mode) setMode(/^##\s/m.test(src.value) && /^[+@&]/m.test(src.value) ? "course" : appLang() !== "ja" && looksLikeText(src.value) && src.value.length > 40 && !/\t/.test(src.value) ? "text" : "cards"); else void update();
     };
     src.addEventListener("input", later);
     src.addEventListener("paste", () => setTimeout(() => void update(), 0));

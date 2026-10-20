@@ -976,3 +976,6 @@ html[data-lang="ja"] .sheet [data-mode]:is([data-mode="text"],[data-mode="course
 .jart a.xref{color:var(--jade);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 .jhead{font:600 15px/1.4 var(--f-han);margin:14px 0 6px}
 .jhead:first-child{margin-top:0}
+
+/* образец черты в настройках пера */
+.pen-preview{display:block;width:100%;max-width:360px;height:auto;margin:4px 0 8px}

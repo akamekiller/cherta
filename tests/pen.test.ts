@@ -46,7 +46,7 @@ test("толщина пера из настроек", () => {
   const a = penShape("pencil", line(3, 16), 16, 0.5), b = penShape("pencil", line(3, 16), 16, 1.5);
   assert.equal(a.width, 8);
   assert.equal(b.width, 24);
-  assert.equal(clampSize(9), 1.6);
+  assert.equal(clampSize(9), 2.5);
   assert.equal(clampSize("x"), 1);
   assert.equal(clampSize(0.74), 0.7);
 });

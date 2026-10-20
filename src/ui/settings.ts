@@ -6,7 +6,7 @@ import { $, esc, plural } from "./dom.ts";
 import { setTheme, type ThemeChoice } from "../theme.ts";
 import { renderThemeChoices, openThemeEditor } from "./themeEditor.ts";
 import { onShow, onLeave } from "./nav.ts";
-import { PENS, isPen, clampSize } from "../core/pen.ts";
+import { PENS, isPen, clampSize, penShape, samplePoints, type PenType } from "../core/pen.ts";
 import { INKS, inkColor, setPen, createWriter, recolor, type Writer } from "./writer.ts";
 import { sessionWriter } from "./session.ts";
 import { entryWriter } from "./entry.ts";
@@ -22,10 +22,20 @@ function renderPens() {
   $<HTMLInputElement>("pen-size").value = String(app.settings.penSize);
   $("pen-size-val").textContent = `${Math.round(app.settings.penSize * 100)}%`;
   $("pen-hint").textContent = PENS.find((p) => p.id === pen)?.hint ?? "";
+  previewPen(pen, app.settings.penSize);
   const own = !INKS.some((i) => i.id === ink);
   $("inks").innerHTML = INKS.map((i) =>
     `<button class="ink" data-ink="${i.id}" title="${esc(i.name)}" aria-label="Чернила: ${esc(i.name)}" aria-pressed="${i.id === ink}" style="background:${inkColor(i.id)}"></button>`).join("")
     + `<label class="ink own" title="Свой цвет" aria-pressed="${own}"${own ? ` style="background:${ink}"` : ""}><input type="color" id="ink-own" value="${own ? ink : "#333333"}" aria-label="Свой цвет чернил"></label>`;
+}
+
+/** Образец черты выбранным пером и толщиной — разница видна сразу, без письма. */
+function previewPen(pen: PenType, size: number) {
+  const sh = penShape(pen, samplePoints(), 22, size);
+  const color = inkColor(app.settings.ink);
+  $("pen-preview").innerHTML = sh.mode === "fill"
+    ? `<path d="${sh.d}" fill="${color}" opacity="${sh.opacity}"/>`
+    : `<path d="${sh.d}" fill="none" stroke="${color}" stroke-width="${sh.width}" stroke-linecap="round" stroke-linejoin="round" opacity="${sh.opacity}"/>`;
 }
 
 function startTry() {
@@ -131,7 +141,11 @@ export function initSettings() {
   });
   $("pen-again").addEventListener("click", startTry);
   // толщина: показываем сразу, сохраняем и перерисовываем пробное поле, когда отпустили ползунок
-  $("pen-size").addEventListener("input", (e) => { $("pen-size-val").textContent = `${Math.round(Number((e.target as HTMLInputElement).value) * 100)}%`; });
+  $("pen-size").addEventListener("input", (e) => {
+    const v = clampSize(Number((e.target as HTMLInputElement).value));
+    $("pen-size-val").textContent = `${Math.round(v * 100)}%`;
+    previewPen(app.settings.pen, v);
+  });
   $("pen-size").addEventListener("change", (e) => { choosePen({ size: Number((e.target as HTMLInputElement).value) }).then(startTry); });
   $("s-keep").addEventListener("change", (e) => { choosePen({ keep: (e.target as HTMLInputElement).checked }).then(startTry); });
   $("edits-list").addEventListener("click", async (e) => {

@@ -24,8 +24,8 @@
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<link rel="stylesheet" href="data/fonts/fonts.css?v=0.39.0-mvgvdhyc">
-<link rel="stylesheet" href="styles.css?v=0.39.0-mvgvdhyc">
+<link rel="stylesheet" href="data/fonts/fonts.css?v=0.39.0-mvh3by2y">
+<link rel="stylesheet" href="styles.css?v=0.39.0-mvh3by2y">
 </head>
 <body>
 <div class="loadbar" id="loadbar" role="status" aria-live="polite" hidden></div>
@@ -423,7 +423,8 @@
         <div class="t"><div>Чернила</div></div>
         <div class="inks" id="inks"></div>
         <label class="pen-size"><span class="t"><div>Толщина</div></span>
-          <input type="range" id="pen-size" min="0.5" max="1.6" step="0.1" aria-label="Толщина пера"><output id="pen-size-val"></output></label>
+          <input type="range" id="pen-size" min="0.4" max="2.5" step="0.1" aria-label="Толщина пера"><output id="pen-size-val"></output></label>
+        <svg class="pen-preview" id="pen-preview" viewBox="0 0 1024 260" aria-hidden="true"></svg>
         <label class="pen-keep"><span class="t"><div>Оставлять мои черты</div><div>Иначе верная черта заменяется эталонной</div></span>
           <input type="checkbox" class="switch" id="s-keep"></label>
         <div class="pen-try">
@@ -506,7 +507,7 @@
       <div class="confirm" id="confirm-box" hidden></div>
       <p class="note" id="io-note"></p>
     </div>
-    <p class="about">Черта 0.39.0-mvgvdhyc. Данные черт: Make Me a Hanzi (Arphic Public License), библиотека Hanzi Writer (MIT). Планировщик повторений: FSRS-5.</p>
+    <p class="about">Черта 0.39.0-mvh3by2y. Данные черт: Make Me a Hanzi (Arphic Public License), библиотека Hanzi Writer (MIT). Планировщик повторений: FSRS-5.</p>
   </section>
 </div>
 <div class="sheet-scrim" id="sheet-scrim" hidden></div>
@@ -514,7 +515,7 @@
   <div class="sheet-head"><h2 id="sheet-title"></h2><button class="icon-btn" id="sheet-close" aria-label="Закрыть">✕</button></div>
   <div class="sheet-body stack" id="sheet-body"></div>
 </section>
-<script type="module" src="app.js?v=0.39.0-mvgvdhyc"></script>
+<script type="module" src="app.js?v=0.39.0-mvh3by2y"></script>
 <div id="print-area" aria-hidden="true"></div>
 </body>
 </html>

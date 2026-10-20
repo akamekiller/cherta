@@ -167,8 +167,23 @@ function circle(c: PenPoint, r: number): string {
 }
 
 /** Толщина пера в настройках: множитель к обычной толщине. */
-export const PEN_SIZE = { min: 0.5, max: 1.6, step: 0.1, def: 1 };
+export const PEN_SIZE = { min: 0.4, max: 2.5, step: 0.1, def: 1 };
 export const clampSize = (v: unknown) => typeof v === "number" && isFinite(v) ? clamp(Math.round(v * 10) / 10, PEN_SIZE.min, PEN_SIZE.max) : PEN_SIZE.def;
+
+/** Образец черты для предпросмотра пера в настройках: горизонталь с нажимом и откидная — в координатах 0…1024 × 0…240. */
+export function samplePoints(): PenPoint[] {
+  // горизонтальная черта 一: нажим в начале (медленно), быстрый ход с лёгкой дугой, замедление и нажим в конце
+  const out: PenPoint[] = [];
+  let t = 0;
+  const n = 60;
+  for (let i = 0; i <= n; i++) {
+    const u = i / n;
+    out.push({ x: 140 + u * 740, y: 150 - Math.sin(u * Math.PI) * 22 + (u > 0.92 ? (u - 0.92) * 220 : 0), t, p: 0.5 });
+    const ease = Math.sin(u * Math.PI); // быстро в середине
+    t += 6 + (1 - ease) * 34;
+  }
+  return out;
+}
 
 /** Главная функция: как нарисовать черту выбранным пером. base — толщина «карандаша», size — множитель из настроек. */
 export function penShape(type: PenType, raw: PenPoint[], base: number, size = 1): PenShape {

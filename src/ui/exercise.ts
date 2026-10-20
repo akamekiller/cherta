@@ -23,6 +23,10 @@ import { openAddToDeck } from "./editor.ts";
 import { openSheet, closeSheet, confirmInline } from "./sheet.ts";
 import { pickDeck, setPickLabel } from "./deckpick.ts";
 import { mountHwPad, type HwPad } from "./hwpad.ts";
+import { openImport } from "./import.ts";
+import { openBuilder } from "./coursebuilder.ts";
+import { openAiPrompt } from "./aisheet.ts";
+import { setToCourse } from "../core/coursebuild.ts";
 
 /* ---------- настройки ---------- */
 
@@ -169,7 +173,7 @@ async function renderHome() {
   courses = await myCourses();
   if (!courses.length) {
     $("ex-courses").innerHTML = `<div class="empty-start panel"><span class="han-big" aria-hidden="true">课</span><h2>Курсов пока нет</h2>
-      <p class="hint">Курс — уроки по порядку: слова, узнавание, сборка фраз, аудирование, перевод и диалог. Добавьте готовый курс или загрузите свой файл (например, уроки учебника).</p></div>`;
+      <p class="hint">Курс — уроки по порядку: слова, узнавание, сборка фраз, аудирование, перевод и диалог. Добавьте готовый курс или соберите свой: в конструкторе, вставкой текста или попросив ИИ сделать его по фото учебника.</p></div>`;
     return;
   }
   // курсы — по уровням, каждый уровень сворачивается
@@ -237,16 +241,22 @@ async function openCatalog() {
   const row = (b: BuiltinInfo) => `<button class="deck-opt" data-cadd="${esc(b.id)}" aria-pressed="${on(b.id)}"><span>${esc(b.title)}<small>${esc(b.about)}</small></span><span class="pick-btn${on(b.id) ? " on" : ""}">${on(b.id) ? "✓" : "+"}</span></button>`;
   const body = `<p class="hint">Готовые курсы: свои темы уроков, предложения только из пройденных слов, диалоги. Нажмите, чтобы добавить.</p>
     ${[...new Set(list.map((b0) => b0.level))].sort().map((lv) => `<h3 class="grp-title"><span>Уровень ${lv}${lv === 1 ? " — начальный" : ""}</span></h3><div class="deck-list">${list.filter((b0) => b0.level === lv).map(row).join("")}</div>`).join("")}
-    <h3 class="grp-title"><span>Свой курс из файла</span></h3>
-    <p class="hint">Например, уроки учебника. Файл хранится только на этом устройстве.</p>
-    <div class="tools"><button class="btn small" id="cat-file">Загрузить файл</button><button class="btn small" id="cat-help">Формат файла</button></div>
+    <h3 class="grp-title"><span>Свой курс</span></h3>
+    <p class="hint">Например, по урокам своего учебника. Хранится на этом устройстве (и в синхронизации).</p>
+    <div class="deck-list">
+      <button class="deck-opt" id="cat-build"><span>Создать в конструкторе<small>Уроки, слова, предложения, диалоги с вопросами — обычными полями, без файлов</small></span></button>
+      <button class="deck-opt" id="cat-ai"><span>Попросить ИИ сделать курс<small>Готовая инструкция для Claude или ChatGPT: приложите фото учебника — и вставьте ответ</small></span></button>
+      <button class="deck-opt" id="cat-file"><span>Вставить текст или загрузить файл<small>С проверкой: покажет, какие строки не разобрались и почему</small></span></button>
+    </div>
+    <details class="paste"><summary>Формат файла курса</summary>FORMAT_SLOT</details>
     <button class="btn primary wide" id="cat-ok">Готово</button>`;
-  openSheet("Курсы", `<div class="pick-decks">${body}</div>`, (root) => {
+  openSheet("Курсы", `<div class="pick-decks">${body.replace("FORMAT_SLOT", FORMAT_HELP)}</div>`, (root) => {
     root.addEventListener("click", async (e) => {
       const t = e.target as HTMLElement;
       if (t.closest("#cat-ok")) { closeSheet(); return; }
-      if (t.closest("#cat-file")) { closeSheet(); $<HTMLInputElement>("ex-set-file").click(); return; }
-      if (t.closest("#cat-help")) { openSheet("Формат файла курса", FORMAT_HELP); return; }
+      if (t.closest("#cat-file")) { openImport({ mode: "course" }); return; }
+      if (t.closest("#cat-build")) { openBuilder(); return; }
+      if (t.closest("#cat-ai")) { openAiPrompt("course", async () => { let tx = ""; try { tx = await navigator.clipboard.readText(); } catch { /* */ } openImport({ mode: "course", text: tx }); }); return; }
       const b = t.closest<HTMLButtonElement>("[data-cadd]");
       if (!b) return;
       const id = b.dataset.cadd!;
@@ -257,17 +267,30 @@ async function openCatalog() {
   }, () => { renderHome(); });
 }
 
-async function loadFile(f: File) {
-  await ensureLex();
-  const text = await f.text();
+/** Свой курс из текста (импорт, конструктор): сохранить и открыть. Возвращает id файла. */
+export async function addOwnCourse(text: string, title: string): Promise<string> {
+  sets = await loadExSets();
   const id = `s-${Date.now().toString(36)}`;
-  const p = parseExSet(text, `f:${id}`, seg);
-  const n = p.lessons.reduce((a, l) => a + l.sents.length + l.dialogs.length + l.words.length, 0);
-  if (!n) { openSheet("Загрузка курса", `<p class="note danger">В файле не нашлось ни слов, ни предложений, ни диалогов.</p>${FORMAT_HELP}`); return; }
-  sets = [...sets, { id, title: p.title === "Мой набор" ? f.name.replace(/\.[^.]+$/, "") : p.title, text, addedAt: Date.now() }];
+  sets = [...sets, { id, title: title || "Мой курс", text, addedAt: Date.now() }];
   await saveExSets(sets);
+  await showOwnCourse(id);
+  return id;
+}
+
+/** Изменённый в конструкторе свой курс: текст заменяется, прогресс по урокам остаётся. */
+export async function updateOwnCourse(fileId: string, text: string, title: string) {
+  sets = await loadExSets();
+  sets = sets.map((f) => (f.id === fileId ? { ...f, title: title || f.title, text } : f));
+  parsed.delete(`f:${fileId}`);
+  await saveExSets(sets);
+  await showOwnCourse(fileId);
+}
+
+async function showOwnCourse(fileId: string) {
+  closeSheet();
+  show("ex");
   await renderHome();
-  const c = courses.find((x) => x.fileId === id);
+  const c = courses.find((x) => x.fileId === fileId);
   if (c) openCourse(c.key);
 }
 
@@ -323,12 +346,18 @@ function courseMenu() {
   if (!c) return;
   const body = `<div class="dm-list">
       <button class="deck-opt" id="cm-decks"><span>Все слова курса — в карточки<small>Сейчас в колоду «${esc(c.title)}» попадают слова пройденных уроков</small></span></button>
+      <button class="deck-opt" id="cm-edit"><span>${c.fileId ? "Изменить в конструкторе" : "Сделать свою копию и изменить"}<small>${c.fileId ? "Уроки, слова, предложения, диалоги; прогресс сохранится" : "Встроенный курс не меняется — правится копия в «Своих курсах»"}</small></span></button>
       <button class="deck-opt danger" id="cm-del"><span>${c.fileId ? "Удалить курс" : "Убрать курс"}<small>${c.fileId ? "Файл удалится с устройства, прогресс останется" : "Прогресс сохранится, вернуть — «Добавить курс»"}</small></span></button>
     </div><div class="confirm" id="cm-confirm" hidden></div>`;
   openSheet(c.title, body, (root) => {
     root.querySelector("#cm-decks")!.addEventListener("click", async () => {
       const r = await addToCourseDeck(c, c.set.lessons.map((_, i) => i));
       root.querySelector("#cm-decks small")!.textContent = `Добавлено слов: ${r.added}. Колода «${c.title}» — в «Карточках», группа «Курсы».`;
+    });
+    root.querySelector("#cm-edit")!.addEventListener("click", () => {
+      const f = c.fileId ? sets.find((x) => x.id === c.fileId) : null;
+      const b = setToCourse(f ? parseExSet(f.text, c.key, seg) : c.set);
+      if (f) { b.title = f.title; openBuilder(b, f.id); } else { b.title = `${c.title} (моя копия)`; openBuilder(b); }
     });
     root.querySelector("#cm-del")!.addEventListener("click", () => confirmInline(root.querySelector("#cm-confirm")!, `${c.fileId ? "Удалить" : "Убрать"} «${c.title}»?`, c.fileId ? "Удалить" : "Убрать", async () => {
       if (c.fileId) { sets = sets.filter((s) => s.id !== c.fileId); await saveExSets(sets); parsed.delete(c.key); }
@@ -877,12 +906,6 @@ export function initExercise() {
       await switchDeck(id);
       show("deck");
     }
-  });
-  $<HTMLInputElement>("ex-set-file").addEventListener("change", async (e) => {
-    const input = e.target as HTMLInputElement;
-    const f = input.files?.[0];
-    input.value = "";
-    if (f) loadFile(f).catch(() => openSheet("Загрузка курса", `<p class="note danger">Не получилось прочитать файл.</p>`));
   });
 
   // своя практика

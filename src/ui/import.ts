@@ -5,7 +5,12 @@
  */
 import { app, hskEntries, dictIndex, saveUserDeck } from "../state.ts";
 import { parseImportAll, type ImportRow, type ImportResult } from "../core/importer.ts";
-import { looksLikeText, wordsFromText, guessLevel, titleOf } from "../core/textwords.ts";
+import { looksLikeText, wordsFromText, guessLevel, titleOf, stripFences } from "../core/textwords.ts";
+import { parseExSet, type ExSet } from "../core/exercise.ts";
+import { checkCourseText, setToCourse } from "../core/coursebuild.ts";
+import { openAiPrompt } from "./aisheet.ts";
+import { openBuilder } from "./coursebuilder.ts";
+import { addOwnCourse } from "./exercise.ts";
 import { parseTexts, type ReadText } from "../core/reading.ts";
 import { dictPyToNumeric, type DictIndex } from "../core/dict.ts";
 import { parseRef } from "../core/pinyin.ts";
@@ -14,7 +19,7 @@ import { esc, pinyinHTML, plural } from "./dom.ts";
 import { openSheet, closeSheet } from "./sheet.ts";
 import { addOwnTexts, openOwnText } from "./reading.ts";
 
-export type ImportMode = "cards" | "text";
+export type ImportMode = "cards" | "text" | "course";
 export type ImportOpts = { mode?: ImportMode; text?: string; name?: string; deckId?: string; onDeck?: (id: string) => void };
 
 type Row = { han: string; py: string | null; ru: string; on: boolean; have: boolean; lv?: number; n?: number };
@@ -23,7 +28,7 @@ type Row = { han: string; py: string | null; ru: string; on: boolean; have: bool
 
 type Lex = { has: (w: string) => boolean; info: (w: string) => { py: string | null; ru: string } | null; level: (w: string) => number | undefined };
 let lexP: Promise<Lex> | null = null;
-function lexicon(): Promise<Lex> {
+export function lexicon(): Promise<Lex> {
   return (lexP ??= (async () => {
     const hsk = new Map<string, { py: string; ru: string; lv?: number }>();
     for (const e of await hskEntries()) {
@@ -67,13 +72,14 @@ export function openImport(o: ImportOpts = {}) {
 
   openSheet("Импорт", `<div class="stack im">
       <div class="chips-row" role="group" aria-label="Что импортировать">
-        <button class="chip-btn" data-mode="cards">Слова → карточки</button><button class="chip-btn" data-mode="text">Текст для чтения</button>
+        <button class="chip-btn" data-mode="cards">Слова → карточки</button><button class="chip-btn" data-mode="text">Текст для чтения</button><button class="chip-btn" data-mode="course">Курс упражнений</button>
       </div>
       <div class="field"><textarea id="im-src" rows="5" spellcheck="false" autocomplete="off"></textarea></div>
       <div class="row wrap im-tools">
         ${canPaste ? `<button class="btn small primary" id="im-paste">Вставить</button>` : ""}
         <button class="btn small" id="im-file">Файл</button>
         <button class="btn small ghost" id="im-clear">Очистить</button>
+        <button class="btn small" id="im-ai">Попросить ИИ</button>
         <input type="file" id="im-file-in" accept=".txt,.tsv,.csv,text/plain,text/csv,text/tab-separated-values" hidden>
       </div>
       <div id="im-prev" class="stack" aria-live="polite"></div>
@@ -88,7 +94,8 @@ export function openImport(o: ImportOpts = {}) {
       root.querySelectorAll<HTMLElement>("[data-mode]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === m)));
       src.placeholder = m === "cards"
         ? "Вставьте слова: 学习 老师 朋友 — или таблицу из Anki, Pleco, Skritter, Excel — или любой китайский текст: из него возьмутся слова."
-        : "Вставьте китайский текст — статью, диалог, урок учебника. Предложения разделятся сами, перевод можно добавить через «|».";
+        : m === "text" ? "Вставьте китайский текст — статью, диалог, урок учебника. Предложения разделятся сами, перевод можно добавить через «|»."
+        : "Вставьте текст курса (например, ответ ИИ) или выберите файл. Проще всего — «Попросить ИИ» или конструктор курса.";
       void update();
     };
 
@@ -97,9 +104,12 @@ export function openImport(o: ImportOpts = {}) {
     const later = () => { clearTimeout(timer); timer = window.setTimeout(() => void update(), 300); };
     async function update() {
       const my = ++gen;
+      // ответ ИИ в блоке кода — сразу чистим поле, чтобы номера строк в замечаниях совпадали
+      if (/```/.test(src.value)) src.value = stripFences(src.value);
       const text = src.value;
-      if (!text.trim()) { prev.innerHTML = help(); return; }
+      if (!text.trim()) { prev.innerHTML = mode === "course" ? courseStart() : help(); return; }
       if (mode === "text") return previewText(text);
+      if (mode === "course") return previewCourse(text);
       prev.innerHTML = `<p class="hint">Разбираю…</p>`;
       let lex: Lex | null = null;
       try { lex = await lexicon(); } catch { /* нет даже HSK — останутся только строки с пиньинем и значением */ }
@@ -173,6 +183,25 @@ export function openImport(o: ImportOpts = {}) {
       const el = root.querySelector("#im-n"); if (el) el.textContent = String(n);
       const go = root.querySelector<HTMLButtonElement>("#im-go"); if (go) { go.textContent = goLabel(n); go.disabled = !n; }
     };
+
+    let course: ExSet | null = null;
+    function previewCourse(text: string) {
+      course = parseExSet(text, "preview", (z) => [...z]);
+      const L = course.lessons;
+      const n = (f: (l: ExSet["lessons"][number]) => number) => L.reduce((a, l) => a + f(l), 0);
+      const issues = checkCourseText(text);
+      if (!L.length) { prev.innerHTML = `<p class="note">Уроков не нашлось. Урок начинается строкой «## Название урока».</p>${courseStart()}`; return; }
+      if (course.title === "Мой набор" && name) course.title = name.replace(/\.[^.]+$/, "");
+      prev.innerHTML = `<p class="hint">Курс «${esc(course.title)}»: уроков <b>${L.length}</b>, слов ${n((l) => l.words.length)}, предложений ${n((l) => l.sents.length)}, диалогов ${n((l) => l.dialogs.length)}, правил ${n((l) => l.grammar?.length ?? 0)}.</p>
+        ${issues.length ? `<div class="note im-issues"><b>Замечания: ${issues.length}</b> — эти строки приложение пропустит. Поправьте их в поле выше или откройте курс в конструкторе.
+          <ul>${issues.slice(0, 20).map((x) => `<li><button class="link-btn" data-line="${x.line}">строка ${x.line}</button>: ${esc(x.msg)}<br><code>${esc(x.src.slice(0, 80))}</code></li>`).join("")}</ul>${issues.length > 20 ? `<p>…и ещё ${issues.length - 20}</p>` : ""}</div>` : `<p class="note ok">Замечаний нет — всё разберётся.</p>`}
+        <div class="lesson-list">${L.slice(0, 30).map((l, i) => `<div class="lesson-row"><span class="ln">${i + 1}</span><span class="lt"><b>${esc(l.title)}</b><small>${l.words.length} ${plural(l.words.length, "слово", "слова", "слов")} · ${l.sents.length} ${plural(l.sents.length, "предложение", "предложения", "предложений")}${l.dialogs.length ? ` · диалогов: ${l.dialogs.length}` : ""}${l.grammar?.length ? ` · правил: ${l.grammar.length}` : ""}</small></span></div>`).join("")}</div>
+        <button class="btn primary wide" id="im-cgo">Добавить курс</button>
+        <button class="btn wide" id="im-cbuild">Открыть в конструкторе</button>`;
+    }
+    const courseStart = () => `<div class="stack"><p class="hint">Свой курс можно собрать без файла:</p>
+      <button class="btn wide" id="im-cnew">Создать в конструкторе</button>
+      <p class="hint">Или нажмите «Попросить ИИ»: он сделает курс по фото учебника, а вы вставите ответ сюда.</p></div>`;
 
     function previewText(text: string) {
       texts = parseTexts(text, `o-${Date.now().toString(36)}`);
@@ -252,7 +281,7 @@ export function openImport(o: ImportOpts = {}) {
     /* события */
     const loadFile = async (f: File) => {
       try { src.value = await f.text(); name = f.name; } catch { prev.innerHTML = `<p class="note danger">Не получилось прочитать файл. Нужен текстовый: .txt, .tsv или .csv.</p>`; return; }
-      if (!o.mode) setMode(looksLikeText(src.value) && src.value.length > 40 && !/\t/.test(src.value) ? "text" : "cards"); else void update();
+      if (!o.mode) setMode(/^##\s/m.test(src.value) && /^[+@&]/m.test(src.value) ? "course" : looksLikeText(src.value) && src.value.length > 40 && !/\t/.test(src.value) ? "text" : "cards"); else void update();
     };
     src.addEventListener("input", later);
     src.addEventListener("paste", () => setTimeout(() => void update(), 0));
@@ -292,6 +321,20 @@ export function openImport(o: ImportOpts = {}) {
         return;
       }
       if (t.closest("#im-file")) { q("#im-file-in").click(); return; }
+      if (t.closest("#im-ai")) { openAiPrompt(mode, async () => { let tx = ""; try { tx = await navigator.clipboard.readText(); } catch { /* вставят руками */ } openImport({ ...o, mode, text: tx, name: "" }); }); return; }
+      if (t.closest("#im-cnew")) { openBuilder(); return; }
+      if (t.closest("#im-cbuild") && course) { const c = setToCourse(course); openBuilder(c); return; }
+      const ln = t.closest<HTMLElement>("[data-line]");
+      if (ln) {
+        const k = Number(ln.dataset.line) - 1;
+        const ls = src.value.split("\n");
+        const at = ls.slice(0, k).reduce((a, x) => a + x.length + 1, 0);
+        src.focus(); src.setSelectionRange(at, at + (ls[k]?.length ?? 0));
+        src.scrollIntoView({ block: "center" });
+        return;
+      }
+      const cg = t.closest<HTMLButtonElement>("#im-cgo");
+      if (cg && course) { cg.disabled = true; try { await addOwnCourse(stripFences(src.value), course.title); } catch { cg.disabled = false; } return; }
       if (t.closest("#im-clear")) { src.value = ""; name = ""; void update(); src.focus(); return; }
       if (t.closest("#im-all") || t.closest("#im-none")) { const v = !!t.closest("#im-all"); for (const r of rows) if (showHave || !r.have) r.on = v && !!(r.py && r.ru); drawCards(); return; }
       if (t.closest("#im-have")) { showHave = !showHave; drawCards(); return; }

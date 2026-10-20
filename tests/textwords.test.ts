@@ -31,3 +31,22 @@ test("titleOf: первая фраза", () => {
   assert.equal(titleOf("我的周末。我和朋友去公园。"), "我的周末");
   assert.equal(titleOf("hello"), "Мой текст");
 });
+
+import { stripFences } from "../src/core/textwords.ts";
+import { aiPrompt } from "../src/core/aiprompt.ts";
+import { parseExSet } from "../src/core/exercise.ts";
+import { checkCourseText } from "../src/core/coursebuild.ts";
+
+test("stripFences: берём содержимое блока кода", () => {
+  assert.equal(stripFences("Вот курс:\n```text\n# Курс\n## Урок 1\n```\nУдачи!"), "# Курс\n## Урок 1\n");
+  assert.equal(stripFences("学习 老师"), "学习 老师");
+});
+
+test("пример из инструкции для ИИ разбирается без замечаний", () => {
+  const p = aiPrompt("course");
+  const ex = p.slice(p.indexOf("Пример урока:") + 13, p.indexOf("Правила:")).trim();
+  const s = parseExSet(ex, "x", (z) => [...z]);
+  assert.equal(s.lessons.length, 1);
+  assert.equal(s.lessons[0].dialogs[0].q.length, 1);
+  assert.equal(checkCourseText(ex).length, 0);
+});

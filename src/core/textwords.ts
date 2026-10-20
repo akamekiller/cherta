@@ -59,3 +59,10 @@ export function titleOf(src: string): string {
   const cut = first.split(/[。！？!?\n]/)[0].replace(/[，、：；“”「」"]/g, " ").trim();
   return cut.length > 16 ? cut.slice(0, 15) + "…" : cut || "Мой текст";
 }
+
+/** Ответ ИИ часто приходит в блоке кода ```…``` — оставляем только содержимое блока. */
+export function stripFences(src: string): string {
+  const m = src.match(/```[^\n]*\n([\s\S]*?)```/g);
+  if (!m) return src;
+  return m.map((b) => b.replace(/^```[^\n]*\n/, "").replace(/```$/, "")).join("\n").trim() + "\n";
+}

@@ -7,6 +7,7 @@ import type { Dialog } from "./core/exercise.ts";
 import { cardId, normSkills, pickNext, queueCounts, ALL_SKILLS, DEFAULT_SKILLS, type Skill, type QPick } from "./core/skills.ts";
 import { byDay, dayOf, type DayStat } from "./core/stats.ts";
 import * as store from "./store.ts";
+import { fetchText } from "./loading.ts";
 import { makeBlocks, currentBlock, type Block, type Theme } from "./core/blocks.ts";
 
 const MIN = 60_000;
@@ -551,13 +552,21 @@ function loadDictMeta(): Promise<DictMeta> {
 export function dictIndex(): Promise<DictIndex> {
   if (!dictIdx) {
     dictIdx = loadDictMeta().then(async (m) => {
-      const r = await fetch(`${dictBase}index.tsv?v=${m.v}`);
-      if (!r.ok) throw new Error("Не удалось загрузить словарь");
-      return parseIndex(await r.text());
+      return parseIndex(await fetchText(`${dictBase}index.tsv?v=${m.v}`, "Словарь загружается (один раз)"));
     });
     dictIdx.catch(() => { dictIdx = null; });
   }
   return dictIdx;
+}
+
+/** Все файлы словаря с текущей версией — для «Скачать для офлайна» (адреса те же, что при обычной загрузке). */
+export async function dictFiles(): Promise<{ dict: string[]; examples: string[] }> {
+  const m = await loadDictMeta();
+  const shards = Array.from({ length: m.shards }, (_, n) => shardFile(n));
+  return {
+    dict: [`${dictBase}index.tsv?v=${m.v}`, ...shards.map((f) => `${dictBase}${f}?v=${m.v}`)],
+    examples: [`${dictBase}ex.json?v=${m.v}`, ...((m as { wordex?: number }).wordex ? shards.map((f) => `${dictBase}x/${f}?v=${m.v}`) : [])],
+  };
 }
 
 /** Статья словаря или null, если слова нет. */

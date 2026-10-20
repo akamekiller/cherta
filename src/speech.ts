@@ -1,7 +1,8 @@
 /**
  * Озвучка слов.
  * 1) Готовые записи нейросетевым голосом (Kokoro, голос zf_047): site/audio/zh/<слово>.mp3,
- *    список есть в site/audio/zh/index.json. Офлайн их кэширует service worker после первого прослушивания.
+ *    список есть в site/audio/zh/index.json. Офлайн их кэширует service worker после первого прослушивания
+ *    (или все сразу — «Скачать для офлайна» в настройках).
  * 2) Если записи нет (своё слово, не из колод) — синтезатор речи устройства (Web Speech API).
  */
 let voice: SpeechSynthesisVoice | null = null;
@@ -36,6 +37,18 @@ export function loadRecorded(): Promise<void> {
 
 export const hasRecording = (text: string) => !!recorded?.has(text);
 
+/** Адрес записи слова. ?v= меняется, когда слово переозвучено — иначе офлайн-кэш играл бы старую запись. */
+export function audioUrl(text: string): string {
+  const v = recorded?.get(text);
+  return `audio/zh/${encodeURIComponent(text)}.mp3${v ? `?v=${encodeURIComponent(v)}` : ""}`;
+}
+
+/** Адреса всех записей (для «Скачать для офлайна»). */
+export async function allAudioUrls(): Promise<string[]> {
+  await loadRecorded();
+  return [...(recorded?.keys() ?? [])].map(audioUrl);
+}
+
 export function onVoices(f: () => void) { listeners.push(f); }
 
 export function voiceStatus(): string {
@@ -63,9 +76,7 @@ function speakDevice(text: string, rate: number) {
 export function say(text: string, rate = 0.85) {
   if (player && hasRecording(text)) {
     try { speechSynthesis?.cancel(); } catch { /* */ }
-    // ?v= меняется, когда слово переозвучено — иначе офлайн-кэш играл бы старую запись
-    const v = recorded!.get(text);
-    player.src = `audio/zh/${encodeURIComponent(text)}.mp3${v ? `?v=${encodeURIComponent(v)}` : ""}`;
+    player.src = audioUrl(text);
     player.play().catch(() => speakDevice(text, rate));
     return;
   }

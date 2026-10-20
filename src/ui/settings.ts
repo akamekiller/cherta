@@ -10,6 +10,7 @@ import { PENS, isPen, clampSize } from "../core/pen.ts";
 import { INKS, inkColor, setPen, createWriter, recolor, type Writer } from "./writer.ts";
 import { sessionWriter } from "./session.ts";
 import { entryWriter } from "./entry.ts";
+import { renderOffline } from "./offline.ts";
 
 let tryWriter: Writer | null = null;
 export const penWriter = () => tryWriter;
@@ -114,7 +115,7 @@ export function initSettings() {
   renderFsrs();
   $("fs-run").addEventListener("click", runFsrs);
   $("fs-reset").addEventListener("click", async () => { await updateSettings({ fsrsW: undefined }); renderFsrs(); $("fs-msg").textContent = "Вернул параметры по умолчанию."; });
-  onShow("settings", () => { render(); requestAnimationFrame(startTry); });
+  onShow("settings", () => { render(); renderOffline(); requestAnimationFrame(startTry); });
   onLeave("settings", () => { tryWriter = null; const el = document.getElementById("pen-hw"); if (el) el.innerHTML = ""; });
   $("pens").addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-pen]");

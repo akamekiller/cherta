@@ -1,5 +1,6 @@
 // Service worker «Черты»: офлайн-работа.
-// Оболочка приложения кэшируется при установке; данные черт, словаря и шрифты — при первом запросе.
+// Оболочка приложения кэшируется при установке; данные черт, словаря и шрифты — при первом запросе
+// или все сразу (Настройки → Офлайн, src/ui/offline.ts).
 // Файлы словаря (репозиторий cherta-dict) запрашиваются с ?v=<версия из meta.json>: после пересборки адрес новый,
 // а старые версии того же файла удаляются из кэша.
 const VERSION = "__VERSION__";
@@ -36,7 +37,9 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(req.url);
   const isDict = /\/(cherta-)?dict\//.test(url.pathname) && url.searchParams.has("v");
   const versioned = isDict || (url.pathname.endsWith("/data/hw.txt") && url.searchParams.has("v"));
-  const isData = versioned || url.pathname.includes("/data/strokes/") || (url.pathname.includes("/audio/") && url.pathname.endsWith(".mp3")) || url.hostname.endsWith("gstatic.com") || url.hostname.endsWith("googleapis.com");
+  // шрифты — свои файлы с хэшем в имени (data/fonts, scripts/build_fonts.py), содержимое по адресу не меняется
+  const isFont = url.pathname.includes("/data/fonts/") && url.pathname.endsWith(".woff2");
+  const isData = versioned || isFont || url.pathname.includes("/data/strokes/") || (url.pathname.includes("/audio/") && url.pathname.endsWith(".mp3"));
   if (isData) {
     // данные не меняются: сначала кэш, потом сеть
     e.respondWith(caches.open(DATA).then(async (c) => {

@@ -73,7 +73,11 @@ if (!existsSync(join(out, "data/strokes/00.json"))) {
 }
 
 // 6. Service worker со списком файлов оболочки
+// шрифты (python scripts/build_fonts.py → site/data/fonts): css и шрифты интерфейса — в оболочку, иероглифы — по требованию
+const fontFiles = existsSync(join(out, "data/fonts/files.json")) ? JSON.parse(readFileSync(join(out, "data/fonts/files.json"), "utf8")) : [];
+if (!fontFiles.length) console.warn("! Нет site/data/fonts — запустите: python scripts/build_fonts.py <папка с ttf>");
 const shell = ["./", "index.html", "app.js", "styles.css", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png",
+  "data/fonts/fonts.css", ...fontFiles.filter((f) => f.core).map((f) => `data/fonts/${f.file}`), "audio/zh/index.json",
   "data/decks/index.json", ...decks.map((d) => `data/decks/${d.id}.json`),
   "data/dialogs.json", "data/texts.json", "data/themes.json", "data/hsk/index.json", ...hskIndex.map((x) => `data/hsk/${x.file}`), "data/decomp.json", "data/courses/index.json", ...courses.map((c) => `data/courses/${c.file}`)];
 writeFileSync(join(out, "sw.js"), readFileSync(join(root, "static/sw.js"), "utf8")

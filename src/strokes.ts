@@ -10,10 +10,13 @@ const shards = new Map<number, Promise<Record<string, CharData>>>();
 
 export const shardOf = (ch: string) => (ch.codePointAt(0) ?? 0) % SHARDS;
 
+/** Адрес файла черт — один и тот же для загрузки и для «Скачать для офлайна». */
+export const strokeFile = (n: number) => `data/strokes/${String(n).padStart(2, "0")}.json`;
+
 function loadShard(n: number) {
   let p = shards.get(n);
   if (!p) {
-    p = fetch(`data/strokes/${String(n).padStart(2, "0")}.json`).then((r) => {
+    p = fetch(strokeFile(n)).then((r) => {
       if (!r.ok) throw new Error(`Нет файла черт ${n}`);
       return r.json();
     });

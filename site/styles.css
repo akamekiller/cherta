@@ -889,3 +889,15 @@ html{scrollbar-gutter:stable}
 .deck-how .hint{text-align:center}
 .quiet-row{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:4px;text-align:center}
 .quiet-chip{max-width:100%}
+
+/* офлайн: скачивание данных и полоска загрузки */
+.off-row .t{flex:1}
+.off-row .t>div:nth-child(2){font-size:13px;color:var(--muted)}
+.off-st{font-size:13px;color:var(--muted);margin-top:4px}
+.off-row .t .off-st.ok{color:var(--jade)}
+.off-bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:8px}
+.off-bar i{display:block;height:100%;background:var(--jade);transition:width .2s}
+.loadbar{position:fixed;left:50%;top:calc(8px + env(safe-area-inset-top));transform:translateX(-50%);z-index:60;background:var(--sheet);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:7px 14px;font:500 13px var(--f-ui);box-shadow:0 4px 14px rgba(0,0,0,.12);max-width:calc(100vw - 32px);text-align:center}
+.loadbar .spin{display:inline-block;width:11px;height:11px;margin-right:7px;vertical-align:-1px;border:2px solid var(--line);border-top-color:var(--jade);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.loadbar .spin{animation-duration:2.4s}}

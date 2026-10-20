@@ -24,12 +24,11 @@
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="data/fonts/fonts.css?v=__VERSION__">
 <link rel="stylesheet" href="styles.css?v=__VERSION__">
 </head>
 <body>
+<div class="loadbar" id="loadbar" role="status" aria-live="polite" hidden></div>
 <div class="scrim" id="scrim" hidden></div>
 <aside class="drawer" id="drawer" aria-label="Меню" aria-hidden="true">
   <div class="dr-head"><span class="han">笔</span>Черта</div>
@@ -453,6 +452,14 @@
         <div class="t"><div>Проверить голос</div><div id="voice-info">Ищем китайский голос…</div></div>
         <button class="btn small" id="s-test">你好</button>
       </div>
+    </div>
+    <div class="panel stack">
+      <div class="label">Офлайн</div>
+      <p class="hint">Скачать данные заранее, чтобы всё работало без интернета — в дороге или там, где сайты GitHub и Google открываются плохо (например, в Китае без VPN). Лучше по Wi-Fi.</p>
+      <div id="off-list"></div>
+      <div class="row"><button class="btn small" id="off-all">Скачать всё</button></div>
+      <p class="note" id="off-msg"></p>
+      <p class="note" id="off-usage"></p>
     </div>
     <div class="panel stack">
       <div class="label">Синхронизация</div>

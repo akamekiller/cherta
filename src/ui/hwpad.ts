@@ -2,16 +2,17 @@
 import { parseHw, recognize, type HwDb, type Pt } from "../core/handwriting.ts";
 import { esc } from "./dom.ts";
 import { inkColor } from "./writer.ts";
+import { fetchText } from "../loading.ts";
 
 declare const __HW_VERSION__: string;
+
+/** Адрес данных распознавания (с версией) — тот же и для «Скачать для офлайна». */
+export const hwUrl = () => `data/hw.txt?v=${__HW_VERSION__}`;
 
 let db: Promise<HwDb> | null = null;
 export function loadHwDb(): Promise<HwDb> {
   if (!db) {
-    db = fetch(`data/hw.txt?v=${__HW_VERSION__}`).then(async (r) => {
-      if (!r.ok) throw new Error("Нет данных рукописного ввода");
-      return parseHw(await r.text());
-    });
+    db = fetchText(hwUrl(), "Загружается распознавание рисунка").then(parseHw);
     db.catch(() => { db = null; });
   }
   return db;

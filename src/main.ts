@@ -15,6 +15,7 @@ import { initReading } from "./ui/reading.ts";
 import { initHsk } from "./ui/hsk.ts";
 import { initSync, autoSync } from "./ui/sync.ts";
 import { initRemind } from "./ui/remind.ts";
+import { initOffline, initLoadBar } from "./ui/offline.ts";
 import { initSettings, penWriter } from "./ui/settings.ts";
 import { recolor, setPen } from "./ui/writer.ts";
 import { initSheet } from "./ui/sheet.ts";
@@ -49,6 +50,8 @@ async function boot() {
   show("words");
   initSync();
   initRemind();
+  initOffline();
+  initLoadBar();
   // при запуске — тихая синхронизация; если что-то пришло с другого устройства, перерисовать экран
   autoSync().then((changed) => { if (changed) rerender(); });
   requestPersist();

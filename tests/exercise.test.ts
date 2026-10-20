@@ -243,3 +243,14 @@ test("pinyinOptions: верный, другие тоны того же слог�
   assert.ok(o.every((x) => x.split(" ").length === 2));
   assert.deepEqual(pinyinOptions("bu4/2 shi4", [], () => 0)[0].split(" ")[0].startsWith("bu"), true);
 });
+
+
+test("чтение слова: верный вариант совпадает с pinyinKey при любом rnd", async () => {
+  const { pinyinOptions, pinyinKey } = await import("../src/core/exercise.ts");
+  for (const r of [0, 0.3, 0.99]) {
+    const opts = pinyinOptions("shi4", ["liu4"], () => r);
+    assert.ok(opts.includes(pinyinKey("shi4")));
+    assert.equal(opts.filter((o) => o === pinyinKey("shi4")).length, 1);
+  }
+  assert.equal(pinyinKey("bu4/2 ke4 qi5"), "bu4 ke4 qi5");
+});

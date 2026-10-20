@@ -7,7 +7,7 @@
 import { app, hskLookup, deckById, exCorpus, loadExSets, saveExSets, dictIndex, updateSettings, saveUserDeck, switchDeck, type ExSetFile } from "../state.ts";
 import {
   KINDS, STEPS, PASS, parseCorpus, segment, sentencesFor, gapTask, diffZh, parseExSet, planSession, tilesFor, checkAssembled, isWordTok, record,
-  lessonSteps, stepOpen, lessonDone, stepTasks, reviewTasks, wordOptions, shortRu, stepName, pinyinOptions,
+  lessonSteps, stepOpen, lessonDone, stepTasks, reviewTasks, wordOptions, shortRu, stepName, pinyinOptions, pinyinKey,
   type Kind, type Sent, type Dialog, type Task, type ExProgress, type ExSet, type StepId, type LessonWord, type Gram, type GramX,
 } from "../core/exercise.ts";
 import { dictPyToNumeric, type DictIndex } from "../core/dict.ts";
@@ -624,7 +624,7 @@ const markPy = (p: string) => { try { return esc(toMarked(parseRef(p))); } catch
 function renderWord(w: LessonWord, dir: "zh" | "ru" | "py") {
   if (dir === "py") {
     wopts = pinyinOptions(w[1], [...run.words, ...run.courseWords].filter((x) => x[0] !== w[0] && x[1]).map((x) => x[1]), rnd);
-    wRight = pinyinOptions(w[1], [], () => 0)[0];
+    wRight = pinyinKey(w[1]);
     $("ex-card").innerHTML = `<div class="ex-top"><span class="label">Как читается это слово?</span></div>
        <div class="wq"><span class="wq-han">${esc(w[0])}</span><span class="hint">${esc(shortRu(w[2]))}</span></div>
        <div class="w-opts">${wopts.map((o, i) => `<button class="opt-btn py-opt" data-wopt="${i}">${markPy(o)}</button>`).join("")}</div>

@@ -353,8 +353,11 @@ export function wordOptions(word: LessonWord, lesson: LessonWord[], course: Less
  * Варианты чтения слова (пиньинь с цифрами): верный, тот же слог с другими тонами и чтения других слов той же длины.
  * Возвращает 4 строки (или меньше, если не из чего).
  */
+/** Пиньинь слова в виде варианта ответа (как в pinyinOptions): слоги через пробел, первый вариант тона. */
+export const pinyinKey = (p: string) => p.trim().toLowerCase().split(/\s+/).map((x) => x.split("/")[0]).join(" ");
+
 export function pinyinOptions(py: string, others: string[], rnd: () => number): string[] {
-  const norm = (p: string) => p.trim().toLowerCase().split(/\s+/).map((x) => x.split("/")[0]).join(" ");
+  const norm = pinyinKey;
   const right = norm(py);
   const syl = right.split(" ");
   const opts = [right];

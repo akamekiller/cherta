@@ -2,7 +2,7 @@
 Темы для готовых колод: колода делится на уроки-темы по 10–30 слов (как уроки по словам в учебнике).
     python scripts/build_themes.py → data/themes.json
 Источники: scripts/themes/<id колоды>.txt и темы курсов HSK 1–3 (scripts/courses/hskN.txt) для колод старого HSK.
-Формат: «### Раздел», «Тема: слово слово …». Слово идёт в первую тему, где встретилось; слова колоды без темы
+Формат: «### Раздел», «Тема: слово слово …» (тема больше 28 слов делится на уроки до 25). Слово идёт в первую тему, где встретилось; слова колоды без темы
 сборка допишет блоками «Ещё слова» (печатает только числа).
 """
 import json
@@ -37,7 +37,11 @@ def build(deck_id, themes):
         x = [w for w in ws if w in have and w not in seen]
         if x:
             seen |= set(x)
-            out.append({"s": sec, "t": title, "w": x})
+            # большая тема делится на уроки поровну, не больше 25 слов (Чувства 1, Чувства 2)
+            k = -(-len(x) // 25) if len(x) > 28 else 1
+            for j in range(k):
+                part = x[j * len(x) // k:(j + 1) * len(x) // k]
+                out.append({"s": sec, "t": title if k == 1 else f"{title} {j + 1}", "w": part})
     rest = [w for w in words if w not in seen]
     for i in range(0, len(rest), 20):
         out.append({"s": "Другие слова", "t": f"Ещё слова {i // 20 + 1}", "w": rest[i:i + 20]})

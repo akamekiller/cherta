@@ -1,6 +1,6 @@
 /** Свой почерк после ответа: оценка красоты, повтор своих черт рядом с образцом. */
 import { scoreHandwriting, beautyLabel, type P } from "../core/beauty.ts";
-import { getChar } from "../strokes.ts";
+import { getChar, type StrokeLang } from "../strokes.ts";
 import { esc } from "./dom.ts";
 
 const FLIP = `transform="translate(0 900) scale(1 -1)"`;
@@ -16,10 +16,10 @@ export type HandResult = { score: number; html: string; play: (root: HTMLElement
  * Оценка и разметка для всех иероглифов слова. drawn[i] — черты i-го иероглифа (точки в координатах hanzi-writer).
  * Возвращает null, если оценить нечего (например, не было данных черт).
  */
-export async function handResult(chars: string[], drawn: P[][][]): Promise<HandResult | null> {
+export async function handResult(chars: string[], drawn: P[][][], lang: StrokeLang = "zh"): Promise<HandResult | null> {
   const parts: { ch: string; score: number; notes: string[]; user: P[][]; ref: string[] }[] = [];
   for (let i = 0; i < chars.length; i++) {
-    const data = await getChar(chars[i]).catch(() => null);
+    const data = await getChar(chars[i], lang).catch(() => null);
     const user = (drawn[i] ?? []).filter(Boolean);
     if (!data || !user.length) continue;
     const b = scoreHandwriting(user, data.medians);

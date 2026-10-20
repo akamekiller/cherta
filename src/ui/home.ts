@@ -1,4 +1,5 @@
 /** Главная — список колод со счётчиками (как в Anki), обзор колоды, действия с колодой, импорт и экспорт. */
+import { appLang } from "../state.ts";
 import { useBookDeck } from "./book.ts";
 import { useTonesDeck } from "./tones.ts";
 import { SKILLS, type Skill } from "../core/skills.ts";
@@ -98,7 +99,7 @@ export function renderDeck() {
   if (!d) return;
   $("deck-title").textContent = d.title;
   const n = d.words.length, ch = countChars(d);
-  $("deck-sub").textContent = `${n} ${plural(n, "слово", "слова", "слов")} · ${ch} ${plural(ch, "иероглиф", "иероглифа", "иероглифов")} · новых в день: ${newLimit(d.id)}`;
+  $("deck-sub").textContent = `${n} ${plural(n, "слово", "слова", "слов")} · ${ch} ${d.lang === "ja" ? plural(ch, "знак", "знака", "знаков") : plural(ch, "иероглиф", "иероглифа", "иероглифов")} · новых в день: ${newLimit(d.id)}`;
   const c = counts();
   $("st-new").textContent = String(c.newLeft);
   $("st-learn").textContent = String(c.learning);
@@ -125,12 +126,15 @@ export function skillsHint(sk: Skill[]): string {
   return "Каждое слово по очереди тренируется всеми выбранными способами, у каждого свой интервал.";
 }
 
+/** Навыки, которые есть у колоды: у японской нет тонов. */
+const skillsFor = (id: string) => SKILLS.filter((k) => k.id !== "tone" || app.decks.find((d) => d.id === id)?.lang !== "ja");
+
 /** «Как учить» на экране колоды: навыки включаются и выключаются сразу, хотя бы один остаётся. */
 function renderSkills() {
   const d = app.deck;
   if (!d) return;
   const sk = deckSkills(d.id);
-  $("deck-skills").innerHTML = SKILLS.map((k) => `<button class="chip-btn" data-skill="${k.id}" aria-pressed="${sk.includes(k.id)}" title="${esc(k.hint)}">${k.name}</button>`).join("");
+  $("deck-skills").innerHTML = skillsFor(d.id).map((k) => `<button class="chip-btn" data-skill="${k.id}" aria-pressed="${sk.includes(k.id)}" title="${esc(k.hint)}">${k.name}</button>`).join("");
   $("deck-skill-hint").textContent = skillsHint(sk);
 }
 
@@ -226,7 +230,7 @@ function openDeckMenu(id: string) {
     <div class="set-row dm-row"><div class="t"><div>Новых слов в день</div><div>Для этой колоды</div></div>
       <div class="stepper"><button class="icon-btn" id="dm-minus" aria-label="Меньше">−</button><output id="dm-new">${limit}</output><button class="icon-btn" id="dm-plus" aria-label="Больше">+</button></div></div>
     <div class="field"><span class="label">Как учить</span>
-      <div class="chips-row wrapped" id="dm-skills">${SKILLS.map((k) => `<button class="chip-btn" data-skill="${k.id}" aria-pressed="${deckSkills(id).includes(k.id)}" title="${esc(k.hint)}">${k.name}</button>`).join("")}</div>
+      <div class="chips-row wrapped" id="dm-skills">${skillsFor(id).map((k) => `<button class="chip-btn" data-skill="${k.id}" aria-pressed="${deckSkills(id).includes(k.id)}" title="${esc(k.hint)}">${k.name}</button>`).join("")}</div>
       <small class="hint" id="dm-skill-hint">${esc(skillsHint(deckSkills(id)))}</small></div>
     <div class="field"><span class="label">Новые слова</span>
       <div class="seg wide-seg" role="group" id="dm-order"><button data-order="random" aria-pressed="${deckOrder(id) === "random"}">Вперемешку</button><button data-order="seq" aria-pressed="${deckOrder(id) === "seq"}">По порядку колоды</button></div></div>
@@ -298,14 +302,14 @@ function refresh() {
 /** Каталог готовых колод: тап — добавить в свой список или убрать. */
 export function openCatalog(onDone?: () => void) {
   const groups = new Map<string, typeof app.builtinDecks>();
-  for (const d of app.builtinDecks) { const g = d.group || "Колоды"; (groups.get(g) ?? groups.set(g, []).get(g)!).push(d); }
+  for (const d of app.builtinDecks.filter((x) => (x.lang || "zh") === appLang())) { const g = d.group || "Колоды"; (groups.get(g) ?? groups.set(g, []).get(g)!).push(d); }
   const row = (d: DeckInfo) => {
     const on = isAdded(d.id);
     return `<button class="deck-opt" data-cat="${esc(d.id)}" aria-pressed="${on}"><span>${esc(d.title)}<small>${d.count} ${plural(d.count, "слово", "слова", "слов")}${d.subtitle ? ` · ${esc(d.subtitle)}` : ""}</small></span><span class="pick-btn${on ? " on" : ""}">${on ? "✓" : "+"}</span></button>`;
   };
   const charRow = () => `<button class="deck-opt" data-chars aria-pressed="${!!app.settings.charDeck}"><span>Иероглифы из моих слов<small>Каждый иероглиф начатых слов — отдельной карточкой, как в Skritter. Пополняется сама.</small></span><span class="pick-btn${app.settings.charDeck ? " on" : ""}">${app.settings.charDeck ? "✓" : "+"}</span></button>`;
   const body = `<p class="hint">Нажмите, чтобы добавить колоду к себе. Прогресс по словам общий: если слово уже выучено в другой колоде, оно не начнётся заново.</p>`
-    + `<h3 class="grp-title"><span>Иероглифы</span></h3><div class="deck-list">${charRow()}</div>`
+    + (appLang() === "zh" ? `<h3 class="grp-title"><span>Иероглифы</span></h3><div class="deck-list">${charRow()}</div>` : "")
     + [...groups].map(([g, list]) => `<h3 class="grp-title"><span>${esc(g)}</span></h3><div class="deck-list">${list.map(row).join("")}</div>`).join("")
     + `<button class="btn primary wide" id="cat-done">Готово</button>`;
   openSheet("Готовые колоды", `<div class="pick-decks">${body}</div>`, (root) => {

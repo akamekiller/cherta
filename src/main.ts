@@ -16,6 +16,7 @@ import { initHsk } from "./ui/hsk.ts";
 import { initSync, autoSync } from "./ui/sync.ts";
 import { initRemind } from "./ui/remind.ts";
 import { initOffline, initLoadBar } from "./ui/offline.ts";
+import { initLang } from "./ui/lang.ts";
 import { initSettings, penWriter } from "./ui/settings.ts";
 import { recolor, setPen } from "./ui/writer.ts";
 import { initSheet } from "./ui/sheet.ts";
@@ -47,7 +48,9 @@ async function boot() {
   setTheme(app.settings.theme, app.settings.custom ?? null);
   setPen(app.settings.pen, app.settings.ink, app.settings.keepStrokes, app.settings.penSize);
   onThemeChange(() => recolor([sessionWriter(), entryWriter(), bookWriter(), penWriter()]));
-  show("words");
+  initLang();
+  // японского словаря пока нет — в японском режиме начинаем с колод
+  show(app.settings.lang === "ja" ? "home" : "words");
   initSync();
   initRemind();
   initOffline();

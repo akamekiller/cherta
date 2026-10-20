@@ -35,6 +35,8 @@ def deck_words():
     decks = json.load(open(os.path.join(ROOT, "data", "decks.json"), encoding="utf8"))
     words = {}
     for d in decks:
+        if d.get("lang", "zh") != "zh":
+            continue  # японские колоды озвучиваются отдельно (китайская модель их не прочтёт)
         lines = open(os.path.join(ROOT, "data", d["file"]), encoding="utf8").read().replace("\r", "").split("\n")[1:]
         for l in lines:
             parts = l.split("\t")

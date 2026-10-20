@@ -7,7 +7,8 @@ import { SKILLS, cardId, type Skill } from "../core/skills.ts";
 import type { P } from "../core/beauty.ts";
 import { handResult, beautyLabel } from "./handview.ts";
 import { openWordEditor } from "./editor.ts";
-import type { Word } from "../core/deck.ts";
+import { isJa, langOf, type Word } from "../core/deck.ts";
+import { checkKana, isKana, romajiToKana, mainReading } from "../core/kana.ts";
 import { formatGap, type Grade } from "../core/fsrs.ts";
 import { checkPinyin } from "../core/pinyin.ts";
 import { autoGrade } from "../core/grade.ts";
@@ -64,7 +65,8 @@ function stopWriter() {
 
 let free: FreePad | null = null;
 /** Без подсказок — если включено в настройках и слово уже не новое (новые пишутся по контуру). */
-const blindNow = () => !!app.settings.blind && !!s && !s.isNew;
+// японские слова — всегда по данным черт: распознавание рисунка обучено только на китайских иероглифах
+const blindNow = () => !!app.settings.blind && !!s && !s.isNew && !!s.word && !isJa(s.word);
 
 function blindTools(on: boolean) {
   $("b-hint").hidden = on;
@@ -92,7 +94,7 @@ async function finishBlind() {
   $<HTMLButtonElement>("b-char-done").disabled = true;
   let rank = -1;
   try { rank = recognize(await loadHwDb(), strokes, 10).indexOf(ch); } catch { rank = 0; /* без данных распознавания — не наказываем */ }
-  const data = await getChar(ch).catch(() => null);
+  const data = await getChar(ch, cur.word ? langOf(cur.word) : "zh").catch(() => null);
   const diff = data ? strokes.length - data.strokes.length : 0;
   if (s !== cur || cur.ci !== i) return;
   cur.miss[i] = blindMistakes(rank, diff);
@@ -106,7 +108,7 @@ async function finishBlind() {
   // образец поверх своего рисунка
   free.destroy();
   free = null;
-  const wr = createWriter($("hw"), ch, { showOutline: true, showCharacter: false });
+  const wr = createWriter($("hw"), ch, { showOutline: true, showCharacter: false }, cur.word ? langOf(cur.word) : "zh");
   cur.writer = wr;
   wr.animateCharacter({
     onComplete: () => setTimeout(() => {
@@ -128,6 +130,9 @@ const SKILL_TASK: Record<Skill, string> = {
   tone: "поставьте тоны",
   def: "вспомните значение",
 };
+
+/** Задание навыка; у японских слов вместо пиньиня — чтение. */
+const task = (w: Word, sk: Skill) => (isJa(w) ? SKILL_TASK[sk].replace("иероглифы и пиньинь", "слово и чтение").replace("пиньинь", "чтение") : SKILL_TASK[sk]);
 
 function nextQuestion(force?: NextCard) {
   if (!s) return;
@@ -156,13 +161,13 @@ function nextQuestion(force?: NextCard) {
   $("q-ru").textContent = byMeaning ? w.ru : w.han;
   $("q-ru").classList.toggle("q-han", !byMeaning);
   $("q-py").hidden = skill !== "def" && skill !== "tone";
-  $("q-py").innerHTML = skill === "def" ? pinyinHTML(w.ref) : skill === "tone" ? esc(w.ru) : "";
+  $("q-py").innerHTML = skill === "def" ? readingHTML(w) : skill === "tone" ? esc(w.ru) : "";
   $("q-py").classList.toggle("q-tr", skill === "tone");
   $("q-meta").textContent = write
-    ? `${isNew}${chars.length} ${plural(chars.length, "иероглиф", "иероглифа", "иероглифов")}`
+    ? `${isNew}${chars.length} ${unitWord(w, chars.length)}`
     : skill === "recall"
-      ? `${isNew}${SKILL_TASK.recall} · ${chars.length} ${plural(chars.length, "иероглиф", "иероглифа", "иероглифов")}`
-      : `${isNew}${SKILLS.find((x) => x.id === skill)!.name}: ${SKILL_TASK[skill]}`;
+      ? `${isNew}${task(w, "recall")} · ${chars.length} ${unitWord(w, chars.length)}`
+      : `${isNew}${SKILLS.find((x) => x.id === skill)!.name}: ${task(w, skill)}`;
   $("ask").hidden = false;
   $("res").hidden = true;
   document.querySelector<HTMLElement>("#session .prompt")!.hidden = false;
@@ -171,8 +176,11 @@ function nextQuestion(force?: NextCard) {
   $("ask").querySelector<HTMLElement>(".tools")!.hidden = !write;
   const check = $<HTMLButtonElement>("b-check");
   if (write) {
-    preload(w.han);
-    resetPyPick(w.id, w.ref);
+    preload(w.han, langOf(w));
+    if (!isJa(w)) resetPyPick(w.id, w.ref);
+    $<HTMLInputElement>("kana-in").value = "";
+    $("kana-prev").textContent = "";
+    $("kana-field").hidden = true;
     // пиньинь — после иероглифов: пока пишешь, экран не загромождён
     $("py-field").hidden = true;
     check.disabled = true;
@@ -186,10 +194,21 @@ function nextQuestion(force?: NextCard) {
     check.textContent = "Проверить";
   } else {
     $("py-field").hidden = true;
+    $("kana-field").hidden = true;
     check.disabled = false;
     check.textContent = "Показать ответ";
     check.focus({ preventScroll: true });
   }
+}
+
+/** «иероглифа» / у японских слов — «знака» (кана — не иероглифы). */
+const unitWord = (w: Word, n: number) => (isJa(w) ? plural(n, "знак", "знака", "знаков") : plural(n, "иероглиф", "иероглифа", "иероглифов"));
+
+/** Чтение японского слова (основное и другие), каной; у слова из одной каны чтение = написание — не повторяем. */
+function readingHTML(w: Word): string {
+  if (isKana(w.han) && w.py === w.han) return "";
+  const all = w.py.split("/");
+  return `<span class="py kana" lang="ja">${esc(mainReading(w.py))}</span>${all.length > 1 ? ` <span class="hint" lang="ja">также ${esc(all.slice(1).join("、"))}</span>` : ""}`;
 }
 
 function renderSlots() {
@@ -208,7 +227,7 @@ function startChar() {
   blindTools(blindNow());
   if (blindNow()) { startBlind(); return; }
   const outline = s.isNew;
-  s.writer = createWriter($("hw"), s.chars[s.ci], { showOutline: outline });
+  s.writer = createWriter($("hw"), s.chars[s.ci], { showOutline: outline }, s.word ? langOf(s.word) : "zh");
   if (outline) s.hint[s.ci] = true;
   runQuiz();
 }
@@ -239,9 +258,22 @@ function runQuiz() {
   });
 }
 
+/** Японскому слову нужно вводить чтение, только если в нём есть кандзи (у слова из каны чтение = написание). */
+const needsKana = (w: Word) => isJa(w) && !isKana(w.han);
+
 function charsDone() {
   if (!s) return;
-  if (!app.settings.pinyin) { reveal(); return; }
+  if (!app.settings.pinyin || (s.word && isJa(s.word) && !needsKana(s.word))) { reveal(); return; }
+  if (s.word && isJa(s.word)) {
+    const check = $<HTMLButtonElement>("b-check");
+    check.disabled = false;
+    check.textContent = "Проверить";
+    $("ask").querySelector<HTMLElement>(".tools")!.hidden = true;
+    $("kana-field").hidden = false;
+    $("b-check").scrollIntoView({ behavior: "smooth", block: "end" });
+    $<HTMLInputElement>("kana-in").focus({ preventScroll: true });
+    return;
+  }
   const check = $<HTMLButtonElement>("b-check");
   check.disabled = false;
   check.textContent = "Проверить";
@@ -264,14 +296,20 @@ function reveal() {
     const mistakes = s.miss.reduce((a, b) => a + b, 0);
     const gaveUp = s.gave.some(Boolean);
     const hinted = s.hint.some(Boolean);
-    const typed = pyAnswer();
-    const py = app.settings.pinyin ? checkPinyin(typed, w.ref) : null;
+    const ja = isJa(w);
+    const kanaTyped = $<HTMLInputElement>("kana-in").value;
+    const kana = ja && needsKana(w) && app.settings.pinyin ? checkKana(kanaTyped, w.py) : null;
+    const typed = ja ? kanaTyped : pyAnswer();
+    const py = ja ? (kana ? { ok: kana.ok, per: [kana.ok], letters: false } : null) : app.settings.pinyin ? checkPinyin(typed, w.ref) : null;
     g = autoGrade({ chars: s.chars.length, mistakes, gaveUp, hinted, isNew: s.isNew, pinyin: py });
     if (gaveUp) chips.push(`<span class="chip no">Подсмотрено</span>`);
     else if (mistakes === 0) chips.push(`<span class="chip ok">Черты без ошибок</span>`);
     else chips.push(`<span class="chip ${mistakes > s.chars.length ? "no" : "mid"}">Ошибок в чертах: ${mistakes}</span>`);
     if (hinted && !gaveUp && !s.isNew) chips.push(`<span class="chip mid">С контуром</span>`);
-    if (py) {
+    if (kana) {
+      chips.push(kana.ok ? `<span class="chip ok">Чтение верно</span>`
+        : `<span class="chip no">Чтение: ошибка${kana.typed ? ` · вы: <span lang="ja">${esc(kana.typed)}</span>` : ""}</span>`);
+    } else if (py) {
       per = py.per;
       chips.push(py.ok ? `<span class="chip ok">Пиньинь верно</span>`
         : `<span class="chip no">Пиньинь: ${py.letters ? "тоны" : "ошибка"}${typed ? ` · вы: ${esc(pyAnswerShown())}` : ""}</span>`);
@@ -297,7 +335,7 @@ function reveal() {
   $("pad").hidden = skill !== "write";
   $("slots").hidden = skill !== "write";
   $("r-han").textContent = w.han;
-  $("r-py").innerHTML = pinyinHTML(w.ref, per);
+  $("r-py").innerHTML = isJa(w) ? readingHTML(w) : pinyinHTML(w.ref, per);
   $("r-ru").textContent = w.ru;
   showNote($("r-note"), w.id);
   $("r-verdict").innerHTML = chips.join("");
@@ -308,7 +346,7 @@ function reveal() {
     const gap = preview(w, skill, gr, now).due - now;
     return `<button class="grade${gr === g ? " suggest" : ""}" data-g="${gr}">${name}<small>${formatGap(gap)}</small></button>`;
   }).join("");
-  if (app.settings.voice) say(w.han);
+  if (app.settings.voice) say(w.han, 0.85, langOf(w));
   ($("grades").querySelector(".suggest") as HTMLButtonElement | null)?.focus({ preventScroll: true });
   $("r-hand").hidden = true;
   $("r-hand").innerHTML = "";
@@ -318,7 +356,7 @@ function reveal() {
 /** Оценка почерка: метка в ответе, по нажатию — свои черты рядом с образцом и повтор письма. */
 async function showHand(cur: Session) {
   const word = cur.word;
-  const res = await handResult(cur.chars, cur.drawn);
+  const res = await handResult(cur.chars, cur.drawn, word ? langOf(word) : "zh");
   if (s !== cur || cur.word !== word || !res) return;
   const chip = document.createElement("button");
   chip.className = `chip hand ${res.score >= 75 ? "ok" : res.score >= 55 ? "mid" : "no"}`;
@@ -371,7 +409,7 @@ function refreshAfterEdit() {
   const fresh = words().find((x) => x.id === s!.word?.id);
   if (!fresh) return;
   s.word = fresh;
-  $("r-py").innerHTML = pinyinHTML(fresh.ref);
+  $("r-py").innerHTML = isJa(fresh) ? readingHTML(fresh) : pinyinHTML(fresh.ref);
   $("r-ru").textContent = fresh.ru;
   showNote($("r-note"), fresh.id);
 }
@@ -415,7 +453,17 @@ export function initSession() {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>(".grade");
     if (b) grade(Number(b.dataset.g) as Grade);
   });
-  $("r-say").addEventListener("click", () => s?.word && say(s.word.han));
+  $("r-say").addEventListener("click", () => s?.word && say(s.word.han, 0.85, langOf(s.word)));
+  // чтение каной: ромадзи переводятся на лету (показ под полем), Enter — проверить
+  $("kana-in").addEventListener("input", () => {
+    const v = $<HTMLInputElement>("kana-in").value;
+    const k = romajiToKana(v);
+    const tail = k.match(/[a-z']+$/i)?.[0] ?? "";
+    $("kana-prev").innerHTML = `${esc(k.slice(0, k.length - tail.length))}<span class="rest">${esc(tail)}</span>`;
+  });
+  $("kana-in").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); $<HTMLButtonElement>("b-check").click(); }
+  });
   $("undo").addEventListener("click", undo);
   document.addEventListener("keydown", (e) => {
     // Ctrl+Z — отменить последний ответ, как в Anki

@@ -4,6 +4,7 @@
  *    без запроса — недавно открытые слова;
  *  слова колоды (из обзора колоды): список с фильтрами и порядком, поиск внутри колоды.
  */
+import { appLang } from "../state.ts";
 import { app, words, isLeech, LEECH, cardOf, deckById, loadThemes, themesOf } from "../state.ts";
 import { hashStr } from "../core/skills.ts";
 import { say } from "../speech.ts";
@@ -124,7 +125,8 @@ function renderControls(all: Word[]) {
 let levelOf = new Map<string, string>();
 function statusOf(w: Word): [string, string] {
   if (cardOf(w)) return status(w);
-  return [levelOf.get(w.han) ?? "", "other"];
+  // уровни HSK — китайские; у японского слова с тем же написанием они не к месту
+  return [w.id.startsWith("ja:") ? "" : levelOf.get(w.han) ?? "", "other"];
 }
 
 /* ---------- слова моих колод ---------- */
@@ -286,7 +288,14 @@ async function showHomeList(kind0: "theme" | "key", id: string) {
 
 function renderList() {
   const q = searchInput().value.trim();
-  const deckMode = mode === "deck" && !!app.deck;
+  // японский: словаря пока нет — слова текущей колоды
+  const ja = appLang() === "ja";
+  if (ja && !app.deck) {
+    $("w-deckbar").hidden = true; $("w-controls").hidden = true; $("w-home").hidden = true; $("w-more").hidden = true;
+    $("w-groups").innerHTML = `<p class="empty">Японского словаря пока нет — здесь слова ваших японских колод. Добавьте колоду в «Карточках».</p>`;
+    return;
+  }
+  const deckMode = (mode === "deck" || ja) && !!app.deck;
   $("w-deckbar").hidden = !deckMode;
   if (deckMode) $("w-decktitle").textContent = app.deck!.title;
   searchInput().placeholder = deckMode ? "Поиск в колоде" : "Любое слово: 学, xue или учиться";

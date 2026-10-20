@@ -13,7 +13,7 @@ import type { ThemeChoice, CustomTheme } from "./theme.ts";
 import type { WordEdit } from "./core/edits.ts";
 
 /** Своя колода. group — заголовок группы в списке колод (например, «Standard Course HSK 1» для колод по урокам). */
-export type UserDeck = { id: string; title: string; words: [string, string, string][]; createdAt: number; group?: string };
+export type UserDeck = { id: string; title: string; words: [string, string, string][]; createdAt: number; group?: string; lang?: "zh" | "ja" };
 
 export type Settings = {
   newPerDay: number;
@@ -50,6 +50,10 @@ export type Settings = {
    * Нужно синхронизации: удалённое на одном устройстве не возвращается с другого.
    */
   listAt?: Record<string, number>;
+  /** Язык приложения: какие колоды, модули и данные черт показывать (по умолчанию китайский). */
+  lang?: "zh" | "ja";
+  /** Текущая колода для каждого языка — при переключении языка возвращаемся к своей. */
+  deckByLang?: Record<string, string>;
 };
 /** Счётчик новых слов за день: всего и по колодам (у каждой колоды свой лимит, как в Anki). */
 export type DayCounter = { day: string; newCount: number; byDeck?: Record<string, number> };

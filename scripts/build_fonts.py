@@ -1,8 +1,9 @@
 """Шрифты приложения — свои файлы вместо Google Fonts (в Китае fonts.googleapis.com без VPN не открывается).
 
 Запуск:  python scripts/build_fonts.py <папка с ttf>
-В папке: GolosText[wght].ttf, IBMPlexMono-Medium.ttf, NotoSerifSC[wght].ttf
-(репозиторий github.com/google/fonts, папки ofl/golostext, ofl/ibmplexmono, ofl/notoserifsc; лицензия SIL OFL 1.1).
+В папке: GolosText[wght].ttf, IBMPlexMono-Medium.ttf, NotoSerifSC[wght].ttf, NotoSerifJP[wght].ttf
+(репозиторий github.com/google/fonts, папки ofl/golostext, ofl/ibmplexmono, ofl/notoserifsc, ofl/notoserifjp; лицензия SIL OFL 1.1).
+Японский шрифт: сначала кана и знаки колод JLPT (data/ja-*.tsv), потом остальные знаки KanjiVG (site/data/strokes-ja/chars.txt).
 Нужно: pip install fonttools brotli
 
 Результат — site/data/fonts/ (сборка папку data не трогает):
@@ -87,9 +88,9 @@ def main(src):
             os.remove(os.path.join(OUT, f))
     css, files = [], []
 
-    def add(family, fn, size, weight, cps, core):
+    def add(family, fn, size, weight, cps, core, lang="zh"):
         css.append(face(family, fn, weight, cps))
-        files.append({"file": fn, "size": size, "core": core})
+        files.append({"file": fn, "size": size, "core": core, "lang": lang})
 
     # интерфейс: латиница с пиньинем + кириллица
     golos = os.path.join(src, "GolosText[wght].ttf")
@@ -111,8 +112,28 @@ def main(src):
         add("Noto Serif SC", fn, size, "500 700", got, False)
         print(f"часть {k}: знаков {len(got)}, {size // 1024} КБ")
 
+    # японский: Noto Serif JP (японские начертания кандзи), сначала кана и кандзи колод JLPT, дальше остальные знаки KanjiVG
+    jp_path = os.path.join(src, "NotoSerifJP[wght].ttf")
+    if os.path.exists(jp_path):
+        first = []
+        for deck in ("ja-hira", "ja-kata", "ja-n5", "ja-n4"):
+            f = os.path.join(ROOT, "data", f"{deck}.tsv")
+            if os.path.exists(f):
+                for line in open(f, encoding="utf-8").read().splitlines()[1:]:
+                    first += [ord(c) for c in line.split("\t")[0]]
+        kana = list(range(0x3040, 0x3100))
+        allj = [ord(c) for c in open(os.path.join(ROOT, "site", "data", "strokes-ja", "chars.txt"), encoding="utf-8").read()]
+        order = list(dict.fromkeys(kana + CJK_PUNCT + first + allj))
+        cut = len(dict.fromkeys(kana + CJK_PUNCT + first))
+        parts = [order[:cut]] + [order[i:i + 1500] for i in range(cut, len(order), 1500)]
+        jp = limit(jp_path, 500, 700)
+        for k, cps in enumerate(parts):
+            fn, size, got = make(TTFont(io.BytesIO(jp)), cps, f"notoserifjp-{k}")
+            add("Noto Serif JP", fn, size, "500 700", got, False, "ja")
+            print(f"японский, часть {k}: знаков {len(got)}, {size // 1024} КБ")
+
     with open(os.path.join(OUT, "fonts.css"), "w", encoding="utf-8") as fh:
-        fh.write("/* Шрифты: Golos Text, IBM Plex Mono, Noto Serif SC — SIL Open Font License 1.1 */\n" + "\n".join(css) + "\n")
+        fh.write("/* Шрифты: Golos Text, IBM Plex Mono, Noto Serif SC, Noto Serif JP — SIL Open Font License 1.1 */\n" + "\n".join(css) + "\n")
     with open(os.path.join(OUT, "files.json"), "w", encoding="utf-8") as fh:
         json.dump(files, fh)
     print("файлов", len(files), "всего КБ", sum(f["size"] for f in files) // 1024)

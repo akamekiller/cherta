@@ -947,3 +947,19 @@ html{scrollbar-gutter:stable}
   #stats>*{grid-column:1/-1}
   #stats>.st-block:nth-of-type(n+4){grid-column:auto}
 }
+
+/* японский: ввод чтения каной (ромадзи переводятся на лету) */
+.kana-field{display:flex;flex-direction:column;gap:8px}
+.kana-field input{font:500 18px var(--f-ui);padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--sheet);color:var(--ink)}
+.kana-prev{font:500 26px var(--f-han);min-height:1.3em;text-align:center;color:var(--ink);letter-spacing:.04em}
+.kana-prev .rest{color:var(--muted);font:500 18px var(--f-ui)}
+.py.kana{font:500 22px var(--f-han);letter-spacing:.03em}
+
+/* язык приложения (html[data-lang], ui/lang.ts): японские начертания кандзи и модули только для китайского */
+html[data-lang="ja"]{--f-han:"Noto Serif JP","Noto Serif SC","Hiragino Mincho ProN","Yu Mincho",serif}
+html[data-lang="ja"] .only-zh,html:not([data-lang="ja"]) .only-ja{display:none!important}
+html[data-lang="ja"] .dr-item:is([data-view="ex"],[data-view="read"],[data-view="hsk"],[data-view="tones"]){display:none}
+html[data-lang="ja"] :is(#deck-create,#deck-import,#w-draw,#w-voice,#w-all,#w-back){display:none!important}
+.lang-sw{margin:0 4px 4px;display:flex}
+.lang-sw button{flex:1;width:auto;height:auto;font:500 13px var(--f-ui);padding:8px 6px;line-height:1.25}
+.lang-sw button[aria-pressed="true"]{background:var(--jade);color:#fff}

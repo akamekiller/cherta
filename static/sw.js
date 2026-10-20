@@ -39,7 +39,7 @@ self.addEventListener("fetch", (e) => {
   const versioned = isDict || (url.pathname.endsWith("/data/hw.txt") && url.searchParams.has("v"));
   // шрифты — свои файлы с хэшем в имени (data/fonts, scripts/build_fonts.py), содержимое по адресу не меняется
   const isFont = url.pathname.includes("/data/fonts/") && url.pathname.endsWith(".woff2");
-  const isData = versioned || isFont || url.pathname.includes("/data/strokes/") || (url.pathname.includes("/audio/") && url.pathname.endsWith(".mp3"));
+  const isData = versioned || isFont || url.pathname.includes("/data/strokes/") || url.pathname.includes("/data/strokes-ja/") || (url.pathname.includes("/audio/") && url.pathname.endsWith(".mp3"));
   if (isData) {
     // данные не меняются: сначала кэш, потом сеть
     e.respondWith(caches.open(DATA).then(async (c) => {

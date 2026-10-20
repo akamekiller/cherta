@@ -15,13 +15,18 @@ export function parseTSV(text: string): [string, string, string][] {
   });
 }
 
+/** Японское слово (карточки «ja:…»): чтение каной, данные черт KanjiVG. */
+export const isJa = (w: { id: string }) => w.id.startsWith("ja:");
+export const langOf = (w: { id: string }): "zh" | "ja" => (isJa(w) ? "ja" : "zh");
+
 /** id карточки общий для всех колод: одно и то же слово учится один раз. */
 export const wordId = (lang: string, han: string) => `${lang}:${han}`;
 
 export function loadDeck(f: DeckFile): Deck {
   return {
     id: f.id, title: f.title, lang: f.lang,
-    words: f.words.map(([han, py, ru]) => ({ id: wordId(f.lang, han), han, py, ref: parseRef(py), ru })),
+    // у японских слов чтение — кана («いく/ゆく»), слогов пиньиня нет
+    words: f.words.map(([han, py, ru]) => ({ id: wordId(f.lang, han), han, py, ref: f.lang === "ja" ? [] : parseRef(py), ru })),
   };
 }
 

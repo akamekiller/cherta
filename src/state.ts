@@ -135,7 +135,13 @@ export async function deckById(id: string): Promise<Deck> {
 export type DeckCounts = { due: number; learning: number; review: number; newLeft: number; unseen: number; total: number };
 
 /** Навыки колоды (как в Skritter): по умолчанию все четыре. */
-export const deckSkills = (deckId: string): Skill[] => normSkills(app.settings.deckOpts?.[deckId]?.skills);
+export const deckSkills = (deckId: string): Skill[] => {
+  const sk = normSkills(app.settings.deckOpts?.[deckId]?.skills);
+  // у японского нет тонов
+  if (app.decks.find((d) => d.id === deckId)?.lang !== "ja") return sk;
+  const ja = sk.filter((x) => x !== "tone");
+  return ja.length ? ja : ["write"];
+};
 
 /** Занятие одним уроком колоды (из экрана урока): остальные слова колоды в нём не участвуют. */
 let focus: { deckId: string; idx: Set<number> } | null = null;
@@ -240,14 +246,29 @@ export async function deleteDecks(ids: string[]) {
   if (app.deck && set.has(app.deck.id)) { app.deck = null; app.baseDeck = null; await loadFirstDeck(); }
 }
 
+/** Язык приложения: китайский или японский. Список колод, каталог и модули — только этого языка. */
+export const appLang = (): "zh" | "ja" => (app.settings.lang === "ja" ? "ja" : "zh");
+
+/** Переключить язык: своя текущая колода для каждого языка. */
+export async function setAppLang(lang: "zh" | "ja") {
+  if (lang === appLang()) return;
+  const byLang = { ...(app.settings.deckByLang ?? {}), [appLang()]: app.deck?.id ?? app.settings.deck };
+  await updateSettings({ lang, deckByLang: byLang, deck: byLang[lang] ?? "" });
+  rebuildDeckList();
+  setFocus(null);
+  app.deck = null; app.baseDeck = null;
+  await loadFirstDeck();
+}
+
 function rebuildDeckList() {
   const opts = app.settings.deckOpts ?? {};
+  const lang = appLang();
   app.decks = [
-    ...app.builtinDecks.filter((d) => (app.settings.added ?? []).includes(d.id))
+    ...app.builtinDecks.filter((d) => (app.settings.added ?? []).includes(d.id) && (d.lang || "zh") === lang)
       .map((d) => ({ ...d, baseTitle: d.baseTitle ?? d.title, title: opts[d.id]?.title || d.baseTitle || d.title, hidden: false })),
     // свои колоды — группами: сначала без группы («Свои колоды»), затем по названию группы, внутри — по времени создания
-    ...[...app.userDecks].sort((a, b) => (a.group ?? "").localeCompare(b.group ?? "") || a.createdAt - b.createdAt)
-      .map((d) => ({ id: d.id, title: d.title, baseTitle: d.title, subtitle: "Своя колода", group: d.group || "Свои колоды", lang: "zh", count: d.words.length, user: true, hidden: !!opts[d.id]?.hidden })),
+    ...[...app.userDecks].filter((d) => (d.lang ?? "zh") === lang).sort((a, b) => (a.group ?? "").localeCompare(b.group ?? "") || a.createdAt - b.createdAt)
+      .map((d) => ({ id: d.id, title: d.title, baseTitle: d.title, subtitle: "Своя колода", group: d.group || "Свои колоды", lang: d.lang ?? "zh", count: d.words.length, user: true, hidden: !!opts[d.id]?.hidden })),
   ];
 }
 
@@ -256,7 +277,7 @@ export const visibleDecks = () => app.decks.filter((d) => !d.hidden || d.id === 
 
 async function fetchDeckFile(id: string): Promise<DeckFile> {
   const ud = app.userDecks.find((d) => d.id === id);
-  if (ud) return { id: ud.id, title: ud.title, lang: "zh", words: ud.words };
+  if (ud) return { id: ud.id, title: ud.title, lang: ud.lang ?? "zh", words: ud.words };
   const res = await fetch(`data/decks/${id}.json`);
   if (!res.ok) throw new Error("Не удалось загрузить колоду");
   return res.json();

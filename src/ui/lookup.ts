@@ -1,4 +1,5 @@
 /** Общее для «Слов» и карточки слова: слова не из колоды (HSK, словарь), статус слова, строка списка. */
+import { isJa } from "../core/deck.ts";
 import { cardOf, words, isHidden, hskEntries, editOf, dictIndex } from "../state.ts";
 import { dictPyToNumeric, type DictIndex, type DictHit } from "../core/dict.ts";
 import { applyEdit, type DictEntry } from "../core/edits.ts";
@@ -62,7 +63,8 @@ export async function wordByHan(han: string): Promise<Word | OtherWord> {
   return i >= 0 ? fromHit({ i, han, py: dict!.py[i], ru: dict!.ru[i] }) : otherWord(han, "", "");
 }
 
-export const pyHTML = (w: Word | OtherWord) => w.ref.length ? pinyinHTML(w.ref) : `<span class="raw">${esc((w as OtherWord).raw ?? "")}</span>`;
+export const pyHTML = (w: Word | OtherWord) => isJa(w) ? (w.py === w.han ? "" : `<span class="kana" lang="ja">${esc(w.py.split("/")[0])}</span>`)
+  : w.ref.length ? pinyinHTML(w.ref) : `<span class="raw">${esc((w as OtherWord).raw ?? "")}</span>`;
 
 export type Kind = "new" | "learn" | "review" | "hidden";
 export function kind(w: Word): Kind {

@@ -1,7 +1,7 @@
 /** Карточка слова: шапка (слово, пиньинь, кратко, статус) и вкладки Значения · Примеры · Слова · Черты. */
 import { cardOf, words, isHidden, dictArticle, dictWordEx } from "../state.ts";
 import { splitArticle, wordsWithChar, countWithChar, pyReadings, safeHtml, type ArticleParts, type CharMode } from "../core/dict.ts";
-import type { Word } from "../core/deck.ts";
+import { isJa, langOf, type Word } from "../core/deck.ts";
 import { formatGap } from "../core/fsrs.ts";
 import { say } from "../speech.ts";
 import { $, esc, pinyinHTML } from "./dom.ts";
@@ -44,7 +44,13 @@ export function openEntry(id: string, fromList = false) {
   $("d-ex").innerHTML = "";
   $("d-ex-n").textContent = "";
   $("d-w-n").textContent = "";
+  // японское слово: статьи 大БКРС (китайский словарь) к нему не относятся — значение из колоды, черты японские
+  const ja = isJa(w);
+  for (const t of ["ex", "words"]) document.querySelector<HTMLElement>(`#d-tabs [data-tab="${t}"]`)!.hidden = ja;
+  for (const id of ["d-todeck", "d-tobook", "d-edit"]) $(id).hidden = ja;
+  $("d-src").parentElement!.hidden = ja;
   setTab(tab === "strokes" ? "strokes" : "mean");
+  if (ja) { $("d-art").innerHTML = `<p class="hint">Японский словарь появится позже — пока значение из колоды. Порядок черт — во вкладке «Черты».</p>`; return; }
   loadArticle(w);
   loadWordCount(w);
 }
@@ -240,8 +246,11 @@ function renderStrokes() {
   $("d-chars").hidden = chars.length < 2;
   try { writer?.cancelQuiz(); } catch { /* */ }
   // поле создаётся, когда вкладка видна: иначе у него нулевая ширина
-  requestAnimationFrame(() => { writer = createWriter($("d-hw"), strokeChar, { showCharacter: true, showOutline: true }); });
-  renderDecomp(strokeChar);
+  const lang = langOf(w);
+  requestAnimationFrame(() => { writer = createWriter($("d-hw"), strokeChar, { showCharacter: true, showOutline: true }, lang); });
+  // состав (Make Me a Hanzi) — по китайским данным; японский порядок черт — KanjiVG, указываем источник (CC BY-SA)
+  if (lang === "ja") $("d-decomp").innerHTML = `<p class="hint">Порядок черт: <a href="https://kanjivg.tagaini.net" target="_blank" rel="noopener">KanjiVG</a> (© Ulrich Apel, CC BY-SA 3.0).</p>`;
+  else renderDecomp(strokeChar);
 }
 
 /* ---------- состав иероглифа и мнемоника ---------- */
@@ -356,7 +365,7 @@ export function initEntry() {
     writer.showOutline();
     writer.quiz();
   });
-  $("d-say").addEventListener("click", () => word && say(word.han));
+  $("d-say").addEventListener("click", () => word && say(word.han, 0.85, langOf(word)));
   $("d-back").addEventListener("click", () => {
     const prev = trail.pop();
     if (prev && findWord(prev)) openEntry(prev); else { trail.length = 0; show("words"); }

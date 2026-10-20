@@ -6,6 +6,7 @@
  * 2) Если записи нет (своё слово, не из колод) — синтезатор речи устройства (Web Speech API).
  */
 let voice: SpeechSynthesisVoice | null = null;
+let jaVoice: SpeechSynthesisVoice | null = null; // японский голос устройства (записей японских слов пока нет)
 let listeners: (() => void)[] = [];
 let recorded: Map<string, string> | null = null; // слово → пиньинь, по которому сделана запись (метка версии)
 let recordedLoading: Promise<void> | null = null;
@@ -17,6 +18,7 @@ function pick() {
   if (!supported()) return;
   const vs = speechSynthesis.getVoices();
   voice = vs.find((v) => /zh[-_]CN/i.test(v.lang)) ?? vs.find((v) => /^zh/i.test(v.lang)) ?? null;
+  jaVoice = vs.find((v) => /^ja/i.test(v.lang)) ?? null;
   listeners.forEach((f) => f());
 }
 if (supported()) { pick(); speechSynthesis.addEventListener?.("voiceschanged", pick); }
@@ -61,19 +63,22 @@ export function voiceStatus(): string {
     : "Ищем китайский голос…";
 }
 
-function speakDevice(text: string, rate: number) {
+function speakDevice(text: string, rate: number, lang: "zh" | "ja" = "zh") {
   if (!supported()) return;
   try {
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = "zh-CN";
-    if (voice) u.voice = voice;
+    u.lang = lang === "ja" ? "ja-JP" : "zh-CN";
+    const v = lang === "ja" ? jaVoice : voice;
+    if (v) u.voice = v;
     u.rate = rate;
     speechSynthesis.speak(u);
   } catch { /* озвучка необязательна */ }
 }
 
-export function say(text: string, rate = 0.85) {
+/** Озвучить слово. Японское — голосом устройства (у китайских записей его нет, а иероглифы прочитались бы по-китайски). */
+export function say(text: string, rate = 0.85, lang: "zh" | "ja" = "zh") {
+  if (lang === "ja") { speakDevice(text, rate, "ja"); return; }
   if (player && hasRecording(text)) {
     try { speechSynthesis?.cancel(); } catch { /* */ }
     player.src = audioUrl(text);

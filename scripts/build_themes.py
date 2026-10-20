@@ -41,7 +41,9 @@ def build(deck_id, themes):
             k = -(-len(x) // 25) if len(x) > 28 else 1
             for j in range(k):
                 part = x[j * len(x) // k:(j + 1) * len(x) // k]
-                out.append({"s": sec, "t": title if k == 1 else f"{title} {j + 1}", "w": part})
+                # «Чувства 1»; если название уже кончается числом («Genki, урок 2») — «Genki, урок 2 · часть 1»
+                name = title if k == 1 else f"{title} · часть {j + 1}" if title[-1:].isdigit() else f"{title} {j + 1}"
+                out.append({"s": sec, "t": name, "w": part})
     rest = [w for w in words if w not in seen]
     for i in range(0, len(rest), 20):
         out.append({"s": "Другие слова", "t": f"Ещё слова {i // 20 + 1}", "w": rest[i:i + 20]})

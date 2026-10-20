@@ -10,7 +10,7 @@ import { hashStr } from "../core/skills.ts";
 import { uniqueChars, cellPlan, printRows, paginate, rowsPerPage, type PrintCell } from "../core/copybook.ts";
 import { dictPyToNumeric, type DictIndex } from "../core/dict.ts";
 import { parseRef, toMarked } from "../core/pinyin.ts";
-import { getChar } from "../strokes.ts";
+import { getChar, type StrokeLang } from "../strokes.ts";
 import { scoreHandwriting, beautyLabel, type P } from "../core/beauty.ts";
 import { $, esc, pinyinHTML, plural } from "./dom.ts";
 import { createWriter, type Writer } from "./writer.ts";
@@ -47,6 +47,12 @@ let gen = 0;
 export const bookWriter = () => writer;
 
 const key = () => (st.src === "deck" ? `deck:${st.deckId}` : "text");
+/** «иероглифов» / у японских — «знаков» (в наборе есть кана). */
+const unitWord = (n: number) => (bookLang() === "ja" ? plural(n, "знак", "знака", "знаков") : plural(n, "иероглиф", "иероглифа", "иероглифов"));
+/** Чьи данные черт: японская колода — KanjiVG (японский порядок черт), свой текст — по выбранному языку приложения. */
+const bookLang = (): StrokeLang => (st.src === "deck"
+  ? (app.decks.find((d) => d.id === st.deckId)?.lang === "ja" ? "ja" : "zh")
+  : (app.settings.lang === "ja" ? "ja" : "zh"));
 /** Уроки текущей колоды (темы или по 20 слов) и выбранный урок. */
 let blocks: Block[] = [];
 const curBlock = () => { const b = st.block[key()]; return st.src === "deck" && b !== undefined && b >= 0 && b < blocks.length ? b : -1; };
@@ -61,7 +67,7 @@ async function loadSource(): Promise<string[]> {
   if (st.src === "text") { srcWords = []; return uniqueChars([st.text]); }
   if (!st.deckId || !app.decks.some((d) => d.id === st.deckId)) st.deckId = app.deck?.id ?? app.decks[0]?.id ?? "";
   // колод нет — сразу «Свой текст», с примером, чтобы было что писать
-  if (!st.deckId) { st.src = "text"; st.text ||= "你好 谢谢 中国"; save(); srcWords = []; return uniqueChars([st.text]); }
+  if (!st.deckId) { st.src = "text"; st.text ||= app.settings.lang === "ja" ? "日本語 ひらがな" : "你好 谢谢 中国"; save(); srcWords = []; return uniqueChars([st.text]); }
   return applySet(await deckBase());
 }
 
@@ -82,7 +88,7 @@ function pickBlock() {
   const n = (b: Block) => uniqueChars(b.idx.map((i) => srcWords[i]?.han ?? "")).length;
   const row = (b: Block, i: number) => `<button class="lesson-row ${i === cur ? "cur" : ""}" data-blk="${i}"><span class="ln">${i + 1}</span>
       <span class="lt"><b>${esc(b.title)}</b><small class="blk-prev">${esc(b.idx.slice(0, 8).map((k) => srcWords[k]?.han ?? "").join(" "))}${b.idx.length > 8 ? " …" : ""}</small>
-      <small>${n(b)} ${plural(n(b), "иероглиф", "иероглифа", "иероглифов")}</small></span></button>`;
+      <small>${n(b)} ${unitWord(n(b))}</small></span></button>`;
   const secs: { name: string; idx: number[] }[] = [];
   blocks.forEach((b, i) => {
     if (!secs.length || secs[secs.length - 1].name !== b.section) secs.push({ name: b.section, idx: [] });
@@ -90,7 +96,7 @@ function pickBlock() {
   });
   const all = uniqueChars(srcWords.map((w) => w.han)).length;
   openSheet(`Урок: ${deckTitle(st.deckId)}`, `<div class="stack">
-      <div class="lesson-list"><button class="lesson-row ${cur < 0 ? "cur" : ""}" data-blk="-1"><span class="ln">∞</span><span class="lt"><b>Вся колода</b><small>${all} ${plural(all, "иероглиф", "иероглифа", "иероглифов")}</small></span></button></div>
+      <div class="lesson-list"><button class="lesson-row ${cur < 0 ? "cur" : ""}" data-blk="-1"><span class="ln">∞</span><span class="lt"><b>Вся колода</b><small>${all} ${unitWord(all)}</small></span></button></div>
       ${secs.map((sec) => {
         const open = secs.length === 1 || sec.idx.includes(cur) || (cur < 0 && sec === secs[0]);
         return `<details class="bk-sec" ${open ? "open" : ""}>${sec.name ? `<summary>${esc(sec.name)} <small>${sec.idx.length}</small></summary>` : ""}<div class="lesson-list">${sec.idx.map((i) => row(blocks[i], i)).join("")}</div></details>`;
@@ -122,7 +128,7 @@ async function openSetEditor() {
   const draw = (root: HTMLElement) => {
     const skip = new Set(e.skip);
     const n = applySet0(base, e).length;
-    root.querySelector("#bs-n")!.textContent = `В тетради: ${n} ${plural(n, "иероглиф", "иероглифа", "иероглифов")}${e.skip.length ? ` · убрано ${e.skip.length}` : ""}`;
+    root.querySelector("#bs-n")!.textContent = `В тетради: ${n} ${unitWord(n)}${e.skip.length ? ` · убрано ${e.skip.length}` : ""}`;
     root.querySelector("#bs-chars")!.innerHTML = base.map((c) => `<button data-ch="${esc(c)}" aria-pressed="${!skip.has(c)}">${esc(c)}</button>`).join("");
   };
   openSheet(`Набор: ${deckTitle(st.deckId)}`, `<div class="stack">
@@ -167,9 +173,15 @@ export function useBookDeck(id: string, block?: number) {
 
 let lookup: ((h: string) => { py: string; ru: string } | undefined) | null = null;
 let dict: DictIndex | null = null;
-async function charInfo(ch: string): Promise<{ py: string; ru: string } | null> {
-  lookup ??= await hskLookup();
+async function charInfo(ch: string): Promise<{ py: string; ru: string; ja?: boolean } | null> {
   const fromDeck = words().find((w) => w.han === ch);
+  if (bookLang() === "ja") {
+    // японский: китайские пиньинь и значения не к месту — знак как слово колоды или слова колоды с этим знаком
+    if (fromDeck) return { py: fromDeck.py.split("/")[0], ru: fromDeck.ru, ja: true };
+    const ws = words().filter((w) => w.han.includes(ch)).slice(0, 3);
+    return ws.length ? { py: "", ru: `в словах: ${ws.map((w) => `${w.han} (${w.py.split("/")[0]})`).join(", ")}`, ja: true } : null;
+  }
+  lookup ??= await hskLookup();
   if (fromDeck) return { py: fromDeck.py, ru: fromDeck.ru };
   const h = lookup(ch);
   if (h) return h;
@@ -199,7 +211,7 @@ async function render() {
   bs.hidden = st.src !== "deck";
   if (st.src === "deck") {
     const ed = st.sets[key()];
-    bs.innerHTML = `<span>Набор: ${chars.length} ${plural(chars.length, "иероглиф", "иероглифа", "иероглифов")}${ed ? " (изменён)" : ""}</span><b>Посмотреть и изменить</b>`;
+    bs.innerHTML = `<span>Набор: ${chars.length} ${unitWord(chars.length)}${ed ? " (изменён)" : ""}</span><b>Посмотреть и изменить</b>`;
   }
   $<HTMLInputElement>("bk-text").value = st.text;
   const empty = !chars.length;
@@ -236,7 +248,8 @@ async function startChar() {
   startCell();
   const info = await charInfo(ch);
   if (my !== gen || !info) return;
-  try { $("bk-py").innerHTML = info.py ? pinyinHTML(parseRef(info.py)) : ""; } catch { /* */ }
+  if (info.ja) $("bk-py").innerHTML = info.py && info.py !== ch ? `<span class="kana" lang="ja">${esc(info.py)}</span>` : "";
+  else try { $("bk-py").innerHTML = info.py ? pinyinHTML(parseRef(info.py)) : ""; } catch { /* */ }
   $("bk-ru").textContent = info.ru;
 }
 
@@ -266,7 +279,7 @@ function startCell() {
   stop();
   if (ci >= cells.length) return;
   const my = gen, i = ci;
-  writer = createWriter($("bk-hw"), chars[idx], { showOutline: cells[i] });
+  writer = createWriter($("bk-hw"), chars[idx], { showOutline: cells[i] }, bookLang());
   drawn = [];
   writer.quiz({
     onCorrectStroke: (d: { strokeNum: number; drawnPath: { points: P[] } }) => { drawn[d.strokeNum] = d.drawnPath.points.map((p) => ({ x: p.x, y: p.y })); },
@@ -280,7 +293,7 @@ function startCell() {
     onComplete: () => setTimeout(() => {
       if (my !== gen || ci !== i) return;
       const mine = drawn.filter(Boolean);
-      getChar(chars[idx]).then((data) => {
+      getChar(chars[idx], bookLang()).then((data) => {
         if (my !== gen || !data || !mine.length) return;
         scores[i] = scoreHandwriting(mine, data.medians).score;
         renderStrip();
@@ -400,7 +413,7 @@ async function buildPrint(list: string[]) {
   const data = new Map<string, string[] | null>();
   const info = new Map<string, { py: string; ru: string } | null>();
   await Promise.all(list.map(async (ch) => {
-    try { data.set(ch, (await getChar(ch))?.strokes ?? null); } catch { data.set(ch, null); }
+    try { data.set(ch, (await getChar(ch, bookLang()))?.strokes ?? null); } catch { data.set(ch, null); }
     if (p.labels) info.set(ch, await charInfo(ch).catch(() => null));
   }));
   const cellMm = 186 / p.perRow;

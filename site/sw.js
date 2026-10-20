@@ -3,10 +3,10 @@
 // или все сразу (Настройки → Офлайн, src/ui/offline.ts).
 // Файлы словаря (репозиторий cherta-dict) запрашиваются с ?v=<версия из meta.json>: после пересборки адрес новый,
 // а старые версии того же файла удаляются из кэша.
-const VERSION = "0.37.0-mvgmb7vw";
+const VERSION = "0.38.0-mvgt3v53";
 const SHELL = `cherta-shell-${VERSION}`;
 const DATA = "cherta-data-v1";
-const SHELL_FILES = ["./","index.html","app.js","styles.css","manifest.webmanifest","icons/icon.svg","icons/icon-192.png","data/fonts/fonts.css","data/fonts/golos-f1765ef5.woff2","data/fonts/plexmono-9199e99b.woff2","audio/zh/index.json","data/decks/index.json","data/decks/hsk3-1.json","data/decks/hsk3-2.json","data/decks/hsk3-3.json","data/decks/hsk3-4.json","data/decks/hsk3-5.json","data/decks/hsk3-6.json","data/decks/hsk2-1.json","data/decks/hsk2-2.json","data/decks/hsk2-3.json","data/decks/hsk2-4.json","data/decks/hsk2-5.json","data/decks/hsk2-6.json","data/decks/radicals.json","data/decks/life-uni.json","data/decks/life-dorm.json","data/decks/life-bank.json","data/decks/life-transport.json","data/decks/life-shop.json","data/decks/life-doctor.json","data/dialogs.json","data/texts.json","data/themes.json","data/hsk/index.json","data/hsk/hsk1.txt","data/hsk/hsk2.txt","data/hsk/hsk3.txt","data/hsk/hsk4.txt","data/hsk/hsk5.txt","data/hsk/hsk6.txt","data/decomp.json","data/courses/index.json","data/courses/hsk1.txt","data/courses/hsk2.txt","data/courses/hsk3.txt","data/courses/life.txt","data/courses/eng.txt"];
+const SHELL_FILES = ["./","index.html","app.js","styles.css","manifest.webmanifest","icons/icon.svg","icons/icon-192.png","data/fonts/fonts.css","data/fonts/golos-c424fb53.woff2","data/fonts/plexmono-5448f24b.woff2","audio/zh/index.json","data/decks/index.json","data/decks/hsk3-1.json","data/decks/hsk3-2.json","data/decks/hsk3-3.json","data/decks/hsk3-4.json","data/decks/hsk3-5.json","data/decks/hsk3-6.json","data/decks/hsk2-1.json","data/decks/hsk2-2.json","data/decks/hsk2-3.json","data/decks/hsk2-4.json","data/decks/hsk2-5.json","data/decks/hsk2-6.json","data/decks/radicals.json","data/decks/life-uni.json","data/decks/life-dorm.json","data/decks/life-bank.json","data/decks/life-transport.json","data/decks/life-shop.json","data/decks/life-doctor.json","data/decks/ja-hira.json","data/decks/ja-kata.json","data/decks/ja-n5.json","data/decks/ja-n4.json","data/dialogs.json","data/texts.json","data/themes.json","data/hsk/index.json","data/hsk/hsk1.txt","data/hsk/hsk2.txt","data/hsk/hsk3.txt","data/hsk/hsk4.txt","data/hsk/hsk5.txt","data/hsk/hsk6.txt","data/decomp.json","data/courses/index.json","data/courses/hsk1.txt","data/courses/hsk2.txt","data/courses/hsk3.txt","data/courses/life.txt","data/courses/eng.txt"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(SHELL).then((c) => c.addAll(SHELL_FILES)).then(() => self.skipWaiting()));
@@ -39,7 +39,7 @@ self.addEventListener("fetch", (e) => {
   const versioned = isDict || (url.pathname.endsWith("/data/hw.txt") && url.searchParams.has("v"));
   // шрифты — свои файлы с хэшем в имени (data/fonts, scripts/build_fonts.py), содержимое по адресу не меняется
   const isFont = url.pathname.includes("/data/fonts/") && url.pathname.endsWith(".woff2");
-  const isData = versioned || isFont || url.pathname.includes("/data/strokes/") || (url.pathname.includes("/audio/") && url.pathname.endsWith(".mp3"));
+  const isData = versioned || isFont || url.pathname.includes("/data/strokes/") || url.pathname.includes("/data/strokes-ja/") || (url.pathname.includes("/audio/") && url.pathname.endsWith(".mp3"));
   if (isData) {
     // данные не меняются: сначала кэш, потом сеть
     e.respondWith(caches.open(DATA).then(async (c) => {

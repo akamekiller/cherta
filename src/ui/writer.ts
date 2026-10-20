@@ -2,7 +2,7 @@
 import HanziWriter from "../../vendor/hanzi-writer/HanziWriter.ts";
 import { setStrokePainter } from "../../vendor/hanzi-writer/renderers/svg/UserStrokeRenderer.ts";
 import { setKeepUserStrokes } from "../../vendor/hanzi-writer/Quiz.ts";
-import { charDataLoader } from "../strokes.ts";
+import { loaderFor, type StrokeLang } from "../strokes.ts";
 import { penShape, type PenType } from "../core/pen.ts";
 import { cssVar } from "./dom.ts";
 
@@ -42,14 +42,15 @@ export function themeColors() {
   };
 }
 
-export function createWriter(el: HTMLElement, ch: string, opts: Record<string, unknown> = {}): Writer {
+/** Поле письма; lang — чьи данные черт брать (японский порядок черт отличается от китайского). */
+export function createWriter(el: HTMLElement, ch: string, opts: Record<string, unknown> = {}, lang: StrokeLang = "zh"): Writer {
   el.innerHTML = "";
   const size = Math.round(el.getBoundingClientRect().width) || 300;
   return HanziWriter.create(el, ch, {
     width: size,
     height: size,
     padding: Math.round(size * 0.06),
-    charDataLoader,
+    charDataLoader: loaderFor(lang),
     showOutline: false,
     showCharacter: false,
     drawingWidth: Math.max(14, size / 18),

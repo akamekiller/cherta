@@ -150,5 +150,37 @@
   "lang": "zh",
   "file": "life-doctor.tsv",
   "group": "Жизнь в Китае"
+ },
+ {
+  "id": "ja-hira",
+  "title": "Хирагана",
+  "subtitle": "Основные, звонкие и полузвонкие знаки",
+  "lang": "ja",
+  "file": "ja-hira.tsv",
+  "group": "Японский — кана"
+ },
+ {
+  "id": "ja-kata",
+  "title": "Катакана",
+  "subtitle": "Основные, звонкие и полузвонкие знаки",
+  "lang": "ja",
+  "file": "ja-kata.tsv",
+  "group": "Японский — кана"
+ },
+ {
+  "id": "ja-n5",
+  "title": "JLPT N5",
+  "subtitle": "Слова уровня N5, уроки по Genki",
+  "lang": "ja",
+  "file": "ja-n5.tsv",
+  "group": "Японский — JLPT"
+ },
+ {
+  "id": "ja-n4",
+  "title": "JLPT N4",
+  "subtitle": "Слова уровня N4, уроки по Genki",
+  "lang": "ja",
+  "file": "ja-n4.tsv",
+  "group": "Японский — JLPT"
  }
 ]

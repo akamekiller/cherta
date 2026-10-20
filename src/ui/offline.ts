@@ -9,26 +9,29 @@
 import { runQueue, countCached, fmtSize, type QueueProgress } from "../core/offline.ts";
 import { strokeFile, SHARDS } from "../strokes.ts";
 import { hwUrl } from "./hwpad.ts";
-import { dictFiles } from "../state.ts";
+import { dictFiles, appLang } from "../state.ts";
 import { allAudioUrls } from "../speech.ts";
 import { onLoad } from "../loading.ts";
 import { $, esc } from "./dom.ts";
 
 const DATA_CACHE = "cherta-data-v1"; // то же имя, что DATA в static/sw.js
 
-type Pack = { id: string; title: string; hint: string; approx: string; urls: () => Promise<string[]> };
+type Pack = { id: string; title: string; hint: string; approx: string; lang: "zh" | "ja"; urls: () => Promise<string[]> };
+const fontUrls = async (lang: "zh" | "ja") => {
+  const r = await fetch("data/fonts/files.json");
+  const list: { file: string; core: boolean; lang?: string }[] = await r.json();
+  return list.filter((f) => !f.core && (f.lang ?? "zh") === lang).map((f) => `data/fonts/${f.file}`);
+};
 const PACKS: Pack[] = [
-  { id: "strokes", title: "Черты иероглифов", hint: "Письмо, тетрадь прописей, рисование в поиске", approx: "14 МБ",
+  { id: "strokes", lang: "zh", title: "Черты иероглифов", hint: "Письмо, тетрадь прописей, рисование в поиске", approx: "14 МБ",
     urls: async () => [...Array.from({ length: SHARDS }, (_, n) => strokeFile(n)), hwUrl()] },
-  { id: "fonts", title: "Шрифт иероглифов", hint: "Иероглифы выглядят одинаково на всех устройствах", approx: "4 МБ",
-    urls: async () => {
-      const r = await fetch("data/fonts/files.json");
-      const list: { file: string; core: boolean }[] = await r.json();
-      return list.filter((f) => !f.core).map((f) => `data/fonts/${f.file}`);
-    } },
-  { id: "dict", title: "Словарь 大БКРС", hint: "Поиск и статьи", approx: "12 МБ", urls: async () => (await dictFiles()).dict },
-  { id: "examples", title: "Примеры к словам", hint: "Вкладка «Примеры» и своя практика", approx: "11 МБ", urls: async () => (await dictFiles()).examples },
-  { id: "audio", title: "Озвучка", hint: "Записи нейросетевого голоса для слов колод", approx: "36 МБ", urls: allAudioUrls },
+  { id: "fonts", lang: "zh", title: "Шрифт иероглифов", hint: "Иероглифы выглядят одинаково на всех устройствах", approx: "4 МБ", urls: () => fontUrls("zh") },
+  { id: "strokes-ja", lang: "ja", title: "Японские черты", hint: "Кана и кандзи: письмо и тетрадь прописей (KanjiVG)", approx: "9 МБ",
+    urls: async () => Array.from({ length: SHARDS }, (_, n) => strokeFile(n, "ja")) },
+  { id: "fonts-ja", lang: "ja", title: "Японский шрифт", hint: "Японские начертания кандзи и каны", approx: "3 МБ", urls: () => fontUrls("ja") },
+  { id: "dict", lang: "zh", title: "Словарь 大БКРС", hint: "Поиск и статьи", approx: "12 МБ", urls: async () => (await dictFiles()).dict },
+  { id: "examples", lang: "zh", title: "Примеры к словам", hint: "Вкладка «Примеры» и своя практика", approx: "11 МБ", urls: async () => (await dictFiles()).examples },
+  { id: "audio", lang: "zh", title: "Озвучка", hint: "Записи нейросетевого голоса для слов колод", approx: "36 МБ", urls: allAudioUrls },
 ];
 
 const abs = (u: string) => new URL(u, location.href).href;
@@ -57,7 +60,7 @@ async function render() {
   await refreshCached();
   const rows: string[] = [];
   let allDone = true;
-  for (const p of PACKS) {
+  for (const p of PACKS.filter((x) => x.lang === appLang())) {
     const urls = await packUrls(p);
     let state = "";
     let btn = "";
@@ -140,7 +143,7 @@ export function initOffline() {
   $("off-all").addEventListener("click", async () => {
     const left: string[] = [];
     await refreshCached();
-    for (const p of PACKS) {
+    for (const p of PACKS.filter((x) => x.lang === appLang())) {
       const urls = await packUrls(p);
       if (urls && countCached(urls, has) < new Set(urls).size) left.push(p.id);
     }

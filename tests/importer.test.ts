@@ -78,3 +78,23 @@ test("файл с несколькими колодами: разделы ## и 
   assert.equal(one.length, 1);
   assert.equal(one[0].title, "Мои слова");
 });
+
+import { parseJaImportAll } from "../src/core/importer.ts";
+
+test("parseJaImportAll: разделы, группа, чтение каной, слово из каны без чтения", () => {
+  const r = parseJaImportAll(`#group:Quartet I
+## Урок 1
+監督 | かんとく | режиссёр
+やはり | | всё-таки
+行く | いく、ゆく | идти
+Hello | | привет
+本 | hon | книга
+## Урок 2
+環境\tかんきょう\tокружающая среда`);
+  assert.equal(r.length, 2);
+  assert.equal(r[0].group, "Quartet I");
+  assert.equal(r[0].title, "Урок 1");
+  assert.deepEqual(r[0].rows.map((x) => [x.han, x.py]), [["監督", "かんとく"], ["やはり", "やはり"], ["行く", "いく/ゆく"]]);
+  assert.deepEqual(r[0].skipped, ["Hello", "本"]);
+  assert.equal(r[1].rows[0].ru, "окружающая среда");
+});

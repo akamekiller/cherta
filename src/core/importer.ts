@@ -162,3 +162,46 @@ export function parseImportAll(text: string, filename = ""): ImportResult[] {
     return { ...r, title: p.title, group: group || undefined };
   }).filter((r) => r.rows.length || r.skipped.length);
 }
+
+/* ---------- японский ---------- */
+
+const JA_WORD = /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}ー々〆ヶ]+$/u;
+const KANA_ONLY = /^[\p{Script=Hiragana}\p{Script=Katakana}ー]+(\/[\p{Script=Hiragana}\p{Script=Katakana}ー]+)*$/u;
+
+/**
+ * Японские колоды из файла: строки «слово | чтение | значение» (или через Tab), чтение каной («いく/ゆく» — варианты),
+ * у слова из одной каны чтение можно не писать. Разделы «## Название» — отдельные колоды, «#group:Имя» — группа.
+ * Строки, где нет японского слова или чтения, попадают в skipped.
+ */
+export function parseJaImportAll(text: string, filename = ""): ImportResult[] {
+  const lines = text.replace(/^﻿/, "").replace(/\r/g, "").split("\n");
+  let group = "";
+  const parts: ImportResult[] = [];
+  const cur = () => {
+    if (!parts.length) parts.push({ title: filename.replace(/\.[^.]+$/, "").trim() || "Импорт", rows: [], skipped: [], format: "японский" });
+    return parts[parts.length - 1];
+  };
+  const seen = new Map<ImportResult, Set<string>>();
+  for (const raw of lines) {
+    const l = raw.trim();
+    if (!l) continue;
+    const g = /^#group:(.*)$/i.exec(l);
+    if (g) { group = g[1].trim(); continue; }
+    if (/^#\w[\w ]*:/.test(l)) continue;
+    const sec = /^##\s+(.+)$/.exec(l)?.[1];
+    if (sec) { parts.push({ title: sec.trim(), rows: [], skipped: [], format: "японский" }); continue; }
+    if (l.startsWith("#")) continue;
+    const f = (l.includes("\t") ? l.split("\t") : l.split("|")).map((x) => x.trim());
+    const han = f[0].replace(/\s+/g, "");
+    const p = cur();
+    if (!han || !JA_WORD.test(han)) { p.skipped.push(f[0]); continue; }
+    let reading = (f[1] ?? "").replace(/\s+/g, "").replace(/[、,;]/g, "/");
+    if (!reading && KANA_ONLY.test(han)) reading = han;
+    if (!KANA_ONLY.test(reading)) { p.skipped.push(han); continue; }
+    const s = seen.get(p) ?? seen.set(p, new Set()).get(p)!;
+    if (s.has(han)) continue;
+    s.add(han);
+    p.rows.push({ han, py: reading, ru: (f[2] ?? "").trim() });
+  }
+  return parts.filter((r) => r.rows.length || r.skipped.length).map((r) => ({ ...r, group: group || undefined }));
+}

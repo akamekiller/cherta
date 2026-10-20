@@ -3,8 +3,8 @@
  * Вставить из буфера, набрать, выбрать файл или перетащить его; «Поделиться → Черта» на телефоне открывает это же окно.
  * Ниже поля — живой предпросмотр: что получится, с галочками у слов; можно поправить значение и убрать лишнее.
  */
-import { app, hskEntries, dictIndex, saveUserDeck } from "../state.ts";
-import { parseImportAll, type ImportRow, type ImportResult } from "../core/importer.ts";
+import { app, hskEntries, dictIndex, saveUserDeck, appLang } from "../state.ts";
+import { parseImportAll, parseJaImportAll, type ImportRow, type ImportResult } from "../core/importer.ts";
 import { looksLikeText, wordsFromText, guessLevel, titleOf, stripFences } from "../core/textwords.ts";
 import { parseExSet, type ExSet } from "../core/exercise.ts";
 import { checkCourseText, setToCourse } from "../core/coursebuild.ts";
@@ -53,9 +53,9 @@ export function lexicon(): Promise<Lex> {
   })().catch((e) => { lexP = null; throw e; }));
 }
 
-const started = (w: string) => ALL_SKILLS.some((sk) => app.cards.has(cardId(`zh:${w}`, sk)));
+const started = (w: string) => ALL_SKILLS.some((sk) => app.cards.has(cardId(`${appLang()}:${w}`, sk)));
 const pyHTML = (py: string | null) => { try { return py ? pinyinHTML(parseRef(py)) : ""; } catch { return esc(py ?? ""); } };
-const ownDecks = () => app.userDecks.filter((d) => d.id !== "u-chars");
+const ownDecks = () => app.userDecks.filter((d) => d.id !== "u-chars" && (d.lang ?? "zh") === appLang());
 
 /* ---------- окно ---------- */
 
@@ -114,7 +114,19 @@ export function openImport(o: ImportOpts = {}) {
       let lex: Lex | null = null;
       try { lex = await lexicon(); } catch { /* нет даже HSK — останутся только строки с пиньинем и значением */ }
       if (my !== gen) return;
-      if (looksLikeText(text)) {
+      if (appLang() === "ja") {
+        // японский: «слово | чтение каной | значение», своего словаря пока нет — без чтения и значения строка не берётся
+        const ps = parseJaImportAll(text, name);
+        const fill = (r: ImportRow): Row => ({ han: r.han, py: r.py, ru: r.ru, on: !!(r.py && r.ru), have: started(r.han) });
+        if (ps.length > 1) {
+          parts = ps.map((p) => ({ ...p, ok: p.rows.filter((r) => r.py && r.ru).map((r) => [r.han, r.py!, r.ru] as [string, string, string]) }));
+          rows = [];
+        } else {
+          parts = [];
+          rows = (ps[0]?.rows ?? []).map(fill);
+          if (ps[0]?.title && ps[0].title !== "Импорт" && !name) name = ps[0].title;
+        }
+      } else if (looksLikeText(text)) {
         const ws = wordsFromText(text, (w) => !!lex?.has(w));
         parts = [];
         rows = ws.map(({ w, n }) => {
@@ -233,7 +245,7 @@ export function openImport(o: ImportOpts = {}) {
       const t0 = Date.now();
       if (parts.length) {
         const group = q<HTMLInputElement>("#im-group").value.trim() || undefined;
-        for (const [k, p] of parts.entries()) if (p.ok.length) await saveUserDeck({ id: `u-${(t0 + k).toString(36)}`, title: p.title, words: p.ok, createdAt: t0 + k, ...(group ? { group } : {}) });
+        for (const [k, p] of parts.entries()) if (p.ok.length) await saveUserDeck({ id: `u-${(t0 + k).toString(36)}`, title: p.title, words: p.ok, createdAt: t0 + k, ...(group ? { group } : {}), ...(appLang() === "ja" ? { lang: "ja" as const } : {}) });
         done(`Создано колод: ${parts.length}.`);
         return;
       }
@@ -242,7 +254,7 @@ export function openImport(o: ImportOpts = {}) {
       if (target === "new") {
         const title = q<HTMLInputElement>("#im-title").value.trim() || "Мои слова";
         const id = `u-${t0.toString(36)}`;
-        await saveUserDeck({ id, title, words: pick, createdAt: t0 });
+        await saveUserDeck({ id, title, words: pick, createdAt: t0, ...(appLang() === "ja" ? { lang: "ja" as const } : {}) });
         done(`Колода «${title}»: ${pick.length} ${plural(pick.length, "слово", "слова", "слов")}.`, id);
       } else {
         const d = ownDecks().find((x) => x.id === target)!;
@@ -356,6 +368,11 @@ export function openImport(o: ImportOpts = {}) {
 }
 
 function help() {
+  if (appLang() === "ja") return `<details class="paste" open><summary>Что можно вставить</summary>
+    <div class="stack hint">
+      <p><b>Строки</b> «слово | чтение каной | значение» (или через Tab): <span class="han" lang="ja">監督 | かんとく | режиссёр</span>. Несколько чтений — через «/» или «、». У слова из одной каны чтение можно не писать.</p>
+      <p><b>Несколько колод в одном файле:</b> строки <code>## Название</code> перед каждой колодой, <code>#group:Имя</code> — группа в списке.</p>
+    </div></details>`;
   return `<details class="paste"><summary>Что можно вставить</summary>
     <div class="stack hint">
       <p><b>Слова:</b> через пробел или по одному в строке — <span class="han">学习 老师 朋友</span>. Пиньинь и значение подставятся сами (HSK, затем словарь).</p>

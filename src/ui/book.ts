@@ -302,7 +302,7 @@ function openOptions() {
     <div class="set-row"><div class="t"><div>Из них по контуру</div><div>Остальные — по памяти</div></div>
       <div class="stepper"><button class="icon-btn" data-k="trace" data-d="-1" aria-label="Меньше">−</button><output id="bo-trace">${st.trace}</output><button class="icon-btn" data-k="trace" data-d="1" aria-label="Больше">+</button></div></div>
     <div class="field"><span class="label">Порядок иероглифов колоды</span>
-      <div class="seg" role="group" id="bo-order"><button data-shuffle="1" aria-pressed="${st.shuffle}">Вперемешку</button><button data-shuffle="0" aria-pressed="${!st.shuffle}">По порядку</button></div>
+      <div class="seg wide-seg" role="group" id="bo-order"><button data-shuffle="1" aria-pressed="${st.shuffle}">Вперемешку</button><button data-shuffle="0" aria-pressed="${!st.shuffle}">По порядку</button></div>
       <button class="link-btn" id="bo-reshuffle">Перемешать заново</button></div>
     <button class="btn primary wide" id="bo-done">Готово</button>`;
   let reordered = false;

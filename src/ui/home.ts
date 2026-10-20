@@ -229,7 +229,7 @@ function openDeckMenu(id: string) {
       <div class="chips-row wrapped" id="dm-skills">${SKILLS.map((k) => `<button class="chip-btn" data-skill="${k.id}" aria-pressed="${deckSkills(id).includes(k.id)}" title="${esc(k.hint)}">${k.name}</button>`).join("")}</div>
       <small class="hint" id="dm-skill-hint">${esc(skillsHint(deckSkills(id)))}</small></div>
     <div class="field"><span class="label">Новые слова</span>
-      <div class="seg" role="group" id="dm-order"><button data-order="random" aria-pressed="${deckOrder(id) === "random"}">Вперемешку</button><button data-order="seq" aria-pressed="${deckOrder(id) === "seq"}">По порядку колоды</button></div></div>
+      <div class="seg wide-seg" role="group" id="dm-order"><button data-order="random" aria-pressed="${deckOrder(id) === "random"}">Вперемешку</button><button data-order="seq" aria-pressed="${deckOrder(id) === "seq"}">По порядку колоды</button></div></div>
     <div class="dm-list">
       ${d.user ? `<button class="deck-opt" id="dm-edit"><span>Изменить слова<small>Добавить или убрать слова</small></span></button>` : ""}
       <button class="deck-opt" id="dm-words"><span>Слова колоды<small>Список, поиск, статус</small></span></button>

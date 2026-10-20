@@ -962,4 +962,4 @@ html[data-lang="ja"] .dr-item:is([data-view="ex"],[data-view="read"],[data-view=
 html[data-lang="ja"] :is(#deck-create,#deck-import,#w-draw,#w-voice,#w-all,#w-back){display:none!important}
 .lang-sw{margin:0 4px 4px;display:flex}
 .lang-sw button{flex:1;width:auto;height:auto;font:500 13px var(--f-ui);padding:8px 6px;line-height:1.25}
-.lang-sw button[aria-pressed="true"]{background:var(--jade);color:#fff}
+.lang-sw button[aria-pressed="true"]{background:var(--jade);color:var(--on-accent)}

@@ -1,6 +1,6 @@
 """
-Встроенные курсы упражнений: scripts/courses/hskN.txt (темы уроков и их слова) + hskN-text.txt (свои предложения и диалоги)
-+ предложения из корпуса dict/ex.json, в которых все слова уже пройдены к этому уроку.
+Встроенные курсы упражнений: scripts/courses/hskN.txt (темы уроков и их слова) + hskN-text.txt (свои предложения и диалоги),
+«Жизнь в Китае» — колоды life-* + life-text.txt + data/dialogs.json. Предложения корпуса больше не используются.
 
     python scripts/build_courses.py            → data/courses/hsk1.txt … и data/courses/index.json
 
@@ -22,7 +22,8 @@ BASE = set("的了吗呢吧啊我你他她们是不也都很这那有在一二�
 # сочетания, которые сегментатор берёт целым словом, а ученик понимает по частям
 COMPOSED = set("黄色 蓝色 绿色 这边 那边 外面 南方 河边 画画 每天 一杯 两杯 红色 白色 黑色 晴天 阴天 一点儿 好的 好玩 同事 走路 洗手 来到 这是 那是 这儿 那儿 哪儿 哪里 这里 那里 下面 上面 里面 前边 后边 这个 那个 这些 那些 不是 没有 一下 吃饭 一个 两个 几个 多大 怎么样 十五 二十 二十一 十九 四十 一日 九月 十月 星期一 星期三 什么时候 今年 明年".split())
 NAMES = set("王明 李月 安娜 大卫 小王 小李 老王 王 李 张 马丁".split())
-PER_LESSON = 10
+# предложения корпуса в встроенных курсах больше не берутся (там бывали обрывки и субтитры) — только свои тексты
+PER_LESSON = 0
 
 
 def clean_sent(zh, ru, t):
@@ -94,8 +95,12 @@ def composed(t, known):
 
 
 def read_text(n, kind="text"):
+    return read_file(f"hsk{n}-{kind}.txt")
+
+
+def read_file(name):
     """Свои предложения и диалоги (kind="text") или теория (kind="grammar") по урокам: {номер урока: [строки]}."""
-    path = os.path.join(os.path.dirname(__file__), "courses", f"hsk{n}-{kind}.txt")
+    path = os.path.join(os.path.dirname(__file__), "courses", name)
     if not os.path.exists(path):
         return {}
     out, cur = {}, None
@@ -222,7 +227,9 @@ def main():
                       "about": (f"Для начинающих: {len(lessons)} уроков, {sum(len(w) for _, w in lessons)} слов" if n == 1 else
                                 f"{len(lessons)} уроков, {sum(len(w) for _, w in lessons)} слов, продолжение курса HSK {n - 1}")
                                + f". В каждом уроке — теория с грамматикой ({rules(sum(1 for ls in grammar.values() for l in ls if l.startswith("& ")))} на курс), текст урока и задания от простых к сложным."})
-    index.append(build_life(corpus, toks, known, used))
+    p, life = build_life(corpus, toks, known, used, lex)
+    problems += p
+    index.append(life)
     index.append(build_own("eng"))
     json.dump(index, open(os.path.join(ROOT, "data", "courses", "index.json"), "w", encoding="utf8"), ensure_ascii=False, indent=1)
     print("уроков:", sum(x["lessons"] for x in index), "проблем в своих текстах:", problems)
@@ -246,12 +253,13 @@ LIFE = [("Университет", "life-uni", ["d-teacher"]), ("Общежит�
         ("Банк и связь", "life-bank", ["d-bank", "d-phone"]), ("Врач и аптека", "life-doctor", ["d-doctor"])]
 
 
-def build_life(corpus, toks, known_hsk, used):
+def build_life(corpus, toks, known_hsk, used, lex):
     """Курс «Жизнь в Китае»: колоды life-*, каждая на два урока; диалоги из data/dialogs.json; предложения корпуса."""
     dialogs = {d["id"]: d for d in json.load(open(os.path.join(ROOT, "data", "dialogs.json"), encoding="utf8"))}
     lines = ["# Жизнь в Китае", "#level: 3",
              "#about: Университет, общежитие, магазин, транспорт, банк, врач — слова и диалоги для жизни в Китае. Лучше после курса HSK 2.", ""]
-    n_lessons = n_words = 0
+    n_lessons = n_words = problems = 0
+    own = read_file("life-text.txt")
     for title, deck, dl in LIFE:
         words = list(tsv(os.path.join(ROOT, "data", f"{deck}.tsv")).items())
         half = (len(words) + 1) // 2
@@ -264,6 +272,17 @@ def build_life(corpus, toks, known_hsk, used):
                 lines.append(f"+ {w} | {py} | {ru}")
             wset = {w for w, _ in chunk}
             ok = known_hsk | {w for w, _ in words}
+            for l in own.get(n_lessons, []):
+                zh = zh_of(l)
+                if not zh:
+                    continue
+                kk = ok | NAMES | COMPOSED
+                bad = [t for r in re.findall(r"[\u4e00-\u9fff]+", zh) if not composed(r, kk)
+                       for t in segment(r, lex | ok) if t not in kk and not composed(t, kk)]
+                if bad:
+                    problems += 1
+                    print(f"Жизнь урок {n_lessons}: незнакомые слова {' '.join(bad)} в «{zh}»")
+                lines.append(l)
             cand = []
             for (zh, ru, _, _), t in zip(corpus, toks):
                 if not t or zh in used or not ru:
@@ -284,7 +303,7 @@ def build_life(corpus, toks, known_hsk, used):
                 lines += ["? " + q["q"] + " | " + " | ".join(o + ("*" if i == q["a"] else "") for i, o in enumerate(q["o"])) for q in d["q"]]
             lines.append("")
     open(os.path.join(ROOT, "data", "courses", "life.txt"), "w", encoding="utf8", newline="\n").write("\n".join(lines) + "\n")
-    return {"id": "life", "file": "life.txt", "title": "Жизнь в Китае", "level": 3, "lessons": n_lessons, "words": n_words,
+    return problems, {"id": "life", "file": "life.txt", "title": "Жизнь в Китае", "level": 3, "lessons": n_lessons, "words": n_words,
             "about": f"{n_lessons} уроков: университет, общежитие, магазин, транспорт, банк, врач. Лучше после курса HSK 2."}
 
 

@@ -396,6 +396,8 @@ export default class HanziWriter {
       if (this._character && this._renderState && this._positioner) {
         this.cancelQuiz();
         this._quiz = new Quiz(this._character, this._renderState, this._positioner);
+        // Правка для Черты: пока идёт проверка, палец пишет, а не прокручивает страницу (pointer-события, см. RenderTargetBase)
+        this._setTouchAction('none');
         this._options = {
           ...this._options,
           ...quizOptions,
@@ -415,7 +417,14 @@ export default class HanziWriter {
     if (this._quiz) {
       this._quiz.cancel();
       this._quiz = undefined;
+      this._setTouchAction('');
     }
+  }
+
+  /** Правка для Черты. */
+  _setTouchAction(v: string) {
+    const node = this.target?.node as HTMLElement | SVGElement | undefined;
+    if (node?.style) node.style.touchAction = v;
   }
 
   setCharacter(char: string) {
@@ -532,7 +541,8 @@ export default class HanziWriter {
     this.target.addPointerMoveListener((evt) => {
       if (this._quiz) {
         evt.preventDefault();
-        this._quiz.continueUserStroke(evt.getPoint());
+        // Правка для Черты: все промежуточные точки за раз и предсказание (одна перерисовка на событие)
+        this._quiz.continueUserStroke(evt.getPoints(), evt.getPredicted());
       }
     });
     this.target.addPointerEndListener(() => {

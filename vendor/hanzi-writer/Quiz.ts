@@ -86,13 +86,25 @@ export default class Quiz {
     return this._renderState.run(quizActions.startUserStroke(strokeId, point));
   }
 
-  continueUserStroke(externalPoint: Point) {
+  /**
+   * Правка для Черты: принимает сразу несколько точек (промежуточные точки pointer-события) и предсказанные точки.
+   * Предсказанные только рисуются в конце линии — в саму черту (и в проверку) не попадают.
+   */
+  continueUserStroke(externalPoint: Point | Point[], predicted: Point[] = []) {
     if (!this._userStroke) {
       return Promise.resolve();
     }
-    const point = this._positioner.convertExternalPoint(externalPoint);
-    this._userStroke.appendPoint(point, externalPoint);
+    for (const ext of Array.isArray(externalPoint) ? externalPoint : [externalPoint]) {
+      this._userStroke.appendPoint(this._positioner.convertExternalPoint(ext), ext);
+    }
     const nextPoints = this._userStroke.points.slice(0);
+    const last = nextPoints[nextPoints.length - 1];
+    for (const ext of predicted.slice(0, 3)) {
+      const p = this._positioner.convertExternalPoint(ext);
+      // не дальше ~4% клетки от последней точки: прогноз на резком повороте может промахнуться
+      if (Math.hypot(p.x - last.x, p.y - last.y) > 40) break;
+      nextPoints.push(p);
+    }
     return this._renderState.run(
       quizActions.updateUserStroke(this._userStroke.id, nextPoints),
     );
@@ -104,6 +116,8 @@ export default class Quiz {
 
   endUserStroke() {
     if (!this._userStroke) return;
+    // Правка для Черты: убрать с экрана предсказанный хвост — остаётся ровно то, что нарисовано
+    this._renderState.run(quizActions.updateUserStroke(this._userStroke.id, this._userStroke.points.slice(0)));
 
     const hide = () =>
       this._renderState.run(

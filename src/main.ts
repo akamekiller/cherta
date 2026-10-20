@@ -21,6 +21,7 @@ import { initSettings, penWriter } from "./ui/settings.ts";
 import { recolor, setPen } from "./ui/writer.ts";
 import { initSheet } from "./ui/sheet.ts";
 import { setTheme, onThemeChange } from "./theme.ts";
+import { initAmbient } from "./ui/ambient.ts";
 import { app } from "./state.ts";
 import { loadRecorded, setSpeechRate } from "./speech.ts";
 
@@ -46,6 +47,7 @@ async function boot() {
     return;
   }
   setTheme(app.settings.theme, app.settings.custom ?? null);
+  initAmbient(app.settings.motion);
   setPen(app.settings.pen, app.settings.ink, app.settings.keepStrokes, app.settings.penSize);
   setSpeechRate(app.settings.speechRate ?? 1);
   onThemeChange(() => recolor([sessionWriter(), entryWriter(), bookWriter(), penWriter()]));

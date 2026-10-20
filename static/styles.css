@@ -20,6 +20,11 @@
   --paper:#000000; --sheet:#0E0E0E; --ink:#F2F2F2; --muted:#8C8C8C; --line:#262626; --outline:#2C2C2C;
   --jade:#EDEDED; --jade-soft:#1F1F1F; --on-accent:#000000; --grid:#4A4A4A; --good:#6FCF9C; --warn:#E3A848; --bad:#EF6A62;
   --t1:#F0625A; --t2:#F0A940; --t3:#54C06E; --t4:#6F9FF0; --t5:#808080; color-scheme:dark}
+/* Анимированные темы (фон — src/ui/ambient.ts) */
+:root[data-theme="sakura"]{--paper:#F8F1EF; --sheet:#FFFFFF; --ink:#2B2024; --muted:#76666B; --line:#EBDCDC; --jade:#B03A5B; --grid:#D98A9A; --t1:#D23B33; --t2:#D98A12; --t3:#2E9447; --t4:#2F6FD1; --outline:#f2e8e8; --jade-soft:#f6e7eb; --on-accent:#FFFFFF; --good:#2E9447; --t5:#76666B; --warn:#B7791F; --bad:#C2413A; color-scheme:light}
+:root[data-theme="yoru"]{--paper:#0E1324; --sheet:#161C32; --ink:#E9E7F2; --muted:#9DA0BA; --line:#262D48; --jade:#E9B860; --grid:#7E6A9E; --t1:#F0625A; --t2:#F0A940; --t3:#54C06E; --t4:#7FA8F5; --outline:#202740; --jade-soft:#3c383a; --on-accent:#000000; --good:#54C06E; --t5:#9DA0BA; --warn:#E3A848; --bad:#EE6B62; color-scheme:dark}
+:root[data-theme="shuimo"]{--paper:#F2EDE3; --sheet:#FBF8F1; --ink:#1F1C19; --muted:#6B645B; --line:#E0D8C8; --jade:#A8322D; --grid:#C46A4F; --t1:#C9302A; --t2:#C77F12; --t3:#2E8A45; --t4:#2F64C0; --outline:#e9e3d6; --jade-soft:#f1e0d9; --on-accent:#FFFFFF; --good:#2E8A45; --t5:#6B645B; --warn:#B7791F; --bad:#C2413A; color-scheme:light}
+:root[data-theme="deng"]{--paper:#170D0C; --sheet:#241514; --ink:#F4E8DC; --muted:#B79F8F; --line:#3D2523; --jade:#EDA93E; --grid:#A14C3C; --t1:#F0625A; --t2:#F0B04A; --t3:#5CC274; --t4:#79A4F2; --outline:#341f1e; --jade-soft:#48301c; --on-accent:#000000; --good:#5CC274; --t5:#B79F8F; --warn:#E3A848; --bad:#EE6B62; color-scheme:dark}
 html,body{background:var(--paper);color:var(--ink);margin:0}
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 [hidden]{display:none!important}
@@ -995,3 +1000,52 @@ html[data-lang="ja"] .sheet [data-mode]:is([data-mode="text"]),html[data-lang="j
 #settings .panel{scroll-margin-top:118px}
 #settings .panel>.label{margin-bottom:6px}
 .rate-row{flex-wrap:wrap}
+
+/* ---------- Живой фон анимированных тем (src/ui/ambient.ts) ---------- */
+.ambient{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;contain:strict}
+.wrap{position:relative;z-index:1}
+:root[data-view="session"] .ambient,:root[data-view="book"] .ambient{display:none}
+.ambient .amb-p i{position:absolute;left:var(--x);top:0;display:block;will-change:transform;animation-delay:var(--delay);animation-iteration-count:infinite}
+.ambient.still .amb-p i,.ambient.still b,.ambient.still .amb-p i::after{animation-play-state:paused!important}
+
+/* сакура: лепестки падают, кружась */
+.ambient[data-kind="sakura"] .amb-glow{position:absolute;inset:-20% -20% auto;height:70%;background:radial-gradient(ellipse at 80% 0%,#F6C9D433,transparent 60%)}
+.ambient[data-kind="sakura"] .amb-p i{width:calc(13px*var(--s));height:calc(10px*var(--s));border-radius:100% 0 100% 0;
+  background:linear-gradient(135deg,#FBD7E0,#F2A7BA 70%,#E68AA2);opacity:.8;animation-name:amb-fall;animation-duration:var(--d);animation-timing-function:linear}
+@keyframes amb-fall{
+  0%{transform:translate3d(0,-6vh,0) rotate(0deg) rotateX(0deg)}
+  25%{transform:translate3d(var(--sw),24vh,0) rotate(100deg) rotateX(60deg)}
+  50%{transform:translate3d(calc(var(--sw)*-.6),52vh,0) rotate(200deg) rotateX(0deg)}
+  75%{transform:translate3d(var(--sw),80vh,0) rotate(290deg) rotateX(70deg)}
+  100%{transform:translate3d(0,108vh,0) rotate(380deg) rotateX(0deg)}}
+
+/* ночь: луна, мерцающие звёзды, светлячки */
+.ambient[data-kind="yoru"] .amb-moon{position:absolute;top:calc(env(safe-area-inset-top,0px) + 74px);right:8%;width:64px;height:64px;border-radius:50%;
+  background:radial-gradient(circle at 38% 36%,#FFF6DA,#F1DCA2 60%,#D9BE7C);box-shadow:0 0 40px 10px #F1DCA233,0 0 120px 40px #F1DCA214;opacity:.85}
+.ambient[data-kind="yoru"] .amb-stars b{position:absolute;width:2px;height:2px;border-radius:50%;background:#E9E7F2;opacity:var(--o);animation:amb-twinkle var(--b) ease-in-out infinite alternate}
+@keyframes amb-twinkle{to{opacity:.08}}
+.ambient[data-kind="yoru"] .amb-p i{top:auto;bottom:-4vh;width:calc(5px*var(--s));height:calc(5px*var(--s));border-radius:50%;background:#FBE38A;
+  box-shadow:0 0 8px 3px #F7D46A88;animation-name:amb-fly,amb-blink;animation-duration:var(--d),var(--b);animation-timing-function:ease-in-out;animation-direction:normal,alternate}
+@keyframes amb-fly{0%{transform:translate3d(0,0,0)}30%{transform:translate3d(var(--sw),-28vh,0)}60%{transform:translate3d(calc(var(--sw)*-.8),-55vh,0)}100%{transform:translate3d(0,-85vh,0)}}
+@keyframes amb-blink{0%,20%{opacity:.05}60%,100%{opacity:.95}}
+
+/* тушь: горы, красное солнце, туман, птицы */
+.ambient[data-kind="shuimo"] .amb-mount{position:absolute;left:0;right:0;bottom:0;width:100%;height:34vh}
+.ambient[data-kind="shuimo"] .amb-mount path{fill:var(--ink)}
+.ambient[data-kind="shuimo"] .m1{opacity:.05}.ambient[data-kind="shuimo"] .m2{opacity:.08}.ambient[data-kind="shuimo"] .m3{opacity:.12}
+.ambient[data-kind="shuimo"] .amb-sun{position:absolute;bottom:26vh;right:14%;width:70px;height:70px;border-radius:50%;background:#C8453A;opacity:.18}
+.ambient[data-kind="shuimo"] .amb-p i.mist{top:calc(56% + var(--y)*.3);left:-70vw;width:70vw;height:9vh;border-radius:50%;
+  background:radial-gradient(ellipse at center,#FFFFFFAA,#FFFFFF00 70%);animation-name:amb-drift;animation-duration:var(--d);animation-timing-function:linear}
+@keyframes amb-drift{to{transform:translate3d(180vw,0,0)}}
+.ambient[data-kind="shuimo"] .amb-p i.bird{top:calc(14% + var(--y)*.25);left:-30px;width:calc(18px*var(--s));height:calc(7px*var(--s));
+  border:solid var(--ink);border-width:2px 0 0;border-radius:50% 50% 0 0;opacity:.35;animation-name:amb-glide;animation-duration:calc(var(--d)*.6);animation-timing-function:linear}
+.ambient[data-kind="shuimo"] .amb-p i.bird::after{content:"";position:absolute;left:46%;top:-3px;width:2px;height:2px;border-radius:50%;background:var(--ink)}
+@keyframes amb-glide{0%{transform:translate3d(0,0,0)}50%{transform:translate3d(55vw,-3vh,0)}100%{transform:translate3d(115vw,2vh,0)}}
+
+/* фонари: небесные фонарики поднимаются */
+.ambient[data-kind="deng"] .amb-glow{position:absolute;inset:auto -20% -30%;height:70%;background:radial-gradient(ellipse at 50% 100%,#8E2A1A55,transparent 65%)}
+.ambient[data-kind="deng"] .amb-p i{top:auto;bottom:-8vh;width:calc(16px*var(--s));height:calc(21px*var(--s));border-radius:42% 42% 30% 30%;
+  background:radial-gradient(ellipse at 50% 70%,#FFE3A0,#F28A3A 45%,#B5321F 85%);box-shadow:0 0 calc(18px*var(--s)) calc(4px*var(--s)) #F2853A55;
+  opacity:.85;animation-name:amb-rise;animation-duration:calc(var(--d)*1.6);animation-timing-function:linear}
+@keyframes amb-rise{0%{transform:translate3d(0,0,0) rotate(-3deg);opacity:0}8%{opacity:.85}
+  50%{transform:translate3d(var(--sw),-55vh,0) rotate(4deg)}85%{opacity:.6}100%{transform:translate3d(calc(var(--sw)*.3),-112vh,0) rotate(-2deg);opacity:0}}

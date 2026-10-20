@@ -28,6 +28,7 @@
 <link rel="stylesheet" href="styles.css?v=__VERSION__">
 </head>
 <body>
+<div class="ambient" id="ambient" aria-hidden="true" hidden></div>
 <div class="loadbar" id="loadbar" role="status" aria-live="polite" hidden></div>
 <div class="scrim" id="scrim" hidden></div>
 <aside class="drawer" id="drawer" aria-label="Меню" aria-hidden="true">
@@ -418,9 +419,11 @@
     <div class="panel" id="set-look">
       <div class="label">Вид и перо</div>
       <div class="set-row theme-row">
-        <div class="t"><div>Тема</div><div>Авто следует за настройкой телефона</div></div>
+        <div class="t"><div>Тема</div><div>Авто следует за настройкой телефона. Сакура и Ночь — японские, Тушь и Фонари — китайские, с живым фоном</div></div>
         <div class="themes" id="themes"></div>
         <button class="btn small" id="theme-edit">Настроить цвета…</button>
+        <label class="pen-keep"><span class="t"><div>Живой фон</div><div>Лепестки сакуры, светлячки, туман над горами, фонарики — в темах Сакура, Ночь, Тушь и Фонари. На экране письма фон всегда неподвижен и скрыт.</div></span>
+          <input type="checkbox" class="switch" id="s-motion"></label>
       </div>
       <div class="set-row pen-row">
         <div class="t"><div>Перо</div><div id="pen-hint">Чем писать иероглифы в карточках и словаре</div></div>

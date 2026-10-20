@@ -1,0 +1,82 @@
+/**
+ * Живой фон анимированных тем: сакура (лепестки), ночь (луна и светлячки), тушь (горы, туман, птицы),
+ * фонари (небесные фонарики). Только CSS-анимации transform/opacity — работают на видеокарте.
+ * На экранах письма (занятие, тетрадь) фон скрыт: правило в styles.css по html[data-view].
+ * «Без анимации» оставляет неподвижную картинку.
+ */
+import { ANIMATED, currentPreset, onThemeChange, type Preset } from "../theme.ts";
+
+let host: HTMLElement | null = null;
+let motion = true;
+let built = "";
+
+/** Детерминированный «случай»: фон одинаков при каждом запуске. */
+function rnd(seed: number) {
+  let s = seed >>> 0;
+  return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+}
+
+const COUNT: Record<string, number> = { sakura: 16, yoru: 18, shuimo: 5, deng: 12 };
+
+function particles(p: Preset): string {
+  const r = rnd(p.length * 97 + 13);
+  const n = COUNT[p] ?? 0;
+  let out = "";
+  for (let i = 0; i < n; i++) {
+    const x = (i + r() * 0.9) / n * 100; // равномерно по ширине
+    const d = p === "shuimo" ? 70 + r() * 50 : p === "yoru" ? 16 + r() * 14 : 14 + r() * 12;
+    const delay = -r() * d;
+    const s = 0.55 + r() * 0.7;
+    const sw = (r() < 0.5 ? -1 : 1) * (18 + r() * 50);
+    const y = r() * 100;
+    const b = 2 + r() * 3;
+    const kind = p === "shuimo" ? (i < 3 ? "mist" : "bird") : "";
+    out += `<i class="${kind}" style="--x:${x.toFixed(1)}%;--y:${y.toFixed(1)}%;--d:${d.toFixed(1)}s;--delay:${delay.toFixed(1)}s;--s:${s.toFixed(2)};--sw:${sw.toFixed(0)}px;--b:${b.toFixed(1)}s"></i>`;
+  }
+  return out;
+}
+
+const MOUNTAINS = `<svg class="amb-mount" viewBox="0 0 1200 300" preserveAspectRatio="none" aria-hidden="true">
+  <path class="m1" d="M0 300V170c60-30 110-90 170-80s90 60 150 50 100-110 170-120 120 90 190 100 90-50 160-60 110 40 170 30 80-40 190-50v260z"/>
+  <path class="m2" d="M0 300V220c80-10 120-60 200-60s100 50 180 45 140-80 220-75 120 70 200 70 120-40 200-40 120 30 200 25v115z"/>
+  <path class="m3" d="M0 300v-45c100 0 160-30 260-30s180 35 300 35 200-40 320-40 220 35 320 30v50z"/>
+</svg>`;
+
+function backdrop(p: Preset): string {
+  if (p === "yoru") {
+    const r = rnd(7);
+    let stars = "";
+    for (let i = 0; i < 40; i++) stars += `<b style="left:${(r() * 100).toFixed(1)}%;top:${(r() * 60).toFixed(1)}%;--o:${(0.25 + r() * 0.6).toFixed(2)};--b:${(2 + r() * 4).toFixed(1)}s"></b>`;
+    return `<div class="amb-moon"></div><div class="amb-stars">${stars}</div>`;
+  }
+  if (p === "shuimo") return `<div class="amb-sun"></div>${MOUNTAINS}`;
+  if (p === "deng") return `<div class="amb-glow"></div>`;
+  return `<div class="amb-glow"></div>`;
+}
+
+function build() {
+  if (!host) return;
+  const p = currentPreset();
+  const key = `${p}:${motion}`;
+  if (key === built) return;
+  built = key;
+  if (!ANIMATED.includes(p)) { host.hidden = true; host.innerHTML = ""; host.removeAttribute("data-kind"); return; }
+  host.hidden = false;
+  host.dataset.kind = p;
+  host.classList.toggle("still", !motion);
+  host.innerHTML = backdrop(p) + `<div class="amb-p">${particles(p)}</div>`;
+}
+
+export function initAmbient(on: boolean | undefined) {
+  host = document.getElementById("ambient");
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  motion = on ?? !reduce;
+  onThemeChange(build);
+  build();
+}
+
+export function setMotion(on: boolean) {
+  motion = on;
+  build();
+}
+export const motionOn = () => motion;

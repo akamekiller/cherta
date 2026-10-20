@@ -1,3 +1,4 @@
+import { motionOn, setMotion } from "./ambient.ts";
 import { app, updateSettings, reloadAll, revertEdit } from "../state.ts";
 import { optimize } from "../core/fsrsopt.ts";
 import * as store from "../store.ts";
@@ -59,6 +60,7 @@ async function choosePen(patch: { pen?: string; ink?: string; keep?: boolean; si
 
 function renderThemes() {
   renderThemeChoices($("themes"));
+  $<HTMLInputElement>("s-motion").checked = motionOn();
 }
 
 function renderEdits() {
@@ -169,6 +171,11 @@ export function initSettings() {
     renderThemes();
   });
   $("theme-edit").addEventListener("click", () => openThemeEditor(renderThemes));
+  $("s-motion").addEventListener("change", (e) => {
+    const on = (e.target as HTMLInputElement).checked;
+    setMotion(on);
+    updateSettings({ motion: on });
+  });
   onVoices(() => { const el = document.getElementById("voice-info"); if (el) el.textContent = voiceStatus(); });
   $("n-minus").addEventListener("click", async () => { await updateSettings({ newPerDay: Math.max(0, app.settings.newPerDay - 5) }); render(); });
   $("n-plus").addEventListener("click", async () => { await updateSettings({ newPerDay: Math.min(50, app.settings.newPerDay + 5) }); render(); });

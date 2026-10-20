@@ -12,7 +12,7 @@ const BASES: [keyof typeof PRESETS, string][] = [["light", "Светлая"], ["
 export function renderThemeChoices(host: HTMLElement) {
   const c = app.settings.custom;
   const list = [...THEMES, ...(c ? [{ id: "custom" as ThemeChoice, name: "Своя", swatch: [c.colors.paper, c.colors.sheet, c.colors.jade] as [string, string, string] }] : [])];
-  host.style.gridTemplateColumns = `repeat(${list.length},1fr)`;
+  host.style.gridTemplateColumns = `repeat(${Math.min(4, list.length)},1fr)`;
   host.innerHTML = list.map((t) => `<button class="theme-opt" data-theme-id="${t.id}" aria-pressed="${app.settings.theme === t.id}">
     <span class="swatch" aria-hidden="true">${t.swatch.map((x) => `<i style="background:${x}"></i>`).join("")}</span>${t.name}</button>`).join("");
 }

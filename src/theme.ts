@@ -3,8 +3,10 @@
  * Выбор хранится в настройках и дублируется в localStorage, чтобы встроенный скрипт в <head>
  * применил тему до отрисовки (без вспышки). Своя тема — набор цветов поверх одной из готовых.
  */
-export type ThemeChoice = "auto" | "light" | "dark" | "black" | "custom";
-type Preset = "light" | "dark" | "black";
+export type ThemeChoice = "auto" | "light" | "dark" | "black" | "sakura" | "yoru" | "shuimo" | "deng" | "custom";
+export type Preset = "light" | "dark" | "black" | "sakura" | "yoru" | "shuimo" | "deng";
+/** Темы с живым фоном (src/ui/ambient.ts): японские — сакура и ночь, китайские — тушь и фонари. */
+export const ANIMATED: Preset[] = ["sakura", "yoru", "shuimo", "deng"];
 
 /** Цвета, которые можно менять в редакторе. */
 export const EDITABLE = [
@@ -26,6 +28,10 @@ export type CustomTheme = { base: Preset; colors: Record<ColorKey, string>; radi
 export const PRESETS: Record<Preset, Record<ColorKey, string>> = {
   light: { paper: "#F2F4F2", sheet: "#FFFFFF", ink: "#18201E", muted: "#5E6A66", line: "#DCE2DF", jade: "#1E7A60", grid: "#D9705F", t1: "#D23B33", t2: "#D98A12", t3: "#2E9447", t4: "#2F6FD1" },
   dark: { paper: "#111615", sheet: "#1A2120", ink: "#E7ECEA", muted: "#97A39F", line: "#2B3533", jade: "#4CC59E", grid: "#B55A4C", t1: "#F0625A", t2: "#F0A940", t3: "#54C06E", t4: "#6F9FF0" },
+  sakura: { paper: "#F8F1EF", sheet: "#FFFFFF", ink: "#2B2024", muted: "#76666B", line: "#EBDCDC", jade: "#B03A5B", grid: "#D98A9A", t1: "#D23B33", t2: "#D98A12", t3: "#2E9447", t4: "#2F6FD1" },
+  yoru: { paper: "#0E1324", sheet: "#161C32", ink: "#E9E7F2", muted: "#9DA0BA", line: "#262D48", jade: "#E9B860", grid: "#7E6A9E", t1: "#F0625A", t2: "#F0A940", t3: "#54C06E", t4: "#7FA8F5" },
+  shuimo: { paper: "#F2EDE3", sheet: "#FBF8F1", ink: "#1F1C19", muted: "#6B645B", line: "#E0D8C8", jade: "#A8322D", grid: "#C46A4F", t1: "#C9302A", t2: "#C77F12", t3: "#2E8A45", t4: "#2F64C0" },
+  deng: { paper: "#170D0C", sheet: "#241514", ink: "#F4E8DC", muted: "#B79F8F", line: "#3D2523", jade: "#EDA93E", grid: "#A14C3C", t1: "#F0625A", t2: "#F0B04A", t3: "#5CC274", t4: "#79A4F2" },
   black: { paper: "#000000", sheet: "#0E0E0E", ink: "#F2F2F2", muted: "#8C8C8C", line: "#262626", jade: "#EDEDED", grid: "#4A4A4A", t1: "#F0625A", t2: "#F0A940", t3: "#54C06E", t4: "#6F9FF0" },
 };
 
@@ -34,6 +40,10 @@ export const THEMES: { id: ThemeChoice; name: string; swatch: [string, string, s
   { id: "light", name: "Светлая", swatch: ["#F2F4F2", "#FFFFFF", "#1E7A60"] },
   { id: "dark", name: "Тёмная", swatch: ["#111615", "#1A2120", "#4CC59E"] },
   { id: "black", name: "Чёрная", swatch: ["#000000", "#0E0E0E", "#EDEDED"] },
+  { id: "sakura", name: "Сакура", swatch: ["#F8F1EF", "#F2B8C6", "#B03A5B"] },
+  { id: "yoru", name: "Ночь", swatch: ["#0E1324", "#161C32", "#E9B860"] },
+  { id: "shuimo", name: "Тушь", swatch: ["#F2EDE3", "#B8B0A2", "#A8322D"] },
+  { id: "deng", name: "Фонари", swatch: ["#170D0C", "#7A1E1A", "#EDA93E"] },
 ];
 
 const LS_KEY = "cherta.theme";

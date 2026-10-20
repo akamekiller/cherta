@@ -22,6 +22,7 @@ export function show(v: View) {
   if (current !== v) leaveHandlers[current]?.();
   const prev = current;
   current = v;
+  document.documentElement.dataset.view = v; // живой фон темы скрыт на экранах письма (styles.css)
   for (const x of VIEWS) document.getElementById(x)!.hidden = x !== v;
   const split = isWide() && (v === "words" || v === "detail");
   if (v === "detail") detailShown = true;

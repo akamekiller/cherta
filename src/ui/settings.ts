@@ -1,11 +1,11 @@
 import { app, updateSettings, reloadAll, revertEdit } from "../state.ts";
 import { optimize } from "../core/fsrsopt.ts";
 import * as store from "../store.ts";
-import { say, voiceStatus, onVoices } from "../speech.ts";
+import { say, voiceStatus, voiceStatusJa, onVoices, setSpeechRate } from "../speech.ts";
 import { $, esc, plural } from "./dom.ts";
 import { setTheme, type ThemeChoice } from "../theme.ts";
 import { renderThemeChoices, openThemeEditor } from "./themeEditor.ts";
-import { onShow, onLeave } from "./nav.ts";
+import { onShow, onLeave, show } from "./nav.ts";
 import { PENS, isPen, clampSize, penShape, samplePoints, type PenType } from "../core/pen.ts";
 import { INKS, inkColor, setPen, createWriter, recolor, type Writer } from "./writer.ts";
 import { sessionWriter } from "./session.ts";
@@ -81,7 +81,13 @@ function render() {
   $<HTMLInputElement>("s-voice").checked = app.settings.voice;
   $<HTMLInputElement>("s-vibrate").checked = app.settings.vibrate;
   $<HTMLInputElement>("s-blind").checked = !!app.settings.blind;
-  $("voice-info").textContent = voiceStatus();
+  const ja = app.settings.lang === "ja";
+  $("voice-info").textContent = ja ? voiceStatusJa() : voiceStatus();
+  $("s-test").textContent = ja ? "こんにちは" : "你好";
+  $("s-py-t").textContent = ja ? "Спрашивать чтение каной" : "Проверять пиньинь";
+  $("s-py-d").textContent = ja ? "После письма — ввод чтения (ромадзи переводятся в кану)" : "Ввод пиньиня после того, как иероглифы написаны";
+  const rate = app.settings.speechRate ?? 1;
+  document.querySelectorAll<HTMLButtonElement>("#s-rate [data-rate]").forEach((b) => b.setAttribute("aria-pressed", String(Math.abs(Number(b.dataset.rate) - rate) < 0.01)));
   $("progress-info").textContent = `Начато слов: ${app.cards.size}. Прогресс хранится в этом браузере на этом устройстве.`;
 }
 
@@ -174,7 +180,24 @@ export function initSettings() {
     updateSettings({ vibrate: on });
     if (on) try { navigator.vibrate?.(35); } catch { /* */ }
   });
-  $("s-test").addEventListener("click", () => say("你好"));
+  $("s-test").addEventListener("click", () => (app.settings.lang === "ja" ? say("こんにちは", 0.9, "ja") : say("你好")));
+  $("s-rate").addEventListener("click", async (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-rate]");
+    if (!b) return;
+    const v = Number(b.dataset.rate);
+    setSpeechRate(v);
+    await updateSettings({ speechRate: v });
+    render();
+    if (app.settings.lang === "ja") say("こんにちは", 0.9, "ja"); else say("你好");
+  });
+  $("set-nav").addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-go]");
+    if (b) document.getElementById(b.dataset.go!)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  $("settings").addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-open-view]");
+    if (b) show(b.dataset.openView as "stats");
+  });
 
   $("export").addEventListener("click", async () => {
     const json = await store.exportAll();

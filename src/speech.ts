@@ -53,6 +53,17 @@ export async function allAudioUrls(): Promise<string[]> {
 
 export function onVoices(f: () => void) { listeners.push(f); }
 
+/** Скорость озвучки из настроек: множитель для записей и голоса устройства. */
+let rateMul = 1;
+export function setSpeechRate(m: number) { rateMul = Math.min(1.3, Math.max(0.6, m || 1)); }
+
+/** Есть ли японский голос устройства. */
+export function voiceStatusJa(): string {
+  if (!supported()) return "Озвучка недоступна в этом браузере";
+  if (jaVoice) return `Голос устройства: ${jaVoice.name}`;
+  return speechSynthesis.getVoices().length ? "Японский голос не найден. Установите его в настройках речи телефона или Windows" : "Ищем японский голос…";
+}
+
 export function voiceStatus(): string {
   const n = recorded?.size ?? 0;
   if (n) return `Нейросетевой голос, озвучено слов: ${n}. Для остальных — голос устройства${voice ? "" : " (китайский голос не установлен)"}.`;
@@ -71,7 +82,7 @@ function speakDevice(text: string, rate: number, lang: "zh" | "ja" = "zh") {
     u.lang = lang === "ja" ? "ja-JP" : "zh-CN";
     const v = lang === "ja" ? jaVoice : voice;
     if (v) u.voice = v;
-    u.rate = rate;
+    u.rate = rate * rateMul;
     speechSynthesis.speak(u);
   } catch { /* озвучка необязательна */ }
 }
@@ -82,6 +93,7 @@ export function say(text: string, rate = 0.85, lang: "zh" | "ja" = "zh") {
   if (player && hasRecording(text)) {
     try { speechSynthesis?.cancel(); } catch { /* */ }
     player.src = audioUrl(text);
+    player.playbackRate = rateMul;
     player.play().catch(() => speakDevice(text, rate));
     return;
   }
@@ -97,7 +109,7 @@ export function sayAll(texts: string[], rate = 0.85) {
       const u = new SpeechSynthesisUtterance(t);
       u.lang = "zh-CN";
       if (voice) u.voice = voice;
-      u.rate = rate;
+      u.rate = rate * rateMul;
       speechSynthesis.speak(u);
     }
   } catch { /* озвучка необязательна */ }

@@ -24,8 +24,8 @@
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<link rel="stylesheet" href="data/fonts/fonts.css?v=0.40.0-mvh3i4dv">
-<link rel="stylesheet" href="styles.css?v=0.40.0-mvh3i4dv">
+<link rel="stylesheet" href="data/fonts/fonts.css?v=0.40.0-mvh3kpp1">
+<link rel="stylesheet" href="styles.css?v=0.40.0-mvh3kpp1">
 </head>
 <body>
 <div class="loadbar" id="loadbar" role="status" aria-live="polite" hidden></div>
@@ -412,7 +412,11 @@
 
   <!-- Настройки -->
   <section id="settings" class="stack" hidden>
-    <div class="panel">
+    <nav class="set-nav chips-row" id="set-nav" aria-label="Разделы настроек">
+      <button class="chip-btn" data-go="set-look">Вид и перо</button><button class="chip-btn" data-go="set-study">Занятия</button><button class="chip-btn" data-go="set-voice">Озвучка</button><button class="chip-btn" data-go="set-offline">Офлайн</button><button class="chip-btn" data-go="set-sync">Синхронизация</button><button class="chip-btn" data-go="set-remind">Напоминания</button><button class="chip-btn" data-go="set-data">Прогресс и правки</button><button class="chip-btn" data-go="set-about">О приложении</button>
+    </nav>
+    <div class="panel" id="set-look">
+      <div class="label">Вид и перо</div>
       <div class="set-row theme-row">
         <div class="t"><div>Тема</div><div>Авто следует за настройкой телефона</div></div>
         <div class="themes" id="themes"></div>
@@ -441,6 +445,9 @@
           <div class="pen-side"><small class="hint">Попробуйте: 永 — в нём все основные черты.</small><button class="btn small" id="pen-again">Ещё раз</button></div>
         </div>
       </div>
+    </div>
+    <div class="panel" id="set-study">
+      <div class="label">Занятия</div>
       <div class="set-row">
         <div class="t"><div>Писать без подсказок</div><div>Черты не проверяются по ходу: пишете иероглиф целиком, проверка — по кнопке «Готово». Новые слова — всё равно по контуру.</div></div>
         <input type="checkbox" class="switch" id="s-blind" aria-label="Писать без подсказок">
@@ -454,19 +461,30 @@
         <div class="stepper"><button class="icon-btn" id="n-minus" aria-label="Меньше">−</button><output id="n-val">10</output><button class="icon-btn" id="n-plus" aria-label="Больше">+</button></div>
       </div>
       <div class="set-row">
-        <div class="t"><div>Проверять пиньинь</div><div>Поле для ввода чтения на карточке</div></div>
-        <input type="checkbox" class="switch" id="s-py" aria-label="Проверять пиньинь">
+        <div class="t"><div id="s-py-t">Проверять пиньинь</div><div id="s-py-d">Ввод чтения после того, как иероглифы написаны</div></div>
+        <input type="checkbox" class="switch" id="s-py" aria-label="Проверять чтение">
       </div>
       <div class="set-row">
-        <div class="t"><div>Озвучка после ответа</div><div>Голос устройства проговаривает слово</div></div>
+        <div class="t"><div>Статистика и цель на день</div><div>Сколько карточек в день, календарь, прогноз</div></div>
+        <button class="btn small" data-open-view="stats">Открыть</button>
+      </div>
+    </div>
+    <div class="panel" id="set-voice">
+      <div class="label">Озвучка</div>
+      <div class="set-row">
+        <div class="t"><div>Озвучка после ответа</div><div>Слово звучит, когда ответ показан</div></div>
         <input type="checkbox" class="switch" id="s-voice" aria-label="Озвучка после ответа">
+      </div>
+      <div class="set-row rate-row">
+        <div class="t"><div>Скорость</div><div>Для записей диктора и голоса устройства</div></div>
+        <div class="chips-row" id="s-rate"><button class="chip-btn" data-rate="0.75">Медленно</button><button class="chip-btn" data-rate="1">Обычно</button><button class="chip-btn" data-rate="1.15">Быстрее</button></div>
       </div>
       <div class="set-row">
         <div class="t"><div>Проверить голос</div><div id="voice-info">Ищем китайский голос…</div></div>
         <button class="btn small" id="s-test">你好</button>
       </div>
     </div>
-    <div class="panel stack">
+    <div class="panel stack" id="set-offline">
       <div class="label">Офлайн</div>
       <p class="hint">Скачать данные заранее, чтобы всё работало без интернета — в дороге или там, где сайты GitHub и Google открываются плохо (например, в Китае без VPN). Лучше по Wi-Fi.</p>
       <div id="off-list"></div>
@@ -474,18 +492,18 @@
       <p class="note" id="off-msg"></p>
       <p class="note" id="off-usage"></p>
     </div>
-    <div class="panel stack">
+    <div class="panel stack" id="set-sync">
       <div class="label">Синхронизация</div>
       <div id="sync-box"></div>
       <p class="note" id="sync-msg"></p>
     </div>
-    <div class="panel stack">
+    <div class="panel stack" id="set-remind">
       <div class="label">Напоминания</div>
       <div class="set-row"><div class="t"><div>Время</div><div>Каждый день</div></div><input type="time" id="rm-time" value="20:00"></div>
       <div class="row"><button class="btn small" id="rm-ics">Добавить в календарь</button><button class="btn small" id="rm-push" hidden>Включить уведомления</button></div>
       <p class="note" id="rm-msg"></p>
     </div>
-    <div class="panel stack">
+    <div class="panel stack" id="set-data">
       <div class="label">Интервалы под вас</div>
       <p class="hint" id="fs-info">FSRS подстраивает интервалы повторений по вашему журналу ответов: если вы помните лучше или хуже среднего, повторения станут реже или чаще. Нужно хотя бы 100 повторений после перерыва в день и больше.</p>
       <div class="row"><button class="btn small" id="fs-run">Подстроить</button><button class="btn small" id="fs-reset" hidden>Вернуть по умолчанию</button></div>
@@ -508,7 +526,21 @@
       <div class="confirm" id="confirm-box" hidden></div>
       <p class="note" id="io-note"></p>
     </div>
-    <p class="about">Черта 0.40.0-mvh3i4dv. Данные черт: Make Me a Hanzi (Arphic Public License), библиотека Hanzi Writer (MIT). Планировщик повторений: FSRS-5.</p>
+    <div class="panel stack about" id="set-about">
+      <div class="label">О приложении</div>
+      <p>Черта 0.40.0-mvh3kpp1 — бесплатное приложение для письма иероглифов, карточек и словаря.</p>
+      <details><summary>Данные и лицензии</summary>
+        <ul class="lic">
+          <li>Черты китайских иероглифов и их состав — <a href="https://github.com/skishore/makemeahanzi" target="_blank" rel="noopener">Make Me a Hanzi</a> (Arphic Public License, LGPL-3.0); библиотека <a href="https://hanziwriter.org" target="_blank" rel="noopener">Hanzi Writer</a> (MIT).</li>
+          <li>Черты японских знаков — <a href="https://kanjivg.tagaini.net" target="_blank" rel="noopener">KanjiVG</a> © Ulrich Apel (CC BY-SA 3.0).</li>
+          <li>Китайско-русский словарь и примеры — <a href="https://bkrs.info" target="_blank" rel="noopener">大БКРС</a>.</li>
+          <li>Японско-русский словарь — <a href="https://github.com/warodai/warodai-source" target="_blank" rel="noopener">WARODAI</a> (CC BY-NC-ND 3.0, статьи без изменений); частотность — JMdict (EDRDG, CC BY-SA).</li>
+          <li>Списки слов: HSK — <a href="https://github.com/drkameleon/complete-hsk-vocabulary" target="_blank" rel="noopener">complete-hsk-vocabulary</a> (MIT); JLPT — <a href="https://github.com/jamsinclair/open-anki-jlpt-decks" target="_blank" rel="noopener">open-anki-jlpt-decks</a> (MIT). Русские значения колод, курсы, тексты и задания — составлены для приложения.</li>
+          <li>Озвучка — <a href="https://huggingface.co/hexgrad/Kokoro-82M-v1.1-zh" target="_blank" rel="noopener">Kokoro-82M</a> (Apache 2.0).</li>
+          <li>Шрифты — Golos Text, IBM Plex Mono, Noto Serif SC/JP (SIL OFL 1.1). Интервалы повторений — FSRS-5.</li>
+        </ul>
+      </details>
+    </div>
   </section>
 </div>
 <div class="sheet-scrim" id="sheet-scrim" hidden></div>
@@ -516,7 +548,7 @@
   <div class="sheet-head"><h2 id="sheet-title"></h2><button class="icon-btn" id="sheet-close" aria-label="Закрыть">✕</button></div>
   <div class="sheet-body stack" id="sheet-body"></div>
 </section>
-<script type="module" src="app.js?v=0.40.0-mvh3i4dv"></script>
+<script type="module" src="app.js?v=0.40.0-mvh3kpp1"></script>
 <div id="print-area" aria-hidden="true"></div>
 </body>
 </html>

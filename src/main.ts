@@ -22,7 +22,7 @@ import { recolor, setPen } from "./ui/writer.ts";
 import { initSheet } from "./ui/sheet.ts";
 import { setTheme, onThemeChange } from "./theme.ts";
 import { app } from "./state.ts";
-import { loadRecorded } from "./speech.ts";
+import { loadRecorded, setSpeechRate } from "./speech.ts";
 
 async function boot() {
   initNav();
@@ -47,6 +47,7 @@ async function boot() {
   }
   setTheme(app.settings.theme, app.settings.custom ?? null);
   setPen(app.settings.pen, app.settings.ink, app.settings.keepStrokes, app.settings.penSize);
+  setSpeechRate(app.settings.speechRate ?? 1);
   onThemeChange(() => recolor([sessionWriter(), entryWriter(), bookWriter(), penWriter()]));
   initLang();
   show("words");

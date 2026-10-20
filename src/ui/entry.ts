@@ -57,6 +57,7 @@ async function openByHan(han: string) {
 
 function renderHead(w: Word | OtherWord) {
   $("d-back").textContent = trail.length ? "← Назад" : "← К словам";
+  $("d-back").toggleAttribute("data-root", !trail.length); // на широком экране список слов и так рядом — кнопка не нужна
   $("d-han").textContent = w.han;
   $("d-han").classList.toggle("long", [...w.han].length > 3);
   $("d-py").innerHTML = pyHTML(w);

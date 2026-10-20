@@ -3,7 +3,7 @@
 // или все сразу (Настройки → Офлайн, src/ui/offline.ts).
 // Файлы словаря (репозиторий cherta-dict) запрашиваются с ?v=<версия из meta.json>: после пересборки адрес новый,
 // а старые версии того же файла удаляются из кэша.
-const VERSION = "0.36.0-mvglpvqd";
+const VERSION = "0.37.0-mvgmb7vw";
 const SHELL = `cherta-shell-${VERSION}`;
 const DATA = "cherta-data-v1";
 const SHELL_FILES = ["./","index.html","app.js","styles.css","manifest.webmanifest","icons/icon.svg","icons/icon-192.png","data/fonts/fonts.css","data/fonts/golos-f1765ef5.woff2","data/fonts/plexmono-9199e99b.woff2","audio/zh/index.json","data/decks/index.json","data/decks/hsk3-1.json","data/decks/hsk3-2.json","data/decks/hsk3-3.json","data/decks/hsk3-4.json","data/decks/hsk3-5.json","data/decks/hsk3-6.json","data/decks/hsk2-1.json","data/decks/hsk2-2.json","data/decks/hsk2-3.json","data/decks/hsk2-4.json","data/decks/hsk2-5.json","data/decks/hsk2-6.json","data/decks/radicals.json","data/decks/life-uni.json","data/decks/life-dorm.json","data/decks/life-bank.json","data/decks/life-transport.json","data/decks/life-shop.json","data/decks/life-doctor.json","data/dialogs.json","data/texts.json","data/themes.json","data/hsk/index.json","data/hsk/hsk1.txt","data/hsk/hsk2.txt","data/hsk/hsk3.txt","data/hsk/hsk4.txt","data/hsk/hsk5.txt","data/hsk/hsk6.txt","data/decomp.json","data/courses/index.json","data/courses/hsk1.txt","data/courses/hsk2.txt","data/courses/hsk3.txt","data/courses/life.txt","data/courses/eng.txt"];

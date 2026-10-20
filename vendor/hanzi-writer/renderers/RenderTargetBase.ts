@@ -98,6 +98,10 @@ export default class RenderTargetBase<
   updateDimensions(width: string | number, height: string | number) {
     this.node.setAttribute('width', `${width}`);
     this.node.setAttribute('height', `${height}`);
+    // Правка для Черты: viewBox — чтобы поле можно было растянуть CSS (см. _cssScale)
+    if (typeof SVGElement !== 'undefined' && this.node instanceof SVGElement) {
+      this.node.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    }
   }
 
   _eventify<TEvent extends Event>(evt: TEvent, pointFunc: (event: TEvent) => Point): BoundEvent {
@@ -112,7 +116,18 @@ export default class RenderTargetBase<
   /** Правка для Черты: точка из pointer-события; нажим — только у стилуса и у пальца, если устройство его меряет. */
   _pointerPoint(e: PointerEvent, left: number, top: number): Point {
     const p = e.pointerType === 'mouse' || !(e.pressure > 0) || (e.pointerType === 'touch' && e.pressure === 0.5) ? undefined : e.pressure;
-    return { x: e.clientX - left, y: e.clientY - top, t: e.timeStamp, p };
+    const k = this._cssScale();
+    return { x: (e.clientX - left) * k, y: (e.clientY - top) * k, t: e.timeStamp, p };
+  }
+
+  /**
+   * Правка для Черты: поле растягивается CSS по размеру клетки (поворот планшета, другое окно), а внутренние
+   * координаты hanzi-writer остаются от исходной ширины — переводим экранные пиксели в них.
+   */
+  _cssScale(): number {
+    const w = Number((this.node as Element).getAttribute?.('width'));
+    const real = this.getBoundingClientRect().width;
+    return w > 0 && real > 0 ? w / real : 1;
   }
 
   _pointerEventify(e: PointerEvent): BoundEvent {
@@ -135,16 +150,18 @@ export default class RenderTargetBase<
 
   _getMousePoint(evt: MouseEvent): Point {
     const { left, top } = this.getBoundingClientRect();
-    const x = evt.clientX - left;
-    const y = evt.clientY - top;
+    const k = this._cssScale();
+    const x = (evt.clientX - left) * k;
+    const y = (evt.clientY - top) * k;
     return { x, y, t: evt.timeStamp };
   }
 
   _getTouchPoint(evt: TouchEvent): Point {
     const { left, top } = this.getBoundingClientRect();
     const touch = evt.touches[0];
-    const x = touch.clientX - left;
-    const y = touch.clientY - top;
+    const k = this._cssScale();
+    const x = (touch.clientX - left) * k;
+    const y = (touch.clientY - top) * k;
     // force: нажим стилуса (0, если устройство его не сообщает)
     return { x, y, t: evt.timeStamp, p: touch.force || undefined };
   }

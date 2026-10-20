@@ -13,16 +13,32 @@ export function onShow(v: View, f: () => void) { handlers[v] = f; }
 export function rerender() { if (current !== "session") handlers[current]?.(); }
 export function onLeave(v: View, f: () => void) { leaveHandlers[v] = f; }
 
+/** Широкий экран (планшет горизонтально, компьютер): меню всегда слева, слова и статья рядом. Значение — как в styles.css. */
+const WIDE = "(min-width: 1000px)";
+export const isWide = () => matchMedia(WIDE).matches;
+let detailShown = false; // на широком экране последняя открытая статья остаётся справа от списка
+
 export function show(v: View) {
   if (current !== v) leaveHandlers[current]?.();
+  const prev = current;
   current = v;
   for (const x of VIEWS) document.getElementById(x)!.hidden = x !== v;
+  const split = isWide() && (v === "words" || v === "detail");
+  if (v === "detail") detailShown = true;
+  if (split) {
+    document.getElementById("words")!.hidden = false;
+    document.getElementById("detail")!.hidden = !detailShown;
+  }
+  document.getElementById("wd")!.classList.toggle("split", split && detailShown);
   const section = SECTION[v];
   document.querySelectorAll<HTMLButtonElement>(".dr-item[data-view]").forEach((b) =>
     b.setAttribute("aria-current", b.dataset.view === section ? "page" : "false"));
   document.getElementById("view-title")!.textContent = TITLE[section];
   closeMenu();
-  window.scrollTo(0, 0);
+  // список слов при открытии статьи рядом не прокручиваем; статья — в начало
+  if (split && prev === "words" || split && prev === "detail") document.getElementById("detail")!.scrollTo(0, 0);
+  else window.scrollTo(0, 0);
+  if (split && v === "words" && prev === "detail") return; // список уже на экране — не перерисовывать
   handlers[v]?.();
 }
 
@@ -31,6 +47,7 @@ const scrim = () => document.getElementById("scrim")!;
 const menuBtn = () => document.getElementById("menu-btn")!;
 
 export function openMenu() {
+  if (isWide()) return; // меню и так на экране
   scrim().hidden = false;
   requestAnimationFrame(() => { scrim().classList.add("open"); drawer().classList.add("open"); });
   drawer().setAttribute("aria-hidden", "false");
@@ -48,6 +65,13 @@ export function closeMenu() {
 }
 
 export function initNav() {
+  // повернули планшет или изменили окно — заново разложить текущий экран
+  matchMedia(WIDE).addEventListener?.("change", () => {
+    closeMenu();
+    drawer().setAttribute("aria-hidden", isWide() ? "false" : "true");
+    if (current === "words" || current === "detail") show(current);
+  });
+  drawer().setAttribute("aria-hidden", isWide() ? "false" : "true");
   menuBtn().addEventListener("click", () => (drawer().classList.contains("open") ? closeMenu() : openMenu()));
   scrim().addEventListener("click", closeMenu);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMenu(); });

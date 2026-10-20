@@ -26,6 +26,8 @@ export default class RenderTarget extends RenderTargetBase<SVGSVGElement | SVGEl
     })() as SVGSVGElement;
 
     attrs(svg, { width, height });
+    // Правка для Черты: viewBox — поле можно растянуть CSS по размеру клетки
+    if (nodeType !== 'G') svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
     const defs = createElm('defs');
     svg.appendChild(defs);
 
@@ -59,7 +61,7 @@ export default class RenderTarget extends RenderTargetBase<SVGSVGElement | SVGEl
       this._pt.y = evt.clientY;
       if ('getScreenCTM' in this.node) {
         const localPt = this._pt.matrixTransform(this.node.getScreenCTM()?.inverse());
-        return { x: localPt.x, y: localPt.y };
+        return { x: localPt.x, y: localPt.y, t: evt.timeStamp }; // Правка для Черты: время — для толщины кисти
       }
     }
     return super._getMousePoint.call(this, evt);
@@ -73,7 +75,7 @@ export default class RenderTarget extends RenderTargetBase<SVGSVGElement | SVGEl
         const localPt = this._pt.matrixTransform(
           (this.node as SVGSVGElement).getScreenCTM()?.inverse(),
         );
-        return { x: localPt.x, y: localPt.y };
+        return { x: localPt.x, y: localPt.y, t: evt.timeStamp, p: evt.touches[0].force || undefined }; // Правка для Черты
       }
     }
     return super._getTouchPoint(evt);

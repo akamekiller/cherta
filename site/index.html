@@ -24,8 +24,8 @@
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<link rel="stylesheet" href="data/fonts/fonts.css?v=0.36.0-mvglpvqd">
-<link rel="stylesheet" href="styles.css?v=0.36.0-mvglpvqd">
+<link rel="stylesheet" href="data/fonts/fonts.css?v=0.37.0-mvgmb7vw">
+<link rel="stylesheet" href="styles.css?v=0.37.0-mvgmb7vw">
 </head>
 <body>
 <div class="loadbar" id="loadbar" role="status" aria-live="polite" hidden></div>
@@ -172,6 +172,8 @@
   </section>
 
   <!-- Слова -->
+  <!-- Слова и статья: на широком экране — рядом (список слева, статья справа), см. nav.ts -->
+  <div class="wd" id="wd">
   <section id="words" class="stack" hidden>
     <div class="topbar" id="w-deckbar" hidden><button class="btn ghost small" id="w-back">← Колода</button><span class="label" id="w-decktitle"></span><button class="btn ghost small" id="w-all">Весь словарь</button></div>
     <div class="search-bar">
@@ -263,6 +265,7 @@
       <div class="decomp" id="d-decomp"></div>
     </div>
   </section>
+  </div>
 
   <!-- Тетрадь прописей -->
   <section id="book" class="stack book" hidden>
@@ -495,7 +498,7 @@
       <div class="confirm" id="confirm-box" hidden></div>
       <p class="note" id="io-note"></p>
     </div>
-    <p class="about">Черта 0.36.0-mvglpvqd. Данные черт: Make Me a Hanzi (Arphic Public License), библиотека Hanzi Writer (MIT). Планировщик повторений: FSRS-5.</p>
+    <p class="about">Черта 0.37.0-mvgmb7vw. Данные черт: Make Me a Hanzi (Arphic Public License), библиотека Hanzi Writer (MIT). Планировщик повторений: FSRS-5.</p>
   </section>
 </div>
 <div class="sheet-scrim" id="sheet-scrim" hidden></div>
@@ -503,7 +506,7 @@
   <div class="sheet-head"><h2 id="sheet-title"></h2><button class="icon-btn" id="sheet-close" aria-label="Закрыть">✕</button></div>
   <div class="sheet-body stack" id="sheet-body"></div>
 </section>
-<script type="module" src="app.js?v=0.36.0-mvglpvqd"></script>
+<script type="module" src="app.js?v=0.37.0-mvgmb7vw"></script>
 <div id="print-area" aria-hidden="true"></div>
 </body>
 </html>

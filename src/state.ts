@@ -3,6 +3,7 @@ import { schedule, newCard, DEFAULT_PARAMS, type Card, type Grade, type Params }
 import { loadDeck, wordId, type Deck, type DeckFile, type Word } from "./core/deck.ts";
 import { applyEdit, isEmptyEdit, type WordEdit, type DictEntry } from "./core/edits.ts";
 import { parseIndex, dictShardOf, shardFile, dictPyToNumeric, type DictIndex, type DictArticle } from "./core/dict.ts";
+import { parseJIndex, jShardOf, type JIndex } from "./core/jdict.ts";
 import type { Dialog } from "./core/exercise.ts";
 import { cardId, normSkills, pickNext, queueCounts, ALL_SKILLS, DEFAULT_SKILLS, type Skill, type QPick } from "./core/skills.ts";
 import { byDay, dayOf, type DayStat } from "./core/stats.ts";
@@ -605,6 +606,68 @@ export async function dictArticle(han: string): Promise<DictArticle | null> {
     dictShards.set(n, p);
   }
   return (await p)[han] ?? null;
+}
+
+/* ---------- японский словарь WARODAI (dict/ja/, build_ja_dict.py) ---------- */
+
+type JMeta = { v: string; count: number; shards: number };
+const JMETA_LS = "cherta.jdictMeta";
+let jBase = DICT_BASES[0];
+let jMeta: Promise<JMeta> | null = null;
+let jIdx: Promise<JIndex> | null = null;
+const jShards = new Map<number, Promise<Record<string, string>>>();
+
+async function fetchJMeta(): Promise<JMeta> {
+  for (const base of DICT_BASES) {
+    try {
+      const r = await fetch(`${base}ja/meta.json`, { cache: "no-cache" });
+      if (!r.ok) continue;
+      const m: JMeta = await r.json();
+      jBase = base;
+      try { localStorage.setItem(JMETA_LS, JSON.stringify({ base, m })); } catch { /* */ }
+      return m;
+    } catch { /* следующий адрес */ }
+  }
+  try {
+    const saved = JSON.parse(localStorage.getItem(JMETA_LS) ?? "null") as { base: string; m: JMeta } | null;
+    if (saved) { jBase = saved.base; return saved.m; }
+  } catch { /* */ }
+  throw new Error("Японский словарь не найден");
+}
+function loadJMeta(): Promise<JMeta> {
+  if (!jMeta) { jMeta = fetchJMeta(); jMeta.catch(() => { jMeta = null; }); }
+  return jMeta;
+}
+
+/** Индекс японского словаря (~8,5 МБ, ~3 МБ сжатым) — один раз по требованию, офлайн из кэша SW. */
+export function jdictIndex(): Promise<JIndex> {
+  if (!jIdx) {
+    jIdx = loadJMeta().then(async (m) => parseJIndex(await fetchText(`${jBase}ja/index.tsv?v=${m.v}`, "Японский словарь загружается (один раз)")));
+    jIdx.catch(() => { jIdx = null; });
+  }
+  return jIdx;
+}
+
+/** Текст статьи WARODAI по id или null. */
+export async function jdictArticle(id: string): Promise<string | null> {
+  const m = await loadJMeta();
+  const n = jShardOf(id, m.shards);
+  let p = jShards.get(n);
+  if (!p) {
+    p = fetch(`${jBase}ja/${shardFile(n)}?v=${m.v}`).then((r) => {
+      if (!r.ok) throw new Error("Не удалось загрузить статью");
+      return r.json();
+    });
+    p.catch(() => jShards.delete(n));
+    jShards.set(n, p);
+  }
+  return (await p)[id] ?? null;
+}
+
+/** Файлы японского словаря — для «Скачать для офлайна». */
+export async function jdictFiles(): Promise<string[]> {
+  const m = await loadJMeta();
+  return [`${jBase}ja/index.tsv?v=${m.v}`, ...Array.from({ length: m.shards }, (_, n) => `${jBase}ja/${shardFile(n)}?v=${m.v}`)];
 }
 
 /** Примеры к слову из базы 大БКРС (dict/x/, build_wordex.py): [[китайский, русский], …]; нет данных — пусто. */

@@ -1,6 +1,7 @@
 /** Общее для «Слов» и карточки слова: слова не из колоды (HSK, словарь), статус слова, строка списка. */
 import { isJa } from "../core/deck.ts";
-import { cardOf, words, isHidden, hskEntries, editOf, dictIndex } from "../state.ts";
+import { cardOf, words, isHidden, hskEntries, editOf, dictIndex, jdictIndex } from "../state.ts";
+import { jHan, findJ, type JIndex, type JHit } from "../core/jdict.ts";
 import { dictPyToNumeric, type DictIndex, type DictHit } from "../core/dict.ts";
 import { applyEdit, type DictEntry } from "../core/edits.ts";
 import { parseRef } from "../core/pinyin.ts";
@@ -9,7 +10,7 @@ import { formatGap, DAY } from "../core/fsrs.ts";
 import { esc, pinyinHTML } from "./dom.ts";
 
 /** Слово не из текущей колоды. raw — пиньинь БКРС как есть, если в формат колоды не перевёлся; base — без правок. */
-export type OtherWord = Word & { level?: string; raw?: string; base?: Word };
+export type OtherWord = Word & { level?: string; raw?: string; base?: Word; jid?: string };
 
 const others = new Map<string, OtherWord>();
 let hsk: DictEntry[] = [];
@@ -26,6 +27,35 @@ export const dictNow = () => dict;
 export async function loadDict(): Promise<DictIndex> {
   dict ??= await dictIndex();
   return dict;
+}
+
+/* ---------- японский словарь ---------- */
+
+let jdict: JIndex | null = null;
+export const jdictNow = () => jdict;
+export async function loadJDict(): Promise<JIndex> {
+  jdict ??= await jdictIndex();
+  return jdict;
+}
+
+/** Японское слово из статьи словаря: главное написание, чтения через «/», краткое значение; jid — статья. */
+export function jWordAt(x: JIndex, i: number): OtherWord {
+  const han = jHan(x, i);
+  const id = wordId("ja", han);
+  const deck = words().find((w) => w.id === id);
+  const w: OtherWord = { id, han, py: x.kana[i].split(", ").join("/"), ref: [], ru: x.ru[i], level: x.tag[i] === "частое" ? "" : x.tag[i], jid: x.id[i] };
+  // слово есть в колоде — чтение и значение из колоды, если статья про то же чтение
+  if (deck && deck.py.split("/").some((r) => w.py.split("/").includes(r))) { w.py = deck.py; w.ru = deck.ru; }
+  others.set(id, w);
+  return w;
+}
+export const fromJHit = (h: JHit) => jWordAt(jdict!, h.i);
+
+/** Статьи словаря для японского слова (из колоды или поиска): выбранная, иначе по написанию и чтению. */
+export function jArticlesOf(w: Word, jid?: string): number[] {
+  if (!jdict) return [];
+  if (jid) { const i = jdict.id.indexOf(jid); if (i >= 0) return [i]; }
+  return findJ(jdict, w.han, w.py).slice(0, 6);
 }
 
 /** Слово из HSK или словаря с наложенными правками пользователя. */
@@ -92,5 +122,5 @@ export function statusAny(w: Word | OtherWord): [string, string] {
 
 export type ViewMode = "list" | "grid";
 export const itemHTML = (w: Word, st: string, cls: string, view: ViewMode) => view === "grid"
-  ? `<button class="tile ${cls}" data-id="${esc(w.id)}" title="${esc(w.ru)}"><span class="h">${esc(w.han)}</span><span class="py">${pyHTML(w)}</span><span class="ru">${esc(w.ru)}</span></button>`
-  : `<button class="item" data-id="${esc(w.id)}"><span class="h">${esc(w.han)}</span><span class="txt"><span class="py">${pyHTML(w)}</span><span class="ru">${esc(w.ru)}</span></span><span class="status ${cls}">${st}</span></button>`;
+  ? `<button class="tile ${cls}" data-id="${esc(w.id)}"${(w as OtherWord).jid ? ` data-jid="${(w as OtherWord).jid}"` : ""} title="${esc(w.ru)}"><span class="h">${esc(w.han)}</span><span class="py">${pyHTML(w)}</span><span class="ru">${esc(w.ru)}</span></button>`
+  : `<button class="item" data-id="${esc(w.id)}"${(w as OtherWord).jid ? ` data-jid="${(w as OtherWord).jid}"` : ""}><span class="h">${esc(w.han)}</span><span class="txt"><span class="py">${pyHTML(w)}</span><span class="ru">${esc(w.ru)}</span></span><span class="status ${cls}">${st}</span></button>`;

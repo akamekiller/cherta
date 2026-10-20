@@ -1,7 +1,7 @@
 /** Редакторы: слово (значение, пиньинь, заметка, скрыть) и своя колода. */
 import { app, baseWord, editOf, saveEdit, revertEdit, hskLookup, hskEntries, saveUserDeck, removeUserDeck, toggleInUserDeck, dictIndex } from "../state.ts";
 import { searchDict, dictPyToNumeric, type DictIndex } from "../core/dict.ts";
-import type { Word } from "../core/deck.ts";
+import { isJa, type Word } from "../core/deck.ts";
 import { toMarked, toNumeric, parseRef } from "../core/pinyin.ts";
 import { parseUserDeck, searchEntries, type DictEntry } from "../core/edits.ts";
 import type { UserDeck } from "../store.ts";
@@ -197,6 +197,7 @@ export function openDeckEditor(deck?: UserDeck, saved?: (id: string | null) => v
 /** «В колоду»: отметить, в каких своих колодах слово, или создать новую с ним.
  * Если у слова нет пиньиня или значения (бывает у слов из словаря), их сначала нужно указать. */
 export function openAddToDeck(w: Word, changed?: () => void) {
+  if (isJa(w)) return openAddJa(w, changed);
   const need = !w.py || !w.ru;
   const rowOf = (root: HTMLElement): Row | null => {
     if (!need) return [w.han, w.py, w.ru];
@@ -226,6 +227,34 @@ export function openAddToDeck(w: Word, changed?: () => void) {
       if (t.closest("#ad-new")) { openDeckEditor(undefined, () => changed?.(), [row]); return; }
       if (!b) return;
       await toggleInUserDeck(b.dataset.deck!, row);
+      root.querySelector("#ad-list")!.innerHTML = render();
+      changed?.();
+    });
+  });
+}
+
+/** Японское слово — в свою японскую колоду (чтение и значение из словаря или колоды). */
+function openAddJa(w: Word, changed?: () => void) {
+  const mine = () => app.userDecks.filter((d) => d.lang === "ja");
+  const render = () => mine().map((d) => {
+    const on = d.words.some((x) => x[0] === w.han);
+    return `<button class="deck-opt" data-deck="${esc(d.id)}" aria-pressed="${on}"><span>${esc(d.title)}<small>${d.words.length} ${plural(d.words.length, "слово", "слова", "слов")}</small></span><span class="pick-btn${on ? " on" : ""}">${on ? "✓" : "+"}</span></button>`;
+  }).join("") + `<button class="deck-opt deck-add" id="ad-new">+ Новая колода с этим словом</button>`;
+  const row: Row = [w.han, w.py || w.han, w.ru];
+  openSheet(`«${w.han}» в колоду`, `<label class="field"><span class="label">Значение в карточке</span><input id="ad-ru" autocomplete="off" value="${esc(w.ru)}"></label>
+    <div class="deck-list" id="ad-list">${render()}</div>`, (root) => {
+    const ruIn = root.querySelector<HTMLInputElement>("#ad-ru")!;
+    root.querySelector("#ad-list")!.addEventListener("click", async (e) => {
+      const t = e.target as HTMLElement;
+      row[2] = ruIn.value.trim() || w.ru;
+      if (t.closest("#ad-new")) {
+        const d: UserDeck = { id: `u-${Date.now().toString(36)}`, title: "Мои слова (日本語)", words: [[...row]], createdAt: Date.now(), lang: "ja" };
+        await saveUserDeck(d);
+      } else {
+        const b = t.closest<HTMLButtonElement>("[data-deck]");
+        if (!b) return;
+        await toggleInUserDeck(b.dataset.deck!, [...row]);
+      }
       root.querySelector("#ad-list")!.innerHTML = render();
       changed?.();
     });

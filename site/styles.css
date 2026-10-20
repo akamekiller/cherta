@@ -599,6 +599,7 @@ input[type=range]{width:100%;accent-color:var(--jade)}
 /* «Слова»: начальный экран словаря */
 .grp-title .link-btn.small{padding:0 2px;font-size:12.5px}
 .src-note{text-align:center;margin-top:8px}
+.src-note a,.art-src a{color:var(--jade)}
 #w-home .deck-opt{margin-top:4px}
 #w-deckbar .label{flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* Курсы упражнений */
@@ -959,8 +960,19 @@ html{scrollbar-gutter:stable}
 html[data-lang="ja"]{--f-han:"Noto Serif JP","Noto Serif SC","Hiragino Mincho ProN","Yu Mincho",serif}
 html[data-lang="ja"] .only-zh,html:not([data-lang="ja"]) .only-ja{display:none!important}
 html[data-lang="ja"] .dr-item:is([data-view="ex"],[data-view="read"],[data-view="hsk"],[data-view="tones"]){display:none}
-html[data-lang="ja"] :is(#deck-create,#w-draw,#w-voice,#w-all,#w-back){display:none!important}
+html[data-lang="ja"] :is(#deck-create,#w-draw,#w-voice){display:none!important}
 html[data-lang="ja"] .sheet [data-mode]:is([data-mode="text"],[data-mode="course"]),html[data-lang="ja"] .sheet #im-ai{display:none!important}
 .lang-sw{margin:0 4px 4px;display:flex}
 .lang-sw button{flex:1;width:auto;height:auto;font:500 13px var(--f-ui);padding:8px 6px;line-height:1.25}
 .lang-sw button[aria-pressed="true"]{background:var(--jade);color:var(--on-accent)}
+
+/* японская статья WARODAI: текст как есть, рубрики с отступом */
+.jart p{margin:0 0 6px;line-height:1.55}
+.jart p.r1{margin-top:8px}
+.jart p.r2{padding-left:14px}
+.jart p.der,.jart p.jex{padding-left:14px}
+.jart .jx{font-family:var(--f-han);font-weight:600}
+.jart i{color:var(--muted)}
+.jart a.xref{color:var(--jade);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.jhead{font:600 15px/1.4 var(--f-han);margin:14px 0 6px}
+.jhead:first-child{margin-top:0}

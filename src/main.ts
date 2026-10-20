@@ -49,8 +49,7 @@ async function boot() {
   setPen(app.settings.pen, app.settings.ink, app.settings.keepStrokes, app.settings.penSize);
   onThemeChange(() => recolor([sessionWriter(), entryWriter(), bookWriter(), penWriter()]));
   initLang();
-  // японского словаря пока нет — в японском режиме начинаем с колод
-  show(app.settings.lang === "ja" ? "home" : "words");
+  show("words");
   initSync();
   initRemind();
   initOffline();

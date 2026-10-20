@@ -1,5 +1,6 @@
 /** Карточка слова: шапка (слово, пиньинь, кратко, статус) и вкладки Значения · Примеры · Слова · Черты. */
-import { cardOf, words, isHidden, dictArticle, dictWordEx } from "../state.ts";
+import { cardOf, words, isHidden, dictArticle, dictWordEx, jdictArticle } from "../state.ts";
+import { jArticleHTML, jHeadPol, jWordsWithChar } from "../core/jdict.ts";
 import { splitArticle, wordsWithChar, countWithChar, pyReadings, safeHtml, type ArticleParts, type CharMode } from "../core/dict.ts";
 import { isJa, langOf, type Word } from "../core/deck.ts";
 import { formatGap } from "../core/fsrs.ts";
@@ -14,7 +15,7 @@ import { toggleBookWord, inBook } from "./deckpick.ts";
 import { toDecomp, parts as decompParts, layoutName, TYPE_NAME, type DecompRow } from "../core/decomp.ts";
 import { hskLookup, editOf } from "../state.ts";
 import { wordId } from "../core/deck.ts";
-import { findWord, wordByHan, refreshOther, pyHTML, statusAny, itemHTML, fromHit, loadDict, dictNow, type OtherWord } from "./lookup.ts";
+import { findWord, wordByHan, refreshOther, pyHTML, statusAny, itemHTML, fromHit, loadDict, dictNow, jdictNow, loadJDict, jWordAt, jArticlesOf, type OtherWord } from "./lookup.ts";
 
 type Tab = "mean" | "ex" | "words" | "strokes";
 
@@ -23,16 +24,22 @@ let writer: Writer | null = null;
 let tab: Tab = "mean";
 let parts: ArticleParts | null = null;
 let token = 0;
-/** Откуда пришли по ссылкам «см.» и словам с иероглифом, чтобы «назад» вёл туда. */
+/** Откуда пришли по ссылкам «см.» и словам с иероглифом, чтобы «назад» вёл туда: «id» или «id|статья WARODAI». */
 const trail: string[] = [];
+/** Открытая статья японского словаря (у омографов одно написание — разные статьи). */
+let curJid: string | undefined;
+const HANRE = /\p{Script=Han}/u;
 
 export const entryWriter = () => writer;
 
 /* ---------- открыть ---------- */
 
-export function openEntry(id: string, fromList = false) {
-  const w = findWord(id);
+export function openEntry(id: string, fromList = false, jid?: string) {
+  let w = findWord(id);
+  const jx = jdictNow();
+  if (jid && jx) { const i = jx.id.indexOf(jid); if (i >= 0) w = jWordAt(jx, i); }
   if (!w) return;
+  curJid = jid;
   if (fromList) trail.length = 0;
   word = w;
   show("detail");
@@ -44,21 +51,73 @@ export function openEntry(id: string, fromList = false) {
   $("d-ex").innerHTML = "";
   $("d-ex-n").textContent = "";
   $("d-w-n").textContent = "";
-  // японское слово: статьи 大БКРС (китайский словарь) к нему не относятся — значение из колоды, черты японские
+  // японское слово: статьи из WARODAI, черты японские; примеров и тетради (китайская) нет
   const ja = isJa(w);
-  for (const t of ["ex", "words"]) document.querySelector<HTMLElement>(`#d-tabs [data-tab="${t}"]`)!.hidden = ja;
-  for (const id of ["d-todeck", "d-tobook", "d-edit"]) $(id).hidden = ja;
+  document.querySelector<HTMLElement>(`#d-tabs [data-tab="ex"]`)!.hidden = ja;
+  document.querySelector<HTMLElement>(`#d-tabs [data-tab="words"]`)!.hidden = ja && !HANRE.test(w.han);
+  for (const id of ["d-tobook", "d-edit"]) $(id).hidden = ja;
+  $("d-todeck").hidden = false;
   $("d-src").parentElement!.hidden = ja;
-  setTab(tab === "strokes" ? "strokes" : "mean");
-  if (ja) { $("d-art").innerHTML = `<p class="hint">Японский словарь появится позже — пока значение из колоды. Порядок черт — во вкладке «Черты».</p>`; return; }
+  $("d-src-ja").hidden = !ja;
+  if (ja && tab === "ex") tab = "mean";
+  if (ja && tab === "words" && !HANRE.test(w.han)) tab = "mean";
+  setTab(tab === "strokes" || tab === "words" ? tab : "mean");
+  if (ja) { loadJArticle(w, jid); loadJWordCount(w); return; }
   loadArticle(w);
   loadWordCount(w);
 }
 
 async function openByHan(han: string) {
   const w = await wordByHan(han);
-  if (word) trail.push(word.id);
+  pushTrail();
   openEntry(w.id);
+}
+const pushTrail = () => { if (word) trail.push(curJid ? `${word.id}|${curJid}` : word.id); };
+
+/** Японская статья по id (ссылки «см.», слова с кандзи). */
+async function openJid(jid: string) {
+  let x;
+  try { x = await loadJDict(); } catch { return; }
+  const i = x.id.indexOf(jid);
+  if (i < 0) return;
+  const w = jWordAt(x, i);
+  pushTrail();
+  openEntry(w.id, false, jid);
+}
+
+/* ---------- японская статья (WARODAI) ---------- */
+
+async function loadJArticle(w: Word, jid?: string) {
+  const my = ++token;
+  $("d-art-more").hidden = true;
+  let x;
+  try { x = await loadJDict(); } catch {
+    $("d-art").innerHTML = `<p class="hint">Японский словарь не загрузился — нужен интернет (или скачайте его в «Настройки → Офлайн»).</p>`;
+    return;
+  }
+  if (my !== token) return;
+  const idxs = jArticlesOf(w, jid);
+  if (!idxs.length) { $("d-art").innerHTML = `<p class="hint">В словаре WARODAI этого слова нет.</p>`; return; }
+  const texts = await Promise.all(idxs.map((i) => jdictArticle(x.id[i]).catch(() => null)));
+  if (my !== token) return;
+  $("d-art").innerHTML = texts.map((t) => {
+    if (!t) return `<p class="hint">Статья недоступна офлайн: её ещё не открывали с интернетом.</p>`;
+    const { head, html } = jArticleHTML(t);
+    const h = head.replace(/〔[^〕]*〕\s*$/, "").trim();
+    return (idxs.length > 1 ? `<h4 class="jhead" lang="ja">${esc(h)}</h4>` : "") + `<div class="jart">${html}</div>`;
+  }).join("");
+  const pol = texts[0] ? jHeadPol(texts[0].split("\n")[0]) : "";
+  if (pol) $("d-py").insertAdjacentHTML("beforeend", ` <span class="alt-py">${esc(pol)}</span>`);
+  if (!w.ru && x.ru[idxs[0]]) { $("d-ru").textContent = x.ru[idxs[0]]; $("d-ru").hidden = false; }
+}
+
+async function loadJWordCount(w: Word) {
+  if (!HANRE.test(w.han)) return;
+  let x;
+  try { x = await loadJDict(); } catch { return; }
+  if (word !== w) return;
+  const n = [...new Set([...w.han].filter((c) => HANRE.test(c)))].reduce((s, ch) => s + jWordsWithChar(x, ch, 1000, curJid).length, 0);
+  $("d-w-n").textContent = n ? (n >= 1000 ? "999+" : String(n)) : "";
 }
 
 function renderHead(w: Word | OtherWord) {
@@ -211,6 +270,7 @@ async function loadWordCount(w: Word) {
 async function renderWords() {
   const w = word;
   if (!w) return;
+  if (isJa(w)) return renderJWords(w);
   const chars = [...new Set(w.han)];
   $("d-wchars").innerHTML = chars.length > 1
     ? chars.map((c) => `<button data-c="${esc(c)}" aria-pressed="${c === wordState.ch}">${esc(c)}</button>`).join("") : "";
@@ -230,6 +290,28 @@ async function renderWords() {
     const own = words().find((y) => y.id === x.id) ?? x;
     const [st, cls] = statusAny(own);
     return itemHTML(own, st, cls, "grid");
+  }).join("") : `<p class="hint">Других слов с ${esc(ch)} в словаре нет.</p>`;
+  $("d-rel-more").hidden = hits.length <= limit;
+}
+
+async function renderJWords(w: Word) {
+  const chars = [...new Set([...w.han].filter((c) => HANRE.test(c)))];
+  if (!chars.includes(wordState.ch)) wordState = { ...wordState, ch: chars[0] ?? "" };
+  $("d-wchars").innerHTML = chars.length > 1 ? chars.map((c) => `<button data-c="${esc(c)}" aria-pressed="${c === wordState.ch}">${esc(c)}</button>`).join("") : "";
+  $("d-wchars").hidden = chars.length < 2;
+  let x;
+  try { x = await loadJDict(); } catch { $("d-rel").innerHTML = `<p class="hint">Словарь не загрузился. Нужен интернет.</p>`; return; }
+  if (word !== w) return;
+  const { ch, mode, limit } = wordState;
+  const nStart = jWordsWithChar(x, ch, 1000, curJid, "start").length, nAny = jWordsWithChar(x, ch, 1000, curJid, "any").length;
+  const fmt = (n: number) => (n >= 1000 ? "999+" : String(n));
+  $("d-wfilter").innerHTML = `<button class="chip-btn" data-mode="start" aria-pressed="${mode === "start"}">Начинаются с ${esc(ch)}<b>${fmt(nStart)}</b></button>`
+    + `<button class="chip-btn" data-mode="any" aria-pressed="${mode === "any"}">Все с ${esc(ch)}<b>${fmt(nAny)}</b></button>`;
+  const hits = jWordsWithChar(x, ch, limit + 1, curJid, mode);
+  $("d-rel").innerHTML = hits.length ? hits.slice(0, limit).map((h) => {
+    const o = jWordAt(x, h.i);
+    const [st, cls] = statusAny(o);
+    return itemHTML(o, st, cls, "grid");
   }).join("") : `<p class="hint">Других слов с ${esc(ch)} в словаре нет.</p>`;
   $("d-rel-more").hidden = hits.length <= limit;
 }
@@ -317,7 +399,9 @@ export function initEntry() {
   // ссылки «см. …» в статье и примерах
   for (const id of ["d-art", "d-ex"]) $(id).addEventListener("click", (e) => {
     const a = (e.target as HTMLElement).closest<HTMLElement>("a[data-w]");
-    if (a?.dataset.w) { e.preventDefault(); openByHan(a.dataset.w); }
+    if (a?.dataset.w) { e.preventDefault(); openByHan(a.dataset.w); return; }
+    const j = (e.target as HTMLElement).closest<HTMLElement>("a[data-jid]");
+    if (j?.dataset.jid) { e.preventDefault(); openJid(j.dataset.jid); }
   });
   $("d-wchars").addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-c]");
@@ -333,6 +417,7 @@ export function initEntry() {
   });
   $("d-rel").addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-id]");
+    if (b?.dataset.jid) { openJid(b.dataset.jid); return; }
     const w = b?.dataset.id ? findWord(b.dataset.id) : undefined;
     if (w) openByHan(w.han);
   });
@@ -368,7 +453,8 @@ export function initEntry() {
   $("d-say").addEventListener("click", () => word && say(word.han, 0.85, langOf(word)));
   $("d-back").addEventListener("click", () => {
     const prev = trail.pop();
-    if (prev && findWord(prev)) openEntry(prev); else { trail.length = 0; show("words"); }
+    const [pid, pj] = (prev ?? "").split("|");
+    if (prev && (findWord(pid) || pj)) openEntry(pid, false, pj || undefined); else { trail.length = 0; show("words"); }
   });
   $("d-todeck").addEventListener("click", () => word && openAddToDeck(word, () => word && renderHead(word)));
   // «В тетрадь» — в колоду «Мои прописи»; без пиньиня или значения — через обычное «В колоду», там их можно вписать

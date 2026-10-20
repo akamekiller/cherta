@@ -19,7 +19,8 @@ import { onShow, show } from "./nav.ts";
 import { openEntry } from "./entry.ts";
 import { initHandwrite } from "./handwrite.ts";
 import { initVoice } from "./voice.ts";
-import { kind, status, itemHTML, otherWord, fromHit, hskList, loadHskList, dictNow, loadDict, wordByHan, type ViewMode } from "./lookup.ts";
+import { kind, status, itemHTML, otherWord, fromHit, hskList, loadHskList, dictNow, loadDict, wordByHan, jdictNow, loadJDict, jWordAt, fromJHit, type ViewMode } from "./lookup.ts";
+import { searchJDict } from "../core/jdict.ts";
 
 type Filter = "all" | "new" | "learn" | "review" | "hidden" | "leech";
 type Sort = "deck" | "pinyin" | "due" | "hard";
@@ -43,6 +44,17 @@ function recent(): string[] {
 function remember(han: string) {
   const list = [han, ...recent().filter((x) => x !== han)].slice(0, 30);
   try { localStorage.setItem(RECENT, JSON.stringify(list)); } catch { /* */ }
+}
+
+/** Недавние японские: «написание|статья». */
+const RECENT_JA = "cherta.recentJa";
+function recentJa(): string[] {
+  try { return (JSON.parse(localStorage.getItem(RECENT_JA) ?? "[]") as string[]).filter((x) => typeof x === "string"); } catch { return []; }
+}
+function rememberJa(han: string, jid?: string) {
+  const k = `${han}|${jid ?? ""}`;
+  const list = [k, ...recentJa().filter((x) => x !== k)].slice(0, 30);
+  try { localStorage.setItem(RECENT_JA, JSON.stringify(list)); } catch { /* */ }
 }
 
 /* ---------- список колоды ---------- */
@@ -126,7 +138,7 @@ let levelOf = new Map<string, string>();
 function statusOf(w: Word): [string, string] {
   if (cardOf(w)) return status(w);
   // уровни HSK — китайские; у японского слова с тем же написанием они не к месту
-  return [w.id.startsWith("ja:") ? "" : levelOf.get(w.han) ?? "", "other"];
+  return [w.id.startsWith("ja:") ? (w as { level?: string }).level ?? "" : levelOf.get(w.han) ?? "", "other"];
 }
 
 /* ---------- слова моих колод ---------- */
@@ -193,6 +205,58 @@ async function renderDictSearch(q: string) {
       + (items.length > shown ? `<button class="btn small ghost more-btn" data-more>Показать ещё</button>` : "")
       + `<p class="hint src-note">Словарь 大БКРС · bkrs.info</p>`;
   }, 80);
+}
+
+/* ---------- японский словарь (WARODAI) ---------- */
+
+const JA_SRC = `<p class="hint src-note">Словарь <a href="https://github.com/warodai/warodai-source" target="_blank" rel="noopener">WARODAI</a> · <a href="https://creativecommons.org/licenses/by-nc-nd/3.0/deed.ru" target="_blank" rel="noopener">CC BY-NC-ND 3.0</a></p>`;
+
+function renderJSearch(q: string) {
+  if (q !== lastQuery) { shown = STEP; lastQuery = q; }
+  const my = ++token;
+  const box = $("w-groups");
+  $("w-more").hidden = true;
+  const x = jdictNow();
+  if (!x) {
+    box.innerHTML = `<p class="empty">Загружаю японский словарь…</p>`;
+    loadJDict().then(() => { if (searchInput().value.trim() === q) renderList(); })
+      .catch(() => { if (my === token) box.innerHTML = `<p class="empty">Японский словарь не загрузился. Для первого поиска нужен интернет.</p>`; });
+    return;
+  }
+  clearTimeout(dictTimer);
+  dictTimer = window.setTimeout(() => {
+    if (my !== token || searchInput().value.trim() !== q) return;
+    const hits = searchJDict(x, q, DICT_MAX + 1);
+    if (!hits.length) { box.innerHTML = `<p class="empty">Не нашлось. Ищите кандзи, каной, ромадзи (taberu) или по-русски.</p>`; return; }
+    const items = hits.slice(0, DICT_MAX).map(fromJHit);
+    const total = hits.length > DICT_MAX ? `${DICT_MAX}+` : String(items.length);
+    box.innerHTML = `<h3 class="grp-title"><span>Найдено</span><span class="grp-n">${total}</span></h3>` + listHTML(items.slice(0, shown))
+      + (items.length > shown ? `<button class="btn small ghost more-btn" data-more>Показать ещё</button>` : "") + JA_SRC;
+  }, 80);
+}
+
+const JA_EXAMPLES = ["食べる", "taberu", "есть", "学校", "terebi", "спасибо"];
+
+async function renderJHome() {
+  const box = $("w-home");
+  box.hidden = false;
+  $("w-groups").innerHTML = "";
+  $("w-more").hidden = true;
+  const my = ++token;
+  let items: ReturnType<typeof jWordAt>[] = [];
+  const rec = recentJa().slice(0, 10);
+  if (rec.length) {
+    try {
+      const x = await loadJDict();
+      items = rec.map((k) => { const [, jid] = k.split("|"); const i = x.id.indexOf(jid); return i >= 0 ? jWordAt(x, i) : null; }).filter((w): w is NonNullable<typeof w> => !!w);
+    } catch { /* офлайн */ }
+  } else loadJDict().catch(() => {});
+  if (my !== token) return;
+  box.innerHTML = `<div class="wh-ex"><span class="hint">Ищите кандзи, каной, ромадзи или по-русски. Например:</span>
+       <div class="chips-row wrapped">${JA_EXAMPLES.map((x) => `<button class="chip-btn" data-try="${esc(x)}">${esc(x)}</button>`).join("")}</div></div>`
+    + (items.length ? `<h3 class="grp-title"><span>Недавно открытые</span><button class="link-btn small" data-clear-recent>Очистить</button></h3>${listHTML(items)}` : "")
+    + (app.deck ? `<button class="deck-opt" data-deck-words><span>Слова колоды «${esc(app.deck.title)}»<small>${app.deck.words.length} ${plural(app.deck.words.length, "слово", "слова", "слов")} — список, статус, фильтры</small></span><span class="pick-btn">→</span></button>` : "")
+    + JA_SRC;
 }
 
 /* ---------- без запроса: начальный экран словаря ---------- */
@@ -288,22 +352,17 @@ async function showHomeList(kind0: "theme" | "key", id: string) {
 
 function renderList() {
   const q = searchInput().value.trim();
-  // японский: словаря пока нет — слова текущей колоды
   const ja = appLang() === "ja";
-  if (ja && !app.deck) {
-    $("w-deckbar").hidden = true; $("w-controls").hidden = true; $("w-home").hidden = true; $("w-more").hidden = true;
-    $("w-groups").innerHTML = `<p class="empty">Японского словаря пока нет — здесь слова ваших японских колод. Добавьте колоду в «Карточках».</p>`;
-    return;
-  }
-  const deckMode = (mode === "deck" || ja) && !!app.deck;
+  const deckMode = mode === "deck" && !!app.deck;
   $("w-deckbar").hidden = !deckMode;
   if (deckMode) $("w-decktitle").textContent = app.deck!.title;
-  searchInput().placeholder = deckMode ? "Поиск в колоде" : "Любое слово: 学, xue или учиться";
+  searchInput().placeholder = deckMode ? "Поиск в колоде" : ja ? "Любое слово: 食べる, taberu или есть" : "Любое слово: 学, xue или учиться";
   $("w-controls").hidden = !deckMode || !!q;
   $("w-home").hidden = true;
   $("w-groups").innerHTML = "";
   pending = [];
   if (!deckMode) {
+    if (ja) { if (q) renderJSearch(q); else renderJHome(); return; }
     if (q) renderDictSearch(q); else renderDictHome();
     return;
   }
@@ -330,9 +389,9 @@ export function setSearch(text: string, append = false) {
   renderList();
 }
 
-function open(id: string, han?: string) {
-  if (han) remember(han);
-  openEntry(id, true);
+function open(id: string, han?: string, jid?: string) {
+  if (han) { if (appLang() === "ja") rememberJa(han, jid); else remember(han); }
+  openEntry(id, true, jid);
 }
 
 export function initWords() {
@@ -343,7 +402,7 @@ export function initWords() {
       if (searchInput().value.trim()) renderList();
     });
     // словарь — заранее, чтобы первый поиск был быстрым
-    loadDict().catch(() => {});
+    if (appLang() === "ja") loadJDict().catch(() => {}); else loadDict().catch(() => {});
   });
   searchInput().addEventListener("input", renderList);
   // из меню — всегда словарь (до обработчика меню, поэтому на этапе погружения)
@@ -370,10 +429,10 @@ export function initWords() {
   }
   const onClick = (e: Event) => {
     const t = e.target as HTMLElement;
-    if (t.closest("[data-more]")) { shown += STEP * 2; renderDictSearch(searchInput().value.trim()); return; }
+    if (t.closest("[data-more]")) { shown += STEP * 2; const q = searchInput().value.trim(); if (appLang() === "ja") renderJSearch(q); else renderDictSearch(q); return; }
     if (t.closest("[data-search-all]")) { mode = "dict"; renderList(); return; }
     if (t.closest("[data-deck-words]")) { mode = "deck"; renderList(); return; }
-    if (t.closest("[data-clear-recent]")) { try { localStorage.removeItem(RECENT); } catch { /* */ } renderList(); return; }
+    if (t.closest("[data-clear-recent]")) { try { localStorage.removeItem(appLang() === "ja" ? RECENT_JA : RECENT); } catch { /* */ } renderList(); return; }
     if (t.closest("[data-wthemes-all]")) { themesAll = true; document.querySelectorAll<HTMLElement>("#wh-themes [data-wtheme]").forEach((x) => (x.hidden = false)); t.closest("[data-wthemes-all]")!.remove(); return; }
     const tr = t.closest<HTMLButtonElement>("[data-try]");
     if (tr) { searchInput().value = tr.dataset.try!; renderList(); return; }
@@ -399,7 +458,7 @@ export function initWords() {
     const ah = t.closest<HTMLButtonElement>("[data-add-han]");
     if (ah) { wordByHan(ah.dataset.addHan!).then((w) => openAddToDeck(w)); return; }
     const b = t.closest<HTMLButtonElement>(".item,.tile");
-    if (b?.dataset.id) open(b.dataset.id, b.querySelector(".h")?.textContent ?? undefined);
+    if (b?.dataset.id) open(b.dataset.id, b.querySelector(".h")?.textContent ?? undefined, b.dataset.jid);
   };
   $("w-groups").addEventListener("click", onClick);
   $("w-home").addEventListener("click", onClick);

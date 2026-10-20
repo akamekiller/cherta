@@ -9,7 +9,7 @@
 import { runQueue, countCached, fmtSize, type QueueProgress } from "../core/offline.ts";
 import { strokeFile, SHARDS } from "../strokes.ts";
 import { hwUrl } from "./hwpad.ts";
-import { dictFiles, appLang } from "../state.ts";
+import { dictFiles, jdictFiles, appLang } from "../state.ts";
 import { allAudioUrls } from "../speech.ts";
 import { onLoad } from "../loading.ts";
 import { $, esc } from "./dom.ts";
@@ -29,6 +29,7 @@ const PACKS: Pack[] = [
   { id: "strokes-ja", lang: "ja", title: "Японские черты", hint: "Кана и кандзи: письмо и тетрадь прописей (KanjiVG)", approx: "9 МБ",
     urls: async () => Array.from({ length: SHARDS }, (_, n) => strokeFile(n, "ja")) },
   { id: "fonts-ja", lang: "ja", title: "Японский шрифт", hint: "Японские начертания кандзи и каны", approx: "3 МБ", urls: () => fontUrls("ja") },
+  { id: "dict-ja", lang: "ja", title: "Словарь WARODAI", hint: "Японско-русский словарь: поиск и статьи", approx: "10 МБ", urls: jdictFiles },
   { id: "dict", lang: "zh", title: "Словарь 大БКРС", hint: "Поиск и статьи", approx: "12 МБ", urls: async () => (await dictFiles()).dict },
   { id: "examples", lang: "zh", title: "Примеры к словам", hint: "Вкладка «Примеры» и своя практика", approx: "11 МБ", urls: async () => (await dictFiles()).examples },
   { id: "audio", lang: "zh", title: "Озвучка", hint: "Записи нейросетевого голоса для слов колод", approx: "36 МБ", urls: allAudioUrls },

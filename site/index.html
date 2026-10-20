@@ -27,7 +27,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;700&family=IBM+Plex+Mono:wght@500&display=swap">
-<link rel="stylesheet" href="styles.css?v=0.32.0-mvg8f6br">
+<link rel="stylesheet" href="styles.css?v=0.33.0-mvg9krhq">
 </head>
 <body>
 <div class="scrim" id="scrim" hidden></div>
@@ -88,6 +88,9 @@
         <div><b class="c-learn" id="st-learn">0</b><span>учу</span></div>
         <div><b class="c-due" id="st-due">0</b><span>повторить</span></div>
       </div>
+      <div class="deck-how"><span class="label">Как учить</span>
+        <div class="chips-row wrapped" id="deck-skills"></div>
+        <small class="hint" id="deck-skill-hint"></small></div>
       <button class="btn primary wide" id="start">Учить</button>
       <p class="hint center" id="next-hint"></p>
       <button class="btn wide" id="deck-words">Слова колоды</button>
@@ -127,6 +130,7 @@
       </div>
       <div class="py-pick" id="py-field">
         <div class="py-head"><span class="label">Пиньинь</span><button class="link-btn" id="py-mode" type="button">Набрать с клавиатуры</button></div>
+        <input id="py-in" hidden autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="буквы без тонов, напр. xuexi" enterkeyhint="done">
         <div class="py-slots" id="py-slots"></div>
         <div class="py-tap" id="py-tap">
           <div class="py-opts" id="py-opts"></div>
@@ -140,7 +144,6 @@
           </div>
           <p class="hint tone-hint" id="tone-hint">Выберите слог, затем проведите тон по полосе или нажмите знак</p>
         </div>
-        <input id="py-in" hidden autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="ren2 или rén" enterkeyhint="done">
       </div>
       <button class="btn primary wide" id="b-check" disabled>Проверить</button>
     </div>
@@ -485,7 +488,7 @@
       <div class="confirm" id="confirm-box" hidden></div>
       <p class="note" id="io-note"></p>
     </div>
-    <p class="about">Черта 0.32.0-mvg8f6br. Данные черт: Make Me a Hanzi (Arphic Public License), библиотека Hanzi Writer (MIT). Планировщик повторений: FSRS-5.</p>
+    <p class="about">Черта 0.33.0-mvg9krhq. Данные черт: Make Me a Hanzi (Arphic Public License), библиотека Hanzi Writer (MIT). Планировщик повторений: FSRS-5.</p>
   </section>
 </div>
 <div class="sheet-scrim" id="sheet-scrim" hidden></div>
@@ -493,7 +496,7 @@
   <div class="sheet-head"><h2 id="sheet-title"></h2><button class="icon-btn" id="sheet-close" aria-label="Закрыть">✕</button></div>
   <div class="sheet-body stack" id="sheet-body"></div>
 </section>
-<script type="module" src="app.js?v=0.32.0-mvg8f6br"></script>
+<script type="module" src="app.js?v=0.33.0-mvg9krhq"></script>
 <div id="print-area" aria-hidden="true"></div>
 </body>
 </html>

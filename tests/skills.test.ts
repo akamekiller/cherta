@@ -87,3 +87,12 @@ test("pickNext: повторения вперемешку", async () => {
   assert.ok(seen.size > 3);
 });
 
+
+import { DEFAULT_SKILLS } from "../src/core/skills.ts";
+test("«Вспомнить слово»: свой навык, по умолчанию выключен", () => {
+  assert.deepEqual(normSkills(undefined), DEFAULT_SKILLS);
+  assert.ok(!DEFAULT_SKILLS.includes("recall"));
+  assert.deepEqual(normSkills(["recall", "write"]), ["write", "recall"]);
+  assert.equal(splitCardId("zh:学#recall").skill, "recall");
+  assert.equal(cardId("zh:学", "recall"), "zh:学#recall");
+});

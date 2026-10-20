@@ -21,7 +21,7 @@ import { loadHwDb } from "./hwpad.ts";
 import { recognize } from "../core/handwriting.ts";
 import { blindMistakes } from "../core/grade.ts";
 import { getChar } from "../strokes.ts";
-import { initPyPick, resetPyPick, pyAnswer, pyAnswerShown } from "./pypick.ts";
+import { initPyPick, resetPyPick, pyAnswer, pyAnswerShown, pyComplete } from "./pypick.ts";
 
 type Session = {
   word: Word | null;
@@ -123,6 +123,7 @@ function endSession() { stopWriter(); s = null; }
 
 const SKILL_TASK: Record<Skill, string> = {
   write: "напишите иероглифы",
+  recall: "вспомните иероглифы и пиньинь",
   read: "вспомните пиньинь и значение",
   tone: "поставьте тоны",
   def: "вспомните значение",
@@ -150,15 +151,18 @@ function nextQuestion(force?: NextCard) {
   stopWriter();
   const write = skill === "write";
   const isNew = s.isNew ? "Новое · " : "";
-  // вопрос: для написания — значение, для остальных навыков — иероглифы
-  $("q-ru").textContent = write ? w.ru : w.han;
-  $("q-ru").classList.toggle("q-han", !write);
+  // вопрос: для написания и «вспомнить слово» — значение, для остальных навыков — иероглифы
+  const byMeaning = write || skill === "recall";
+  $("q-ru").textContent = byMeaning ? w.ru : w.han;
+  $("q-ru").classList.toggle("q-han", !byMeaning);
   $("q-py").hidden = skill !== "def" && skill !== "tone";
   $("q-py").innerHTML = skill === "def" ? pinyinHTML(w.ref) : skill === "tone" ? esc(w.ru) : "";
   $("q-py").classList.toggle("q-tr", skill === "tone");
   $("q-meta").textContent = write
     ? `${isNew}${chars.length} ${plural(chars.length, "иероглиф", "иероглифа", "иероглифов")}`
-    : `${isNew}${SKILLS.find((x) => x.id === skill)!.name}: ${SKILL_TASK[skill]}`;
+    : skill === "recall"
+      ? `${isNew}${SKILL_TASK.recall} · ${chars.length} ${plural(chars.length, "иероглиф", "иероглифа", "иероглифов")}`
+      : `${isNew}${SKILLS.find((x) => x.id === skill)!.name}: ${SKILL_TASK[skill]}`;
   $("ask").hidden = false;
   $("res").hidden = true;
   document.querySelector<HTMLElement>("#session .prompt")!.hidden = false;
@@ -400,7 +404,11 @@ export function initSession() {
   });
   initPyPick(() => {});
   $("py-in").addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !$<HTMLButtonElement>("b-check").disabled) { e.preventDefault(); reveal(); }
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    // тоны ещё не поставлены — убираем клавиатуру, чтобы были видны кнопки тонов
+    if (!pyComplete()) { $<HTMLInputElement>("py-in").blur(); return; }
+    if (!$<HTMLButtonElement>("b-check").disabled) reveal();
   });
   $("b-check").addEventListener("click", reveal);
   $("grades").addEventListener("click", (e) => {

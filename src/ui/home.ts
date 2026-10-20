@@ -114,7 +114,24 @@ export function renderDeck() {
     hint = `Первое занятие: ${c.newLeft} ${plural(c.newLeft, "новое слово", "новых слова", "новых слов")}, около 10 минут.`;
   }
   $("next-hint").textContent = hint;
+  renderSkills();
   renderBlocks();
+}
+
+/** Пояснение к выбранным навыкам: что будет в занятии. */
+export function skillsHint(sk: Skill[]): string {
+  if (sk.length === 1) return SKILLS.find((x) => x.id === sk[0])!.hint[0].toUpperCase() + SKILLS.find((x) => x.id === sk[0])!.hint.slice(1) + ".";
+  if (!sk.includes("write") && sk.includes("recall")) return "Без прописи: вспоминаете слово и сами оцениваете ответ, как в Anki.";
+  return "Каждое слово по очереди тренируется всеми выбранными способами, у каждого свой интервал.";
+}
+
+/** «Как учить» на экране колоды: навыки включаются и выключаются сразу, хотя бы один остаётся. */
+function renderSkills() {
+  const d = app.deck;
+  if (!d) return;
+  const sk = deckSkills(d.id);
+  $("deck-skills").innerHTML = SKILLS.map((k) => `<button class="chip-btn" data-skill="${k.id}" aria-pressed="${sk.includes(k.id)}" title="${esc(k.hint)}">${k.name}</button>`).join("");
+  $("deck-skill-hint").textContent = skillsHint(sk);
 }
 
 /* ---------- уроки по словам ---------- */
@@ -208,9 +225,9 @@ function openDeckMenu(id: string) {
     <label class="field"><span class="label">Название</span><input id="dm-title" value="${esc(d.title)}" autocomplete="off"></label>
     <div class="set-row dm-row"><div class="t"><div>Новых слов в день</div><div>Для этой колоды</div></div>
       <div class="stepper"><button class="icon-btn" id="dm-minus" aria-label="Меньше">−</button><output id="dm-new">${limit}</output><button class="icon-btn" id="dm-plus" aria-label="Больше">+</button></div></div>
-    <div class="field"><span class="label">Что тренировать</span>
+    <div class="field"><span class="label">Как учить</span>
       <div class="chips-row wrapped" id="dm-skills">${SKILLS.map((k) => `<button class="chip-btn" data-skill="${k.id}" aria-pressed="${deckSkills(id).includes(k.id)}" title="${esc(k.hint)}">${k.name}</button>`).join("")}</div>
-      <small class="hint" id="dm-skill-hint">У каждого навыка свой интервал повторения, как в Skritter.</small></div>
+      <small class="hint" id="dm-skill-hint">${esc(skillsHint(deckSkills(id)))}</small></div>
     <div class="field"><span class="label">Новые слова</span>
       <div class="seg" role="group" id="dm-order"><button data-order="random" aria-pressed="${deckOrder(id) === "random"}">Вперемешку</button><button data-order="seq" aria-pressed="${deckOrder(id) === "seq"}">По порядку колоды</button></div></div>
     <div class="dm-list">
@@ -236,6 +253,7 @@ function openDeckMenu(id: string) {
       if (!next.length) { q("dm-skill-hint").textContent = "Нужен хотя бы один навык."; return; }
       skills = SKILLS.map((x) => x.id).filter((x) => next.includes(x));
       b.setAttribute("aria-pressed", String(skills.includes(k)));
+      q("dm-skill-hint").textContent = skillsHint(skills);
     });
     q("dm-order").addEventListener("click", (e) => {
       const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-order]");
@@ -366,6 +384,17 @@ export function initHome() {
   });
   $("deck-menu").addEventListener("click", () => app.deck && openDeckMenu(app.deck.id));
   $("deck-words").addEventListener("click", openDeckWords);
+  $("deck-skills").addEventListener("click", async (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-skill]");
+    const d = app.deck;
+    if (!b || !d) return;
+    const k = b.dataset.skill as Skill;
+    const cur = deckSkills(d.id);
+    const next = cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k];
+    if (!next.length) { $("deck-skill-hint").textContent = "Нужен хотя бы один способ."; return; }
+    await setDeckOpts(d.id, { skills: SKILLS.map((x) => x.id).filter((x) => next.includes(x)) });
+    renderDeck();
+  });
   $("deck-create").addEventListener("click", () => openDeckEditor(undefined, () => renderHome()));
   $("deck-import").addEventListener("click", () => openImport({ mode: "cards", onDeck: (id) => void openDeck(id) }));
   $("deck-catalog").addEventListener("click", () => openCatalog());

@@ -884,3 +884,6 @@ html{scrollbar-gutter:stable}
 .im-issues .link-btn{padding:0;display:inline;color:var(--jade)}
 .note.ok{border-color:var(--jade)}
 .cb-h{margin:10px 0 0;font:600 15px var(--f-ui);color:var(--ink)}
+.deck-how{display:flex;flex-direction:column;gap:6px;margin:4px 0 2px}
+.deck-how .chips-row{justify-content:center}
+.deck-how .hint{text-align:center}

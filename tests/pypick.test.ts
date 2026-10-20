@@ -39,3 +39,17 @@ test("тон по жесту", () => {
   assert.equal(line([[0, 20], [50, 60], [70, 64], [100, 30]]), 3);
   assert.equal(line([[0, 40], [50, 44], [100, 40]]), 1);         // дрожь — всё ещё ровно
 });
+
+import { splitTyped } from "../src/core/pypick.ts";
+test("splitTyped: буквы → слоги для кнопок тонов", () => {
+  const ref = [{ s: "xue" }, { s: "xi" }];
+  assert.deepEqual(splitTyped("xuexi", ref), [{ s: "xue", t: null }, { s: "xi", t: null }]);
+  assert.deepEqual(splitTyped("xue2 xi", ref).map((x) => [x.s, x.t]), [["xue", 2], ["xi", null]]);
+  assert.deepEqual(splitTyped("xué xí", ref).map((x) => [x.s, x.t]), [["xue", 2], ["xi", 2]]);
+  assert.deepEqual(splitTyped("xue2xi2", ref).map((x) => [x.s, x.t]), [["xue", 2], ["xi", 2]]);
+  // неверные буквы — делим на настоящие слоги
+  assert.deepEqual(splitTyped("zhangxi", ref).map((x) => x.s), ["zhang", "xi"]);
+  assert.deepEqual(splitTyped("nüer", [{ s: "nv" }, { s: "er" }]).map((x) => x.s), ["nv", "er"]);
+  assert.deepEqual(splitTyped("", ref), []);
+  assert.equal(splitTyped("qqqq", ref).length, 2);
+});

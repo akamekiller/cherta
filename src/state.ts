@@ -4,7 +4,7 @@ import { loadDeck, wordId, type Deck, type DeckFile, type Word } from "./core/de
 import { applyEdit, isEmptyEdit, type WordEdit, type DictEntry } from "./core/edits.ts";
 import { parseIndex, dictShardOf, shardFile, dictPyToNumeric, type DictIndex, type DictArticle } from "./core/dict.ts";
 import type { Dialog } from "./core/exercise.ts";
-import { cardId, normSkills, pickNext, queueCounts, ALL_SKILLS, type Skill, type QPick } from "./core/skills.ts";
+import { cardId, normSkills, pickNext, queueCounts, ALL_SKILLS, DEFAULT_SKILLS, type Skill, type QPick } from "./core/skills.ts";
 import { byDay, dayOf, type DayStat } from "./core/stats.ts";
 import * as store from "./store.ts";
 import { makeBlocks, currentBlock, type Block, type Theme } from "./core/blocks.ts";
@@ -194,7 +194,7 @@ export async function setDeckOpts(id: string, patch: Partial<store.DeckOpts>) {
   if (!o.title?.trim()) delete o.title; else o.title = o.title.trim();
   if (!o.hidden) delete o.hidden;
   if (o.newPerDay === undefined || o.newPerDay === app.settings.newPerDay) delete o.newPerDay;
-  if (!o.skills || normSkills(o.skills).length === ALL_SKILLS.length) delete o.skills; else o.skills = normSkills(o.skills);
+  if (!o.skills || normSkills(o.skills).join() === DEFAULT_SKILLS.join()) delete o.skills; else o.skills = normSkills(o.skills);
   if (o.order !== "seq") delete o.order;
   if (Object.keys(o).length) all[id] = o; else delete all[id];
   await updateSettings({ deckOpts: all });

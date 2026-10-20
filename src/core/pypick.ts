@@ -82,3 +82,76 @@ export function toneFromGesture(pts: [number, number][], tapSize = 12): number {
   if (angle < -22) return 4;
   return 1;
 }
+
+export type TypedSyl = { s: string; t: number | null };
+
+/**
+ * Набор с клавиатуры: буквы (тоны можно не писать) → n слогов для кнопок тонов.
+ * Сначала по пробелам/апострофам (если слогов столько же), затем по эталону (буквы совпали),
+ * затем делим на n настоящих слогов, иначе — примерно поровну. Тон из цифры или знака, если он был написан.
+ */
+export function splitTyped(input: string, ref: { s: string }[]): TypedSyl[] {
+  const n = ref.length;
+  const toks = input.trim().split(/[\s']+/).filter(Boolean).map(parseTok).filter((x) => x.s);
+  if (!toks.length || !n) return [];
+  if (toks.length === n) return toks.map(({ s, t }) => ({ s, t }));
+  const letters = toks.map((x) => x.s).join("");
+  // тоны, написанные внутри слитного ввода: позиция буквы → тон
+  const toneAt = new Map<number, number>();
+  let off = 0;
+  for (const t of toks) { for (const [p, tt] of t.inner) toneAt.set(off + p, tt); off += t.s.length; }
+  let cuts: number[] | null = null;
+  if (letters === ref.map((x) => x.s).join("")) {
+    cuts = []; let p = 0; for (const x of ref) { p += x.s.length; cuts.push(p); }
+  } else cuts = segment(letters, n);
+  if (!cuts) {
+    cuts = [];
+    for (let i = 1; i <= n; i++) cuts.push(Math.round((letters.length * i) / n));
+  }
+  const out: TypedSyl[] = [];
+  let a = 0;
+  for (const b of cuts) {
+    let t: number | null = null;
+    for (let i = a; i < b; i++) if (toneAt.has(i)) t = toneAt.get(i)!;
+    out.push({ s: letters.slice(a, b), t });
+    a = b;
+  }
+  return out.filter((x) => x.s);
+}
+
+type Tok = TypedSyl & { inner: [number, number][] };
+const COMB: Record<string, number> = { "\u0304": 1, "\u0301": 2, "\u030C": 3, "\u0300": 4 };
+function parseTok(tok: string): Tok {
+  let s = "";
+  const inner: [number, number][] = [];
+  for (const ch of tok.toLowerCase().replace(/u:/g, "v").normalize("NFD")) {
+    if (ch === "\u0308") { if (s.endsWith("u")) s = s.slice(0, -1) + "v"; continue; }
+    if (COMB[ch]) { if (s) inner.push([s.length - 1, COMB[ch]]); continue; }
+    if (/[a-z]/.test(ch)) { s += ch; continue; }
+    if (/[1-5]/.test(ch) && s) inner.push([s.length - 1, Number(ch)]);
+  }
+  // тон всего токена — последний написанный; внутренние нужны для слитного ввода «xue2xi2»
+  const last = inner.length ? inner[inner.length - 1][1] : null;
+  return { s, t: last, inner };
+}
+
+const isSyl = (x: string) => SYLLABLES.has(x) || (x.length > 1 && x.endsWith("r") && SYLLABLES.has(x.slice(0, -1)));
+
+/** Деление строки ровно на n настоящих слогов (первое найденное, длинные слоги раньше). */
+function segment(s: string, n: number): number[] | null {
+  const memo = new Map<string, number[] | null>();
+  const go = (i: number, k: number): number[] | null => {
+    if (k === 0) return i === s.length ? [] : null;
+    const key = i + ":" + k;
+    if (memo.has(key)) return memo.get(key)!;
+    let res: number[] | null = null;
+    for (let L = Math.min(7, s.length - i); L >= 1 && !res; L--) {
+      if (!isSyl(s.slice(i, i + L))) continue;
+      const rest = go(i + L, k - 1);
+      if (rest) res = [i + L, ...rest];
+    }
+    memo.set(key, res);
+    return res;
+  };
+  return go(0, n);
+}

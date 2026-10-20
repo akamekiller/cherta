@@ -3,20 +3,24 @@
  *  write — по значению написать иероглифы (и пиньинь), как раньше;
  *  read  — по иероглифам вспомнить чтение (пиньинь) и значение;
  *  tone  — по иероглифам и значению поставить тоны;
- *  def   — по иероглифам и пиньиню вспомнить значение.
+ *  def   — по иероглифам и пиньиню вспомнить значение;
+ *  recall — по значению вспомнить иероглифы и пиньинь без письма, оценка себе (как в Anki).
  * Карточка «написания» хранится под прежним id слова («zh:学»), остальные — «zh:学#tone» и т. д.,
  * поэтому сохранённый прогресс не меняется.
  */
 import type { Card } from "./fsrs.ts";
 
-export type Skill = "write" | "read" | "tone" | "def";
+export type Skill = "write" | "recall" | "read" | "tone" | "def";
 export const SKILLS: { id: Skill; name: string; hint: string }[] = [
-  { id: "write", name: "Написание", hint: "по значению написать иероглифы" },
+  { id: "write", name: "Пропись", hint: "по значению написать иероглифы" },
+  { id: "recall", name: "Вспомнить слово", hint: "по значению вспомнить иероглифы и пиньинь без письма, оценить себя" },
   { id: "read", name: "Чтение", hint: "по иероглифам вспомнить пиньинь" },
   { id: "tone", name: "Тоны", hint: "по иероглифам поставить тоны" },
   { id: "def", name: "Значение", hint: "по иероглифам вспомнить перевод" },
 ];
 export const ALL_SKILLS: Skill[] = SKILLS.map((s) => s.id);
+/** Навыки по умолчанию (как было до «Вспомнить слово»): колоды без своих настроек не меняются. */
+export const DEFAULT_SKILLS: Skill[] = ["write", "read", "tone", "def"];
 export const isSkill = (x: unknown): x is Skill => ALL_SKILLS.includes(x as Skill);
 
 export const cardId = (wordId: string, skill: Skill) => (skill === "write" ? wordId : `${wordId}#${skill}`);
@@ -29,7 +33,7 @@ export function splitCardId(id: string): { wordId: string; skill: Skill } {
 
 /** Навыки колоды: только известные, в порядке SKILLS, хотя бы один. */
 export function normSkills(x: unknown): Skill[] {
-  const list = Array.isArray(x) ? ALL_SKILLS.filter((s) => x.includes(s)) : ALL_SKILLS;
+  const list = Array.isArray(x) ? ALL_SKILLS.filter((s) => x.includes(s)) : DEFAULT_SKILLS;
   return list.length ? list : ["write"];
 }
 
@@ -98,7 +102,7 @@ export function pickNext(words: QWord[], card: (id: string) => Card | undefined,
       }
     }
     // карточки других навыков (не из списка колоды) тоже считают слово начатым
-    if (!started && ["write", "read", "tone", "def"].some((sk) => card(cardId(w.id, sk as Skill)))) started = true;
+    if (!started && ALL_SKILLS.some((sk) => card(cardId(w.id, sk)))) started = true;
     if (!missing.length) return;
     if (started) {
       nNewSkill++;

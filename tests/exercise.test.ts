@@ -254,3 +254,11 @@ test("чтение слова: верный вариант совпадает с
   }
   assert.equal(pinyinKey("bu4/2 ke4 qi5"), "bu4 ke4 qi5");
 });
+
+import { lessonSteps as _ls } from "../src/core/exercise.ts";
+test("lessonSteps: без звука — нет аудирования и диктанта", () => {
+  const l: any = { title: "x", words: [["我", "wo3", "я"], ["你", "ni3", "ты"]], sents: [{ zh: "我好", ru: "я хорош", t: [] }, { zh: "你好", ru: "привет", t: [] }], dialogs: [] };
+  assert.ok(_ls(l).includes("listen"));
+  const q = _ls(l, true);
+  assert.ok(!q.includes("listen") && !q.includes("dict") && q.includes("write"));
+});

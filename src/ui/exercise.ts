@@ -32,9 +32,11 @@ import { setToCourse } from "../core/coursebuild.ts";
 
 const LS = "cherta.ex3";
 /** pyMode — пиньинь над словами в курсах: «auto» (по уровню и шагу) или явно включён/выключен кнопкой в занятии. */
-const ui = { kinds: ["tr", "gap", "listen"] as Kind[], n: 10, pinyin: true, trMode: "type" as "type" | "tiles", freeDeck: "", pyMode: "auto" as "auto" | "on" | "off" };
+const ui = { kinds: ["tr", "gap", "listen"] as Kind[], n: 10, pinyin: true, trMode: "type" as "type" | "tiles", freeDeck: "", pyMode: "auto" as "auto" | "on" | "off", quiet: false };
 try { Object.assign(ui, JSON.parse(localStorage.getItem(LS) ?? "{}")); } catch { /* */ }
 const save = () => { try { localStorage.setItem(LS, JSON.stringify(ui)); } catch { /* */ } };
+/** Переключатель «Без звука»: аудирование и диктант не нужны для прохождения урока (нет наушников, шумно). */
+const quietChip = () => `<button class="chip-btn quiet-chip" data-quiet aria-pressed="${ui.quiet}" title="Пропускать аудирование и диктант">${ui.quiet ? "🔇" : "🔈"} Без звука</button><small class="hint">${ui.quiet ? "Аудирование и диктант пропускаются" : "Нет наушников? Уроки — без аудирования"}</small>`;
 
 /* ---------- словарь для пиньиня и деления на слова ---------- */
 
@@ -133,10 +135,10 @@ async function myCourses(): Promise<Course[]> {
 }
 
 const lessonBest = (c: Course, i: number) => progCourse[c.key]?.[i] ?? {};
-const doneLessons = (c: Course) => c.set.lessons.filter((l, i) => lessonDone(lessonSteps(l), lessonBest(c, i))).length;
+const doneLessons = (c: Course) => c.set.lessons.filter((l, i) => lessonDone(lessonSteps(l, ui.quiet), lessonBest(c, i))).length;
 /** Первый незаконченный урок. */
 const nextLesson = (c: Course) => {
-  const i = c.set.lessons.findIndex((l, k) => !lessonDone(lessonSteps(l), lessonBest(c, k)));
+  const i = c.set.lessons.findIndex((l, k) => !lessonDone(lessonSteps(l, ui.quiet), lessonBest(c, k)));
   return i < 0 ? c.set.lessons.length - 1 : i;
 };
 const startedLessons = (c: Course) => c.set.lessons.map((_, i) => i).filter((i) => Object.keys(lessonBest(c, i)).length);
@@ -308,9 +310,10 @@ function openCourse(key: string) {
     ${c.set.about ? `<p class="hint">${esc(c.set.about)}</p>` : ""}
     <p class="hint">Пройдено ${done} из ${n} ${plural(n, "урока", "уроков", "уроков")}</p>
     <div class="c-actions"><button class="btn primary wide" data-lesson="${next}">${done >= n ? "Повторить последний урок" : done || started ? `Продолжить: урок ${next + 1}` : "Начать с урока 1"}</button>
-    ${started ? `<button class="btn wide" data-review>Повторение пройденного</button>` : ""}</div>`;
+    ${started ? `<button class="btn wide" data-review>Повторение пройденного</button>` : ""}</div>
+    <div class="quiet-row">${quietChip()}</div>`;
   const row = (l: (typeof c.set.lessons)[number], i: number) => {
-    const steps = lessonSteps(l), best = lessonBest(c, i);
+    const steps = lessonSteps(l, ui.quiet), best = lessonBest(c, i);
     const ok = steps.filter((s0) => (best[s0] ?? 0) >= PASS).length;
     const fin = lessonDone(steps, best);
     const cls = fin ? "done" : i === next ? "cur" : "";
@@ -333,7 +336,7 @@ function openCourse(key: string) {
     return;
   }
   $("ex-c-lessons").innerHTML = secs.map((sec, k) => {
-    const fin = sec.idx.filter((i) => lessonDone(lessonSteps(c.set.lessons[i]), lessonBest(c, i))).length;
+    const fin = sec.idx.filter((i) => lessonDone(lessonSteps(c.set.lessons[i], ui.quiet), lessonBest(c, i))).length;
     const key = `${c.key}|${k}|${sec.name}`;
     const open = isOpen(key, sec.idx.includes(next));
     return `<button class="fold-head" data-fold="${esc(key)}" aria-expanded="${open}"><span>${esc(sec.name || "Уроки")}</span><small>${fin === sec.idx.length ? "✓ " : ""}${fin}/${sec.idx.length}</small>${CHEV}</button>`
@@ -403,7 +406,7 @@ function openLesson(i: number) {
     l.sents.length && `${l.sents.length} ${plural(l.sents.length, "предложение", "предложения", "предложений")}`,
     l.grammar?.length && `${l.grammar.length} ${plural(l.grammar.length, "правило", "правила", "правил")}`,
     l.dialogs.length && `${l.dialogs.length} ${plural(l.dialogs.length, "диалог", "диалога", "диалогов")}`].filter(Boolean).join(" · ")}</p>`;
-  const steps = lessonSteps(l), best = lessonBest(c, lessonIdx);
+  const steps = lessonSteps(l, ui.quiet), best = lessonBest(c, lessonIdx);
   const firstOpen = steps.findIndex((s) => (best[s] ?? 0) < PASS);
   $("ex-l-steps").innerHTML = steps.map((s, k) => {
     const info = STEPS.find((x) => x.id === s)!;
@@ -416,6 +419,7 @@ function openLesson(i: number) {
     return `<button class="step-row${k === firstOpen ? " cur" : ""}${theory ? " theory" : ""}" data-step="${s}" ${open ? "" : "disabled"}><span class="sn">${theory ? "📖" : k}</span><span class="lt"><b>${stepName(s, l)}</b><small>${hint}${theory ? " · по желанию" : ""}</small></span>${state}</button>`;
   }).join("") + (lessonDone(steps, best) && lessonIdx + 1 < c.set.lessons.length ? `<button class="btn primary wide" data-lesson="${lessonIdx + 1}">Следующий урок →</button>` : "")
     + (!steps.length ? `<p class="hint">В этом уроке нет заданий.</p>` : "")
+    + `<div class="quiet-row">${quietChip()}</div>`
     + `<p class="hint">Шаг засчитывается от ${Math.round(PASS * 100)}% верных ответов — тогда открывается следующий. Теорию можно открыть в любой момент.</p>`;
   // урок ещё не начат и есть теория — спросить, нужна ли она
   if (l.grammar?.length && !Object.keys(best).length) {
@@ -571,7 +575,7 @@ async function startReview() {
   prog = (await store.getMeta<ExProgress>("ex")) ?? {};
   const lessons = idx.map((i) => c.set.lessons[i]);
   pyOn = ui.pyMode === "auto" ? (c.set.level ?? 2) <= 1 : ui.pyMode === "on";
-  await begin(reviewTasks(lessons, prog, 12, rnd = Math.random), { mode: "review", focus: new Set(lessons.flatMap((l) => l.words.map((w) => w[0]))), words: lessons.flatMap((l) => l.words),
+  await begin(reviewTasks(lessons, prog, 12, rnd = Math.random, ui.quiet), { mode: "review", focus: new Set(lessons.flatMap((l) => l.words.map((w) => w[0]))), words: lessons.flatMap((l) => l.words),
     courseWords: c.set.lessons.flatMap((x) => x.words), distract: 2, title: "Повторение" });
 }
 
@@ -808,7 +812,7 @@ async function finish() {
   if (run.mode === "step" && course && run.step) {
     await saveBest(run.step, score);
     const l = course.set.lessons[lessonIdx];
-    const steps = lessonSteps(l);
+    const steps = lessonSteps(l, ui.quiet);
     const k = steps.indexOf(run.step);
     const passed = score >= PASS;
     const next = passed ? steps[k + 1] : undefined;
@@ -849,6 +853,13 @@ export function initExercise() {
   onShow("ex", () => { renderHome(); });
   onLeave("ex", () => { try { speechSynthesis.cancel(); } catch { /* */ } });
   $("ex-add").addEventListener("click", openCatalog);
+  $("ex").addEventListener("click", (e) => {
+    if (!(e.target as HTMLElement).closest("[data-quiet]")) return;
+    ui.quiet = !ui.quiet;
+    save();
+    if (!$("ex-lesson").hidden && course) openLesson(lessonIdx);
+    else if (course) openCourse(course.key);
+  });
   $("ex-free").addEventListener("click", renderSetup);
   $("ex-s-back").addEventListener("click", renderHome);
   $("ex-c-back").addEventListener("click", renderHome);
@@ -900,7 +911,7 @@ export function initExercise() {
     if (t.closest("[data-th-py]")) { pyOn = !pyOn; ui.pyMode = pyOn ? "on" : "off"; save(); const y = window.scrollY; showWords(); window.scrollTo(0, y); return; }
     const wo = t.closest<HTMLButtonElement>("[data-wopen]");
     if (wo) { const w = await wordByHan(wo.dataset.wopen!); openEntry(w.id, true); return; }
-    if (t.closest("[data-words-ok]")) { await saveBest("words", 1); await addToCourseDeck(c, [lessonIdx]); $("ex-l-steps").hidden = false; const steps = lessonSteps(l); const nx = steps[steps.indexOf("words") + 1]; if (nx) startStep(nx); else openLesson(lessonIdx); return; }
+    if (t.closest("[data-words-ok]")) { await saveBest("words", 1); await addToCourseDeck(c, [lessonIdx]); $("ex-l-steps").hidden = false; const steps = lessonSteps(l, ui.quiet); const nx = steps[steps.indexOf("words") + 1]; if (nx) startStep(nx); else openLesson(lessonIdx); return; }
     if (t.closest("[data-words-deck]")) {
       const { id } = await addToCourseDeck(c, [lessonIdx]);
       await switchDeck(id);

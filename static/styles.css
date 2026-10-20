@@ -887,3 +887,5 @@ html{scrollbar-gutter:stable}
 .deck-how{display:flex;flex-direction:column;gap:6px;margin:4px 0 2px}
 .deck-how .chips-row{justify-content:center}
 .deck-how .hint{text-align:center}
+.quiet-row{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:4px;text-align:center}
+.quiet-chip{max-width:100%}

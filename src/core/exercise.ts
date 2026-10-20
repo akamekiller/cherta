@@ -299,8 +299,11 @@ export function stepName(id: StepId, l: Lesson): string {
 /** Шаг засчитан, если верно не меньше этой доли заданий. */
 export const PASS = 0.7;
 
-/** Шаги, которые есть в уроке (без слов нет узнавания, без предложений — сборки и т. д.). */
-export function lessonSteps(l: Lesson): StepId[] {
+/** Шаги со звуком: без возможности слушать их можно пропускать (режим «Без звука»). */
+export const AUDIO_STEPS: StepId[] = ["listen", "dict"];
+
+/** Шаги, которые есть в уроке (без слов нет узнавания, без предложений — сборки и т. д.); quiet — без аудирования и диктанта. */
+export function lessonSteps(l: Lesson, quiet = false): StepId[] {
   const withRu = l.sents.filter((s) => s.ru).length;
   const gx = (l.grammar ?? []).reduce((a, g) => a + g.x.length, 0);
   const out: StepId[] = [];
@@ -309,8 +312,8 @@ export function lessonSteps(l: Lesson): StepId[] {
   if (l.words.length >= 2) out.push("recog");
   if (l.sents.length >= 2 || gx >= 2) out.push("gap");
   if (withRu >= 2) out.push("build");
-  if (l.sents.length >= 2) out.push("listen");
-  if (l.sents.length >= 2) out.push("dict");
+  if (l.sents.length >= 2 && !quiet) out.push("listen");
+  if (l.sents.length >= 2 && !quiet) out.push("dict");
   if (withRu >= 2) out.push("write");
   return out;
 }
@@ -408,10 +411,10 @@ export function gramTasks(l: Lesson, rnd: () => number, n: number): Task[] {
 }
 
 /** Повторение пройденного: из нескольких уроков — слабые и давние предложения разными видами, плюс слова. */
-export function reviewTasks(lessons: Lesson[], prog: ExProgress, n: number, rnd: () => number): Task[] {
+export function reviewTasks(lessons: Lesson[], prog: ExProgress, n: number, rnd: () => number, quiet = false): Task[] {
   const sents = lessons.flatMap((l) => l.sents);
   const words = lessons.flatMap((l) => l.words);
-  const kinds: ("gap" | "build" | "listen" | "write")[] = ["gap", "build", "listen", "write"];
+  const kinds: ("gap" | "build" | "listen" | "write")[] = quiet ? ["gap", "build", "write"] : ["gap", "build", "listen", "write"];
   const out: Task[] = [];
   const sh = shuffled(sents, rnd);
   const picked = pickLesson(sh.map((s) => ({ zh: s.zh, ru: s.ru, t: s.t })), prog, Math.max(0, n - 3)).map((i) => sh[i]);

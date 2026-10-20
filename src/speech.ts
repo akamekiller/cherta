@@ -6,10 +6,12 @@
  * 2) Если записи нет (своё слово, не из колод) — синтезатор речи устройства (Web Speech API).
  */
 let voice: SpeechSynthesisVoice | null = null;
-let jaVoice: SpeechSynthesisVoice | null = null; // японский голос устройства (записей японских слов пока нет)
+let jaVoice: SpeechSynthesisVoice | null = null; // японский голос устройства — для слов без записи
 let listeners: (() => void)[] = [];
 let recorded: Map<string, string> | null = null; // слово → пиньинь, по которому сделана запись (метка версии)
 let recordedLoading: Promise<void> | null = null;
+let recordedJa: Map<string, string> | null = null; // японские записи (jf_alpha): слово → чтение
+let recordedJaLoading: Promise<void> | null = null;
 const player = typeof Audio !== "undefined" ? new Audio() : null;
 
 const supported = () => typeof window !== "undefined" && "speechSynthesis" in window;
@@ -38,6 +40,26 @@ export function loadRecorded(): Promise<void> {
 }
 
 export const hasRecording = (text: string) => !!recorded?.has(text);
+
+/** Японские записи (tts/generate_ja.py): список грузится один раз, при первом японском слове. */
+export function loadRecordedJa(): Promise<void> {
+  if (!recordedJaLoading) {
+    recordedJaLoading = fetch("audio/ja/index.json")
+      .then((r) => (r.ok ? r.json() : { words: [] }))
+      .then((d: { words: string[]; py?: Record<string, string> }) => { recordedJa = new Map(d.words.map((w) => [w, d.py?.[w] ?? ""])); })
+      .catch(() => { recordedJa = new Map(); });
+  }
+  return recordedJaLoading;
+}
+export const hasRecordingJa = (text: string) => !!recordedJa?.has(text);
+export function audioUrlJa(text: string): string {
+  const v = recordedJa?.get(text);
+  return `audio/ja/${encodeURIComponent(text)}.mp3${v ? `?v=${encodeURIComponent(v)}` : ""}`;
+}
+export async function allAudioUrlsJa(): Promise<string[]> {
+  await loadRecordedJa();
+  return [...(recordedJa?.keys() ?? [])].map(audioUrlJa);
+}
 
 /** Адрес записи слова. ?v= меняется, когда слово переозвучено — иначе офлайн-кэш играл бы старую запись. */
 export function audioUrl(text: string): string {
@@ -89,7 +111,18 @@ function speakDevice(text: string, rate: number, lang: "zh" | "ja" = "zh") {
 
 /** Озвучить слово. Японское — голосом устройства (у китайских записей его нет, а иероглифы прочитались бы по-китайски). */
 export function say(text: string, rate = 0.85, lang: "zh" | "ja" = "zh") {
-  if (lang === "ja") { speakDevice(text, rate, "ja"); return; }
+  if (lang === "ja") {
+    const play = () => {
+      if (player && hasRecordingJa(text)) {
+        try { speechSynthesis?.cancel(); } catch { /* */ }
+        player.src = audioUrlJa(text);
+        player.playbackRate = rateMul;
+        player.play().catch(() => speakDevice(text, rate, "ja"));
+      } else speakDevice(text, rate, "ja");
+    };
+    if (recordedJa) play(); else loadRecordedJa().then(play);
+    return;
+  }
   if (player && hasRecording(text)) {
     try { speechSynthesis?.cancel(); } catch { /* */ }
     player.src = audioUrl(text);

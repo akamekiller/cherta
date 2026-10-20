@@ -10,7 +10,7 @@ import { runQueue, countCached, fmtSize, type QueueProgress } from "../core/offl
 import { strokeFile, SHARDS } from "../strokes.ts";
 import { hwUrl } from "./hwpad.ts";
 import { dictFiles, jdictFiles, appLang } from "../state.ts";
-import { allAudioUrls } from "../speech.ts";
+import { allAudioUrls, allAudioUrlsJa } from "../speech.ts";
 import { onLoad } from "../loading.ts";
 import { $, esc } from "./dom.ts";
 
@@ -29,6 +29,7 @@ const PACKS: Pack[] = [
   { id: "strokes-ja", lang: "ja", title: "Японские черты", hint: "Кана и кандзи: письмо и тетрадь прописей (KanjiVG)", approx: "9 МБ",
     urls: async () => Array.from({ length: SHARDS }, (_, n) => strokeFile(n, "ja")) },
   { id: "fonts-ja", lang: "ja", title: "Японский шрифт", hint: "Японские начертания кандзи и каны", approx: "3 МБ", urls: () => fontUrls("ja") },
+  { id: "audio-ja", lang: "ja", title: "Японская озвучка", hint: "Записи голоса для слов японских колод", approx: "8 МБ", urls: allAudioUrlsJa },
   { id: "dict-ja", lang: "ja", title: "Словарь WARODAI", hint: "Японско-русский словарь: поиск и статьи", approx: "10 МБ", urls: jdictFiles },
   { id: "dict", lang: "zh", title: "Словарь 大БКРС", hint: "Поиск и статьи", approx: "12 МБ", urls: async () => (await dictFiles()).dict },
   { id: "examples", lang: "zh", title: "Примеры к словам", hint: "Вкладка «Примеры» и своя практика", approx: "11 МБ", urls: async () => (await dictFiles()).examples },
@@ -71,6 +72,8 @@ async function render() {
       state = `<div class="off-bar"><i style="width:${pct}%"></i></div><div class="off-st">${g ? `${g.done} из ${g.total} · ${fmtSize(g.bytes)}` : "Готовлю список…"}</div>`;
       btn = `<button class="btn small" data-off-stop>Стоп</button>`;
       allDone = false;
+    } else if (urls && !urls.length) {
+      state = `<div class="off-st">Пока нет файлов — появятся после обновления приложения</div>`;
     } else if (!urls) {
       state = `<div class="off-st">Нет связи с сервером — список файлов не получить</div>`;
       allDone = false;
@@ -146,7 +149,7 @@ export function initOffline() {
     await refreshCached();
     for (const p of PACKS.filter((x) => x.lang === appLang())) {
       const urls = await packUrls(p);
-      if (urls && countCached(urls, has) < new Set(urls).size) left.push(p.id);
+      if (urls && urls.length && countCached(urls, has) < new Set(urls).size) left.push(p.id);
     }
     download(left);
   });

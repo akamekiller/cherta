@@ -375,10 +375,11 @@
   </section>
 
   <section id="tones" class="stack tones" hidden>
-    <div class="seg wide-seg" role="group" aria-label="Ступень" id="tn-stage"><button data-stage="syl">Слоги</button><button data-stage="pair">Пары тонов</button><button data-stage="mine">Мои слова</button></div>
+    <button class="src-pick" id="tn-src" aria-label="Откуда слова для тонов"></button>
+    <button class="bk-set" id="tn-block" hidden></button>
+    <div class="seg wide-seg" role="group" aria-label="Ступень" id="tn-stage"><button data-stage="syl">Слоги</button><button data-stage="pair">Пары</button><button data-stage="words">Слова</button><button data-stage="sandhi">Сандхи</button></div>
     <p class="hint" id="tn-stage-hint"></p>
     <div id="tn-grid" class="tn-grid" hidden></div>
-    <button class="src-pick" id="tn-src" aria-label="Колода для тренировки тонов" hidden></button>
     <div class="seg wide-seg" role="group" aria-label="Режим" id="tn-tabs"><button data-tab="listen">На слух</button><button data-tab="speak">Произношение</button></div>
     <div id="tn-listen" class="panel stack">
       <div class="ex-top"><span class="label">Послушайте и поставьте тоны</span><span class="label" id="tn-score"></span></div>

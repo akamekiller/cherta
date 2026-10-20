@@ -979,3 +979,7 @@ html[data-lang="ja"] .sheet [data-mode]:is([data-mode="text"],[data-mode="course
 
 /* образец черты в настройках пера */
 .pen-preview{display:block;width:100%;max-width:360px;height:auto;margin:4px 0 8px}
+
+/* тоны: объяснение сандхи в ответе */
+.tn-sandhi{margin-top:8px;font-size:14px;line-height:1.5;color:var(--muted)}
+.tn-sandhi b{color:var(--ink)}

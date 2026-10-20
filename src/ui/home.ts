@@ -401,6 +401,8 @@ export function initHome() {
   });
   $("deck-create").addEventListener("click", () => openDeckEditor(undefined, () => renderHome()));
   $("deck-import").addEventListener("click", () => openImport({ mode: "cards", onDeck: (id) => void openDeck(id) }));
+  // колоды добавлены импортом — список на главной обновляется сразу (без перезагрузки)
+  document.addEventListener("cherta:decks", () => { if (!$("home").hidden) void renderHome(); });
   $("deck-catalog").addEventListener("click", () => openCatalog());
   $("deck-catalog-empty").addEventListener("click", () => openCatalog());
 }

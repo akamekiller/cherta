@@ -384,6 +384,7 @@ export async function saveUserDeck(d: store.UserDeck) {
   app.userDecks = await store.allUserDecks();
   rebuildDeckList();
   if (app.deck?.id === d.id) await loadDeckById(d.id);
+  else if (!app.deck) await loadFirstDeck(); // первая колода (например, после импорта в пустой список) — сразу текущая
 }
 
 export async function removeUserDeck(id: string) {

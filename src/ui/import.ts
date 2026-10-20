@@ -265,6 +265,7 @@ export function openImport(o: ImportOpts = {}) {
       }
     }
     function done(msg: string, deckId?: string) {
+      document.dispatchEvent(new CustomEvent("cherta:decks")); // список колод на главной — перерисовать
       openSheet("Импорт", `<div class="stack"><p>${esc(msg)}</p>
         ${deckId && o.onDeck ? `<button class="btn primary wide" id="im-open">Открыть колоду</button>` : ""}
         <button class="btn wide" id="im-more">Импортировать ещё</button><button class="btn ghost wide" id="im-close">Готово</button></div>`, (r2) => {

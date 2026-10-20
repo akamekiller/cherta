@@ -20,12 +20,13 @@ export function openAiPrompt(kind: AiKind, onPaste: () => void) {
         <li>Напишите, что нужно (можно пропустить).</li>
         <li>Нажмите «Скопировать инструкцию».</li>
         <li>Откройте чат с ИИ, вставьте инструкцию и приложите материал: фото страниц учебника, список слов или текст.</li>
-        <li>Скопируйте ответ ИИ целиком и нажмите «Вставить ответ» — откроется импорт с проверкой.</li>
+        <li>Скопируйте ответ ИИ и нажмите кнопку внизу — ответ попадёт в импорт, приложение его проверит и покажет, что получилось.</li>
       </ol>
       <label class="field"><span class="label">Что нужно</span><textarea id="ai-wish" rows="3" placeholder="${esc(w.ph)}"></textarea></label>
       <button class="btn primary wide" id="ai-copy">Скопировать инструкцию</button>
       <p class="hint center" id="ai-msg" aria-live="polite"></p>
-      <button class="btn wide" id="ai-paste">Вставить ответ ИИ</button>
+      <p class="hint ai-after">Когда ИИ ответит — скопируйте его ответ целиком и вернитесь сюда:</p>
+      <button class="btn wide" id="ai-paste">Ответ ИИ скопирован — добавить в «Черту»</button>
       <details class="paste"><summary>Показать инструкцию</summary><textarea id="ai-text" rows="12" readonly></textarea></details>
     </div>`, (root) => {
     const wish = root.querySelector<HTMLTextAreaElement>("#ai-wish")!;

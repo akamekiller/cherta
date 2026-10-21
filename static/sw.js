@@ -35,6 +35,8 @@ self.addEventListener("fetch", (e) => {
   }
   if (req.method !== "GET") return;
   const url = new URL(req.url);
+  // пакеты озвучки (Настройки → Офлайн) режет само приложение — сами пакеты хранить незачем
+  if (url.pathname.includes("/audio/") && url.pathname.includes("/packs/")) return;
   const isDict = /\/(cherta-)?dict\//.test(url.pathname) && url.searchParams.has("v");
   const versioned = isDict || (url.pathname.endsWith("/data/hw.txt") && url.searchParams.has("v"));
   // шрифты — свои файлы с хэшем в имени (data/fonts, scripts/build_fonts.py), содержимое по адресу не меняется

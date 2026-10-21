@@ -6,14 +6,14 @@
  * Файлы запрашиваются обычным fetch по тем же адресам, что и в работе приложения, — их сохраняет service worker,
  * поэтому скачанное потом находится и при обычной работе.
  */
-import { runQueue, countCached, fmtSize, type QueueProgress } from "../core/offline.ts";
+import { runQueue, countCached, fmtSize, packsToFetch, splitPack, type QueueProgress, type AudioPack } from "../core/offline.ts";
 import { strokeFile, SHARDS } from "../strokes.ts";
 import { hwUrl } from "./hwpad.ts";
 import { dictFiles, jdictFiles, appLang } from "../state.ts";
-import { allAudioUrls, allAudioUrlsJa } from "../speech.ts";
+import { allAudioUrls, allAudioUrlsJa, audioUrl, audioUrlJa } from "../speech.ts";
 import { onLoad } from "../loading.ts";
 import { $, esc } from "./dom.ts";
-import { NATIVE } from "../native.ts";
+import { NATIVE, asset } from "../native.ts";
 
 const DATA_CACHE = "cherta-data-v1"; // то же имя, что DATA в static/sw.js
 
@@ -55,13 +55,50 @@ async function packUrls(p: Pack): Promise<string[] | null> {
   return urlCache.get(p.id)!;
 }
 
+/**
+ * Озвучка пакетами (scripts/build-audio-packs.mjs): пакет режется на записи, каждая кладётся в кэш под своим
+ * обычным адресом — дальше её находят service worker и приложение, как будто её слушали раньше.
+ * null — пакетов нет (локальный сервер или старая публикация), тогда качаем по одному файлу.
+ */
+async function downloadPacks(lang: "zh" | "ja", signal: AbortSignal, onProgress: (g: QueueProgress) => void) {
+  let packs: AudioPack[];
+  try {
+    const r = await fetch(asset(`audio/${lang}/packs.json`), { cache: "no-store" });
+    if (!r.ok) return null;
+    packs = (await r.json()).packs;
+    if (!Array.isArray(packs) || !packs.length) return null;
+  } catch { return null; }
+  const url = lang === "zh" ? audioUrl : audioUrlJa;
+  const todo = packsToFetch(packs, (w) => has(url(w)));
+  const byFile = new Map(todo.map((p) => [p.f, p]));
+  const c = await caches.open(DATA_CACHE);
+  return runQueue(todo.map((p) => p.f), {
+    has: () => false, signal, concurrency: 3, onProgress,
+    get: async (f, sig) => {
+      const p = byFile.get(f)!;
+      const r = await fetch(asset(`audio/${lang}/packs/${f}?v=${p.h}`), { signal: sig, cache: "no-store" });
+      if (!r.ok) throw new Error(String(r.status));
+      const buf = await r.arrayBuffer();
+      // записи пакета сохраняются все сразу: по одной кэш пишет заметно дольше
+      await Promise.all(splitPack(buf, p.w).map(async ([w, part]) => {
+        const u = abs(url(w));
+        if (cached.has(u)) return;
+        await c.put(u, new Response(part, { headers: { "Content-Type": "audio/mpeg", "Content-Length": String(part.byteLength) } }));
+        cached.add(u);
+      }));
+      return buf.byteLength;
+    },
+  });
+}
+
 let running: { id: string; ctl: AbortController; prog?: QueueProgress } | null = null;
 
 const canWork = () => "caches" in window && (NATIVE || ("serviceWorker" in navigator && !!navigator.serviceWorker.controller));
 
 async function render() {
   const box = $("off-list");
-  await refreshCached();
+  // во время загрузки список ключей кэша не перечитываем: на тысячах записей это медленно и тормозит саму загрузку
+  if (!running) await refreshCached();
   const rows: string[] = [];
   let allDone = true;
   for (const p of PACKS.filter((x) => x.lang === appLang() && !(NATIVE && x.bundled))) {
@@ -118,18 +155,21 @@ async function download(ids: string[]) {
     if (!urls) { failed++; continue; }
     await refreshCached();
     let last = 0;
-    const res = await runQueue(urls, {
+    const onProgress = (g: QueueProgress) => {
+      if (running) running.prog = g;
+      const now = Date.now();
+      if (now - last > 250 || g.done === g.total) { last = now; render(); }
+    };
+    // озвучка — пакетами по ~2 МБ (тысячи файлов по одному качаются очень долго); нет пакетов — по одному файлу
+    const packed = id === "audio" || id === "audio-ja" ? await downloadPacks(id === "audio" ? "zh" : "ja", ctl.signal, onProgress) : null;
+    const res = packed ?? await runQueue(urls, {
       has, signal: ctl.signal, concurrency: id === "audio" ? 8 : 4,
       get: async (u, signal) => {
         const r = await fetch(u, { signal });
         if (!r.ok) throw new Error(String(r.status));
         return (await r.arrayBuffer()).byteLength;
       },
-      onProgress: (g) => {
-        if (running) running.prog = g;
-        const now = Date.now();
-        if (now - last > 250 || g.done === g.total) { last = now; render(); }
-      },
+      onProgress,
     });
     failed += res.failed;
     if (res.aborted) { running = null; $("off-msg").textContent = "Остановлено. Скачанное сохранено — можно докачать позже."; render(); return; }

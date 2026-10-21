@@ -4,3 +4,5 @@ node_modules/
 raw/
 __pycache__/
 dict/
+site/audio/*/packs/
+site/audio/*/packs.json

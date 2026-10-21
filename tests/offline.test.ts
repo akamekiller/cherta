@@ -49,3 +49,23 @@ test("countCached и fmtSize", () => {
   assert.equal(fmtSize(3.4 * 1024 * 1024), "3,4 МБ");
   assert.equal(fmtSize(120 * 1024 * 1024), "120 МБ");
 });
+
+import { packsToFetch, splitPack } from "../src/core/offline.ts";
+
+test("пакеты озвучки: качаются только пакеты с недостающими записями", () => {
+  const packs = [
+    { f: "00.bin", h: "a", w: [["甲", 2], ["乙", 3]] as [string, number][] },
+    { f: "01.bin", h: "b", w: [["丙", 1]] as [string, number][] },
+  ];
+  const have = new Set(["甲", "乙"]);
+  assert.deepEqual(packsToFetch(packs, (w) => have.has(w)).map((p) => p.f), ["01.bin"]);
+  have.add("丙");
+  assert.equal(packsToFetch(packs, (w) => have.has(w)).length, 0);
+});
+
+test("пакеты озвучки: разрезание по длинам и проверка размера", () => {
+  const buf = new Uint8Array([1, 2, 3, 4, 5]).buffer;
+  const parts = splitPack(buf, [["甲", 2], ["乙", 3]]);
+  assert.deepEqual(parts.map(([w, b]) => [w, [...new Uint8Array(b)]]), [["甲", [1, 2]], ["乙", [3, 4, 5]]]);
+  assert.throws(() => splitPack(buf, [["甲", 2]]));
+});

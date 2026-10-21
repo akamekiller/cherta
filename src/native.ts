@@ -32,7 +32,8 @@ export function initNative() {
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const req = new Request(input, init);
     const url = new URL(req.url);
-    if (req.method !== "GET" || !HOSTS.has(url.hostname)) return orig(input, init);
+    // пакеты озвучки режет src/ui/offline.ts — сами пакеты в кэш не кладём
+    if (req.method !== "GET" || !HOSTS.has(url.hostname) || /\/audio\/.*\/packs\//.test(url.pathname)) return orig(input, init);
     const c = await caches.open(DATA);
     if (isData(url)) {
       const hit = await c.match(req);

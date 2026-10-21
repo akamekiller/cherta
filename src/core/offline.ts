@@ -51,3 +51,20 @@ export function fmtSize(bytes: number): string {
   const mb = bytes / 1024 / 1024;
   return `${mb < 10 ? mb.toFixed(1).replace(".", ",") : Math.round(mb)} МБ`;
 }
+
+/* ---------- пакеты озвучки (scripts/build-audio-packs.mjs) ---------- */
+
+/** packs.json: пакет — файл f (метка версии h) и записи в нём по порядку: [слово, длина в байтах]. */
+export type AudioPack = { f: string; h: string; w: [string, number][] };
+
+/** Пакеты, в которых есть хоть одна ещё не скачанная запись. */
+export const packsToFetch = (packs: AudioPack[], hasWord: (w: string) => boolean) =>
+  packs.filter((p) => p.w.some(([w]) => !hasWord(w)));
+
+/** Разрезать пакет на записи. Если длина не сходится (пакет от другой версии) — ошибка, а не битые записи. */
+export function splitPack(buf: ArrayBuffer, w: [string, number][]): [string, ArrayBuffer][] {
+  const total = w.reduce((s, [, n]) => s + n, 0);
+  if (total !== buf.byteLength) throw new Error(`пакет: ${buf.byteLength} байт, ожидалось ${total}`);
+  let at = 0;
+  return w.map(([word, n]) => { const part = buf.slice(at, at + n); at += n; return [word, part]; });
+}

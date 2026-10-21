@@ -24,6 +24,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      # озвучка пакетами для «Скачать для офлайна» (в репозитории не хранятся)
+      - run: node scripts/build-audio-packs.mjs site
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

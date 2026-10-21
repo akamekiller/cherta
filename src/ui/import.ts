@@ -6,7 +6,7 @@
 import { app, hskEntries, dictIndex, saveUserDeck, appLang } from "../state.ts";
 import { parseImportAll, parseJaImportAll, type ImportRow, type ImportResult } from "../core/importer.ts";
 import { looksLikeText, wordsFromText, guessLevel, titleOf, stripFences } from "../core/textwords.ts";
-import { parseExSet, type ExSet } from "../core/exercise.ts";
+import { parseExSet, plainJa, type ExSet } from "../core/exercise.ts";
 import { checkCourseText, setToCourse } from "../core/coursebuild.ts";
 import { openAiPrompt } from "./aisheet.ts";
 import { openBuilder } from "./coursebuilder.ts";
@@ -94,7 +94,7 @@ export function openImport(o: ImportOpts = {}) {
       root.querySelectorAll<HTMLElement>("[data-mode]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === m)));
       src.placeholder = m === "cards"
         ? "Вставьте слова: 学习 老师 朋友 — или таблицу из Anki, Pleco, Skritter, Excel — или любой китайский текст: из него возьмутся слова."
-        : m === "text" ? "Вставьте китайский текст — статью, диалог, урок учебника. Предложения разделятся сами, перевод можно добавить через «|»."
+        : m === "text" ? (appLang() === "ja" ? "Вставьте японский текст — рассказ, диалог, урок учебника. Предложения разделятся сами, перевод можно добавить через «|», фуригану — словами через пробел: 私[わたし] は 学生[がくせい] です 。" : "Вставьте китайский текст — статью, диалог, урок учебника. Предложения разделятся сами, перевод можно добавить через «|».")
         : "Вставьте текст курса (например, ответ ИИ) или выберите файл. Проще всего — «Попросить ИИ» или конструктор курса.";
       void update();
     };
@@ -216,26 +216,27 @@ export function openImport(o: ImportOpts = {}) {
       <p class="hint">Или нажмите «Попросить ИИ»: он сделает курс по фото учебника, а вы вставите ответ сюда.</p></div>`;
 
     function previewText(text: string) {
-      texts = parseTexts(text, `o-${Date.now().toString(36)}`);
-      if (!texts.length) { prev.innerHTML = `<p class="note">Китайского текста не нашлось.</p>${help()}`; return; }
+      const ja = appLang() === "ja";
+      texts = parseTexts(text, `o-${Date.now().toString(36)}`, ja ? "ja" : undefined);
+      if (!texts.length) { prev.innerHTML = `<p class="note">${ja ? "Японского" : "Китайского"} текста не нашлось.</p>${help()}`; return; }
       const one = texts.length === 1 ? texts[0] : null;
       if (one) {
         if (one.title === "Мой текст") one.title = name.replace(/\.[^.]+$/, "") || titleOf(text);
         const draw = (lex: Lex | null) => {
-          const ws = wordsFromText(one.lines.map((l) => l[0]).join("\n"), (w) => !!lex?.has(w));
-          if (!one.level && lex) one.level = guessLevel(ws, lex.level);
-          prev.innerHTML = `<p class="hint">Предложений: <b>${one.lines.length}</b> · слов: <b>${ws.length}</b>${one.lines.some((l) => l[1]) ? " · с переводом" : ""}${one.q.length ? ` · вопросов: ${one.q.length}` : ""}</p>
+          const ws = ja ? [] : wordsFromText(one.lines.map((l) => l[0]).join("\n"), (w) => !!lex?.has(w));
+          if (!ja && !one.level && lex) one.level = guessLevel(ws, lex.level);
+          prev.innerHTML = `<p class="hint">Предложений: <b>${one.lines.length}</b>${ja ? "" : ` · слов: <b>${ws.length}</b>`}${one.lines.some((l) => l[1]) ? " · с переводом" : ""}${one.q.length ? ` · вопросов: ${one.q.length}` : ""}</p>
             <label class="field"><span class="label">Название</span><input id="im-ttitle" value="${esc(one.title)}" autocomplete="off"></label>
-            <label class="field"><span class="label">Уровень${lex ? " (подобран по словам HSK, можно поменять)" : ""}</span>
-              <select id="im-lv">${[0, 1, 2, 3, 4, 5, 6].map((l) => `<option value="${l}" ${l === one.level ? "selected" : ""}>${l ? `HSK ${l}` : "Без уровня"}</option>`).join("")}</select></label>
-            <div class="panel im-tprev">${one.lines.slice(0, 4).map(([zh, ru]) => `<p><span class="han">${esc(zh)}</span>${ru ? `<small>${esc(ru)}</small>` : ""}</p>`).join("")}${one.lines.length > 4 ? `<p class="hint">…и ещё ${one.lines.length - 4}</p>` : ""}</div>
+            <label class="field"><span class="label">Уровень${lex && !ja ? " (подобран по словам HSK, можно поменять)" : ""}</span>
+              <select id="im-lv">${(ja ? [0, 5, 4, 3, 2, 1] : [0, 1, 2, 3, 4, 5, 6]).map((l) => `<option value="${l}" ${l === one.level ? "selected" : ""}>${l ? (ja ? `JLPT N${l}` : `HSK ${l}`) : "Без уровня"}</option>`).join("")}</select></label>
+            <div class="panel im-tprev">${one.lines.slice(0, 4).map(([zh, ru]) => `<p><span class="han" ${ja ? 'lang="ja"' : ""}>${esc(ja ? plainJa(zh) : zh)}</span>${ru ? `<small>${esc(ru)}</small>` : ""}</p>`).join("")}${one.lines.length > 4 ? `<p class="hint">…и ещё ${one.lines.length - 4}</p>` : ""}</div>
             <button class="btn primary wide" id="im-tgo">Добавить в «Чтение»</button>`;
         };
         draw(null);
-        lexicon().then((lex) => { if (mode === "text" && texts[0] === one && !root.querySelector("#im-ttitle:focus")) draw(lex); }).catch(() => {});
+        if (!ja) lexicon().then((lex) => { if (mode === "text" && texts[0] === one && !root.querySelector("#im-ttitle:focus")) draw(lex); }).catch(() => {});
       } else {
         prev.innerHTML = `<p class="hint">Текстов в файле: <b>${texts.length}</b></p>
-          <div class="deck-list">${texts.map((t) => `<div class="deck-opt"><span>${esc(t.title)}<small>${t.level ? `HSK ${t.level} · ` : ""}${t.lines.length} ${plural(t.lines.length, "предложение", "предложения", "предложений")}</small></span></div>`).join("")}</div>
+          <div class="deck-list">${texts.map((t) => `<div class="deck-opt"><span>${esc(t.title)}<small>${t.level ? `${ja ? "JLPT N" : "HSK "}${t.level} · ` : ""}${t.lines.length} ${plural(t.lines.length, "предложение", "предложения", "предложений")}</small></span></div>`).join("")}</div>
           <button class="btn primary wide" id="im-tgo">Добавить ${texts.length} ${plural(texts.length, "текст", "текста", "текстов")} в «Чтение»</button>`;
       }
     }
@@ -373,6 +374,7 @@ function help() {
     <div class="stack hint">
       <p><b>Строки</b> «слово | чтение каной | значение» (или через Tab): <span class="han" lang="ja">監督 | かんとく | режиссёр</span>. Несколько чтений — через «/» или «、». У слова из одной каны чтение можно не писать.</p>
       <p><b>Несколько колод в одном файле:</b> строки <code>## Название</code> перед каждой колодой, <code>#group:Имя</code> — группа в списке.</p>
+      <p><b>Текст для чтения:</b> обычный японский текст разделится на предложения и слова сам (фуригана — из словаря). Точнее — словами через пробел с чтением: <span class="han" lang="ja">私[わたし] は 学生[がくせい] です 。</span> Перевод строки — через «|», вопросы — «? вопрос | ответ* | ответ», несколько текстов — строками «=== 5 | Название» (5 — N5).</p>
     </div></details>`;
   return `<details class="paste"><summary>Что можно вставить</summary>
     <div class="stack hint">

@@ -695,6 +695,7 @@ input[type=range]{width:100%;accent-color:var(--jade)}
 #rd-q .chip-btn.right{border-color:var(--good);color:var(--good)}
 #rd-q .chip-btn.wrong{border-color:var(--bad);color:var(--bad)}
 .rd-zh .u{display:inline-flex;align-items:flex-end;white-space:nowrap}
+.rd-zh[lang="ja"]{gap:2px 1px}.rd-zh[lang="ja"] .w{padding:0 1px}
 #rd-gloss{position:sticky;bottom:12px;z-index:5;box-shadow:0 6px 24px rgba(0,0,0,.18);background:var(--sheet)}
 .sync-in{flex-wrap:nowrap}.sync-in input{flex:1;min-width:0;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);font:inherit}
 #rm-time{padding:6px 8px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);font:inherit}
@@ -967,10 +968,10 @@ html{scrollbar-gutter:stable}
 /* язык приложения (html[data-lang], ui/lang.ts): японские начертания кандзи и модули только для китайского */
 html[data-lang="ja"]{--f-han:"Noto Serif JP","Noto Serif SC","Hiragino Mincho ProN","Yu Mincho",serif}
 html[data-lang="ja"] .only-zh,html:not([data-lang="ja"]) .only-ja{display:none!important}
-html[data-lang="ja"] .dr-item:is([data-view="read"],[data-view="hsk"],[data-view="tones"]){display:none}
+html[data-lang="ja"] .dr-item:is([data-view="hsk"],[data-view="tones"]){display:none}
 html[data-lang="ja"] :is(#ex-free,#cat-ai,#cat-build){display:none!important}
 html[data-lang="ja"] :is(#deck-create,#w-draw,#w-voice){display:none!important}
-html[data-lang="ja"] .sheet [data-mode]:is([data-mode="text"]),html[data-lang="ja"] .sheet #im-ai{display:none!important}
+html[data-lang="ja"] .sheet #im-ai{display:none!important}
 .lang-sw{margin:0 4px 4px;display:flex}
 .lang-sw button{flex:1;width:auto;height:auto;font:500 13px var(--f-ui);padding:8px 6px;line-height:1.25}
 .lang-sw button[aria-pressed="true"]{background:var(--jade);color:var(--on-accent)}

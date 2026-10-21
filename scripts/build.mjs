@@ -53,6 +53,8 @@ writeFileSync(join(decksOut, "index.json"), JSON.stringify(index));
 writeFileSync(join(out, "data/dialogs.json"), JSON.stringify(JSON.parse(readFileSync(join(root, "data/dialogs.json"), "utf8"))));
 // Тексты для чтения (python scripts/build_texts.py → data/texts.json)
 writeFileSync(join(out, "data/texts.json"), JSON.stringify(JSON.parse(readFileSync(join(root, "data/texts.json"), "utf8"))));
+// японские тексты (python scripts/build_texts_ja.py → data/texts-ja.json)
+writeFileSync(join(out, "data/texts-ja.json"), JSON.stringify(JSON.parse(readFileSync(join(root, "data/texts-ja.json"), "utf8"))));
 // Темы готовых колод — уроки по словам (python scripts/build_themes.py → data/themes.json)
 writeFileSync(join(out, "data/themes.json"), readFileSync(join(root, "data/themes.json"), "utf8"));
 // Экзамен HSK: банк заданий (python scripts/build_hsk.py → data/hsk/)
@@ -79,7 +81,7 @@ if (!fontFiles.length) console.warn("! Нет site/data/fonts — запусти
 const shell = ["./", "index.html", "app.js", "styles.css", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png",
   "data/fonts/fonts.css", ...fontFiles.filter((f) => f.core).map((f) => `data/fonts/${f.file}`), "audio/zh/index.json",
   "data/decks/index.json", ...decks.map((d) => `data/decks/${d.id}.json`),
-  "data/dialogs.json", "data/texts.json", "data/themes.json", "data/hsk/index.json", ...hskIndex.map((x) => `data/hsk/${x.file}`), "data/decomp.json", "data/courses/index.json", ...courses.map((c) => `data/courses/${c.file}`)];
+  "data/dialogs.json", "data/texts.json", "data/texts-ja.json", "data/themes.json", "data/hsk/index.json", ...hskIndex.map((x) => `data/hsk/${x.file}`), "data/decomp.json", "data/courses/index.json", ...courses.map((c) => `data/courses/${c.file}`)];
 writeFileSync(join(out, "sw.js"), readFileSync(join(root, "static/sw.js"), "utf8")
   .replace("__VERSION__", VERSION).replace("__SHELL_FILES__", JSON.stringify(shell)));
 writeFileSync(join(out, ".nojekyll"), "");

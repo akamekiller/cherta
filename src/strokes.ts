@@ -4,6 +4,8 @@
  *  - китайские: Make Me a Hanzi через hanzi-writer-data → data/strokes/NN.json;
  *  - японские (кана и кандзи, свой порядок черт): KanjiVG → data/strokes-ja/NN.json (scripts/build-strokes-ja.mjs).
  */
+import { asset } from "./native.ts";
+
 export type CharData = { strokes: string[]; medians: number[][][] };
 export type StrokeLang = "zh" | "ja";
 export const SHARDS = 64;
@@ -14,7 +16,7 @@ export const shardOf = (ch: string) => (ch.codePointAt(0) ?? 0) % SHARDS;
 
 /** Адрес файла черт — один и тот же для загрузки и для «Скачать для офлайна». */
 export const strokeFile = (n: number, lang: StrokeLang = "zh") =>
-  `data/${lang === "ja" ? "strokes-ja" : "strokes"}/${String(n).padStart(2, "0")}.json`;
+  asset(`data/${lang === "ja" ? "strokes-ja" : "strokes"}/${String(n).padStart(2, "0")}.json`);
 
 function loadShard(n: number, lang: StrokeLang) {
   const key = `${lang}${n}`;

@@ -1,0 +1,67 @@
+# Приложение для Android: Capacitor-обёртка над site/. APK — в релизе «android» (Releases → cherta.apk).
+# Проект android/ не хранится в репозитории: каждый раз создаётся заново (npx cap add android) и правится
+# скриптом android-app/patch-android.mjs. Подпись — android-app/cherta.keystore (обновления ставятся поверх).
+name: Android APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["package.json", "android-app/**", ".github/workflows/android.yml"]
+permissions:
+  contents: write
+concurrency:
+  group: android
+  cancel-in-progress: true
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Веб-часть
+        run: node android-app/prepare-www.mjs
+      - name: Проект Android
+        working-directory: android-app
+        shell: bash
+        run: |
+          set -o pipefail
+          {
+            npm install --legacy-peer-deps @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor/app@7 @capacitor/filesystem@7 @capacitor/share@7 @capacitor-community/text-to-speech@latest
+            npx cap add android
+            node patch-android.mjs
+            npx cap sync android
+          } 2>&1 | tee -a "$GITHUB_WORKSPACE/build.log" | tail -60
+      - name: Сборка APK
+        working-directory: android-app/android
+        shell: bash
+        run: |
+          set -o pipefail
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee -a "$GITHUB_WORKSPACE/build.log" | tail -40
+          test -f app/build/outputs/apk/release/app-release.apk
+          cp app/build/outputs/apk/release/app-release.apk ../../cherta.apk
+      - name: Релиз
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V=$(node -p "require('./package.json').version")
+          NOTES="Черта $V для Android. Установка: скачать cherta.apk на телефон и открыть (разрешить установку из этого источника). Обновление — так же, поверх старой версии, прогресс сохраняется."
+          gh release view android >/dev/null 2>&1 || gh release create android --title "Черта для Android" --notes "$NOTES"
+          gh release edit android --title "Черта $V для Android" --notes "$NOTES"
+          gh release upload android cherta.apk --clobber
+      - name: Журнал ошибки сборки
+        if: failure()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          cp build.log /tmp/build.log 2>/dev/null || echo "журнала нет — ошибка в первых шагах" > /tmp/build.log
+          git checkout --orphan android-log-tmp
+          git rm -rfq . >/dev/null
+          tail -c 80000 /tmp/build.log > tail.log
+          git add tail.log && git commit -qm "журнал сборки ${{ github.run_number }}" && git push -f origin HEAD:android-log

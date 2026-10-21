@@ -14,7 +14,7 @@ import { dictPyToNumeric, type DictIndex } from "../core/dict.ts";
 import { normalizePinyin } from "../core/importer.ts";
 import { parseRef, toMarked } from "../core/pinyin.ts";
 import * as store from "../store.ts";
-import { say, sayAll } from "../speech.ts";
+import { say, sayAll, stopSpeech } from "../speech.ts";
 import { $, esc, pinyinHTML, plural } from "./dom.ts";
 import { onShow, onLeave, show } from "./nav.ts";
 import { openEntry } from "./entry.ts";
@@ -912,7 +912,7 @@ async function glossJa(w: string) {
 /* ---------- обработчики ---------- */
 
 function quitRun() {
-  try { speechSynthesis.cancel(); } catch { /* */ }
+  stopSpeech();
   if (run.mode === "step") openLesson(lessonIdx);
   else if (run.mode === "review" && course) openCourse(course.key);
   else renderSetup();
@@ -920,7 +920,7 @@ function quitRun() {
 
 export function initExercise() {
   onShow("ex", () => { renderHome(); });
-  onLeave("ex", () => { try { speechSynthesis.cancel(); } catch { /* */ } });
+  onLeave("ex", () => { stopSpeech(); });
   $("ex-add").addEventListener("click", openCatalog);
   $("ex").addEventListener("click", (e) => {
     if (!(e.target as HTMLElement).closest("[data-quiet]")) return;

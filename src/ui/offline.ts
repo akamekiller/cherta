@@ -13,22 +13,24 @@ import { dictFiles, jdictFiles, appLang } from "../state.ts";
 import { allAudioUrls, allAudioUrlsJa } from "../speech.ts";
 import { onLoad } from "../loading.ts";
 import { $, esc } from "./dom.ts";
+import { NATIVE } from "../native.ts";
 
 const DATA_CACHE = "cherta-data-v1"; // то же имя, что DATA в static/sw.js
 
-type Pack = { id: string; title: string; hint: string; approx: string; lang: "zh" | "ja"; urls: () => Promise<string[]> };
+/** bundled — в приложении для Android эти файлы уже внутри, скачивать нечего. */
+type Pack = { id: string; title: string; hint: string; approx: string; lang: "zh" | "ja"; bundled?: boolean; urls: () => Promise<string[]> };
 const fontUrls = async (lang: "zh" | "ja") => {
   const r = await fetch("data/fonts/files.json");
   const list: { file: string; core: boolean; lang?: string }[] = await r.json();
   return list.filter((f) => !f.core && (f.lang ?? "zh") === lang).map((f) => `data/fonts/${f.file}`);
 };
 const PACKS: Pack[] = [
-  { id: "strokes", lang: "zh", title: "Черты иероглифов", hint: "Письмо, тетрадь прописей, рисование в поиске", approx: "14 МБ",
+  { id: "strokes", lang: "zh", title: "Черты иероглифов", hint: "Письмо, тетрадь прописей, рисование в поиске", approx: "14 МБ", bundled: true,
     urls: async () => [...Array.from({ length: SHARDS }, (_, n) => strokeFile(n)), hwUrl()] },
-  { id: "fonts", lang: "zh", title: "Шрифт иероглифов", hint: "Иероглифы выглядят одинаково на всех устройствах", approx: "4 МБ", urls: () => fontUrls("zh") },
+  { id: "fonts", lang: "zh", bundled: true, title: "Шрифт иероглифов", hint: "Иероглифы выглядят одинаково на всех устройствах", approx: "4 МБ", urls: () => fontUrls("zh") },
   { id: "strokes-ja", lang: "ja", title: "Японские черты", hint: "Кана и кандзи: письмо и тетрадь прописей (KanjiVG)", approx: "9 МБ",
     urls: async () => Array.from({ length: SHARDS }, (_, n) => strokeFile(n, "ja")) },
-  { id: "fonts-ja", lang: "ja", title: "Японский шрифт", hint: "Японские начертания кандзи и каны", approx: "3 МБ", urls: () => fontUrls("ja") },
+  { id: "fonts-ja", lang: "ja", bundled: true, title: "Японский шрифт", hint: "Японские начертания кандзи и каны", approx: "3 МБ", urls: () => fontUrls("ja") },
   { id: "audio-ja", lang: "ja", title: "Японская озвучка", hint: "Записи голоса для слов японских колод", approx: "8 МБ", urls: allAudioUrlsJa },
   { id: "dict-ja", lang: "ja", title: "Словарь WARODAI", hint: "Японско-русский словарь: поиск и статьи", approx: "10 МБ", urls: jdictFiles },
   { id: "dict", lang: "zh", title: "Словарь 大БКРС", hint: "Поиск и статьи", approx: "12 МБ", urls: async () => (await dictFiles()).dict },
@@ -55,14 +57,14 @@ async function packUrls(p: Pack): Promise<string[] | null> {
 
 let running: { id: string; ctl: AbortController; prog?: QueueProgress } | null = null;
 
-const canWork = () => "caches" in window && "serviceWorker" in navigator && !!navigator.serviceWorker.controller;
+const canWork = () => "caches" in window && (NATIVE || ("serviceWorker" in navigator && !!navigator.serviceWorker.controller));
 
 async function render() {
   const box = $("off-list");
   await refreshCached();
   const rows: string[] = [];
   let allDone = true;
-  for (const p of PACKS.filter((x) => x.lang === appLang())) {
+  for (const p of PACKS.filter((x) => x.lang === appLang() && !(NATIVE && x.bundled))) {
     const urls = await packUrls(p);
     let state = "";
     let btn = "";
@@ -147,7 +149,7 @@ export function initOffline() {
   $("off-all").addEventListener("click", async () => {
     const left: string[] = [];
     await refreshCached();
-    for (const p of PACKS.filter((x) => x.lang === appLang())) {
+    for (const p of PACKS.filter((x) => x.lang === appLang() && !(NATIVE && x.bundled))) {
       const urls = await packUrls(p);
       if (urls && urls.length && countCached(urls, has) < new Set(urls).size) left.push(p.id);
     }

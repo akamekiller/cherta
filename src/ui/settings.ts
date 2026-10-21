@@ -3,7 +3,8 @@ import { app, updateSettings, reloadAll, revertEdit } from "../state.ts";
 import { optimize } from "../core/fsrsopt.ts";
 import * as store from "../store.ts";
 import { say, voiceStatus, voiceStatusJa, onVoices, setSpeechRate } from "../speech.ts";
-import { $, esc, plural } from "./dom.ts";
+import { $, esc, plural, downloadText } from "./dom.ts";
+import { NATIVE } from "../native.ts";
 import { setTheme, type ThemeChoice } from "../theme.ts";
 import { renderThemeChoices, openThemeEditor } from "./themeEditor.ts";
 import { onShow, onLeave, show } from "./nav.ts";
@@ -208,13 +209,8 @@ export function initSettings() {
 
   $("export").addEventListener("click", async () => {
     const json = await store.exportAll();
-    const blob = new Blob([json], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `cherta-progress-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    note("Файл прогресса сохранён в загрузки.");
+    await downloadText(`cherta-progress-${new Date().toISOString().slice(0, 10)}.json`, json, "application/json");
+    note(NATIVE ? "Выберите, куда сохранить файл прогресса." : "Файл прогресса сохранён в загрузки.");
   });
   $("import").addEventListener("click", () => $<HTMLInputElement>("import-file").click());
   $<HTMLInputElement>("import-file").addEventListener("change", async (e) => {

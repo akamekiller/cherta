@@ -286,7 +286,7 @@ function openDeckMenu(id: string) {
     q("dm-export").addEventListener("click", async () => {
       const deck = await deckById(id);
       const rows = deck.words.map((w): [string, string, string] => [w.han, w.py, w.ru]);
-      downloadText(fileName(deck.title, "txt"), exportDeckText(deck.title, rows));
+      void downloadText(fileName(deck.title, "txt"), exportDeckText(deck.title, rows));
       q("dm-export").querySelector("small")!.textContent = `Сохранено: ${rows.length} ${plural(rows.length, "слово", "слова", "слов")}`;
     });
     q("dm-del").addEventListener("click", () => confirmInline(q("dm-confirm"),

@@ -5,6 +5,7 @@
  *    (или все сразу — «Скачать для офлайна» в настройках).
  * 2) Если записи нет (своё слово, не из колод) — синтезатор речи устройства (Web Speech API).
  */
+import { asset, playable, nativeTts, nativeSpeak, nativeStop } from "./native.ts";
 let voice: SpeechSynthesisVoice | null = null;
 let jaVoice: SpeechSynthesisVoice | null = null; // японский голос устройства — для слов без записи
 let listeners: (() => void)[] = [];
@@ -28,7 +29,7 @@ if (supported()) { pick(); speechSynthesis.addEventListener?.("voiceschanged", p
 /** Загружаем список озвученных слов (один раз, в фоне). */
 export function loadRecorded(): Promise<void> {
   if (!recordedLoading) {
-    recordedLoading = fetch("audio/zh/index.json")
+    recordedLoading = fetch(asset("audio/zh/index.json"))
       .then((r) => (r.ok ? r.json() : { words: [] }))
       .then((d: { words: string[]; py?: Record<string, string> }) => {
         recorded = new Map(d.words.map((w) => [w, d.py?.[w] ?? ""]));
@@ -44,7 +45,7 @@ export const hasRecording = (text: string) => !!recorded?.has(text);
 /** Японские записи (tts/generate_ja.py): список грузится один раз, при первом японском слове. */
 export function loadRecordedJa(): Promise<void> {
   if (!recordedJaLoading) {
-    recordedJaLoading = fetch("audio/ja/index.json")
+    recordedJaLoading = fetch(asset("audio/ja/index.json"))
       .then((r) => (r.ok ? r.json() : { words: [] }))
       .then((d: { words: string[]; py?: Record<string, string> }) => { recordedJa = new Map(d.words.map((w) => [w, d.py?.[w] ?? ""])); })
       .catch(() => { recordedJa = new Map(); });
@@ -54,7 +55,7 @@ export function loadRecordedJa(): Promise<void> {
 export const hasRecordingJa = (text: string) => !!recordedJa?.has(text);
 export function audioUrlJa(text: string): string {
   const v = recordedJa?.get(text);
-  return `audio/ja/${encodeURIComponent(text)}.mp3${v ? `?v=${encodeURIComponent(v)}` : ""}`;
+  return asset(`audio/ja/${encodeURIComponent(text)}.mp3${v ? `?v=${encodeURIComponent(v)}` : ""}`);
 }
 export async function allAudioUrlsJa(): Promise<string[]> {
   await loadRecordedJa();
@@ -64,7 +65,7 @@ export async function allAudioUrlsJa(): Promise<string[]> {
 /** Адрес записи слова. ?v= меняется, когда слово переозвучено — иначе офлайн-кэш играл бы старую запись. */
 export function audioUrl(text: string): string {
   const v = recorded?.get(text);
-  return `audio/zh/${encodeURIComponent(text)}.mp3${v ? `?v=${encodeURIComponent(v)}` : ""}`;
+  return asset(`audio/zh/${encodeURIComponent(text)}.mp3${v ? `?v=${encodeURIComponent(v)}` : ""}`);
 }
 
 /** Адреса всех записей (для «Скачать для офлайна»). */
@@ -81,7 +82,7 @@ export function setSpeechRate(m: number) { rateMul = Math.min(1.3, Math.max(0.6,
 
 /** Есть ли японский голос устройства. */
 export function voiceStatusJa(): string {
-  if (!supported()) return "Озвучка недоступна в этом браузере";
+  if (!supported()) return nativeTts() ? "Голос устройства Android (синтез речи из настроек телефона)" : "Озвучка недоступна в этом браузере";
   if (jaVoice) return `Голос устройства: ${jaVoice.name}`;
   return speechSynthesis.getVoices().length ? "Японский голос не найден. Установите его в настройках речи телефона или Windows" : "Ищем японский голос…";
 }
@@ -89,15 +90,21 @@ export function voiceStatusJa(): string {
 export function voiceStatus(): string {
   const n = recorded?.size ?? 0;
   if (n) return `Нейросетевой голос, озвучено слов: ${n}. Для остальных — голос устройства${voice ? "" : " (китайский голос не установлен)"}.`;
-  if (!supported()) return "Озвучка недоступна в этом браузере";
+  if (!supported()) return nativeTts() ? "Голос устройства Android (синтез речи из настроек телефона)" : "Озвучка недоступна в этом браузере";
   if (voice) return `Голос устройства: ${voice.name}`;
   return speechSynthesis.getVoices().length
     ? "Китайский голос не найден. Установите его в настройках речи телефона или Windows"
     : "Ищем китайский голос…";
 }
 
+/** Остановить голос устройства (и в приложении для Android). */
+export function stopSpeech() {
+  try { if (supported()) speechSynthesis.cancel(); } catch { /* */ }
+  if (nativeTts()) nativeStop();
+}
+
 function speakDevice(text: string, rate: number, lang: "zh" | "ja" = "zh") {
-  if (!supported()) return;
+  if (!supported()) { if (nativeTts()) void nativeSpeak([text], lang, rate * rateMul); return; }
   try {
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
@@ -115,9 +122,8 @@ export function say(text: string, rate = 0.85, lang: "zh" | "ja" = "zh") {
     const play = () => {
       if (player && hasRecordingJa(text)) {
         try { speechSynthesis?.cancel(); } catch { /* */ }
-        player.src = audioUrlJa(text);
-        player.playbackRate = rateMul;
-        player.play().catch(() => speakDevice(text, rate, "ja"));
+        const p = player;
+        playable(audioUrlJa(text)).then((src) => { p.src = src; p.playbackRate = rateMul; return p.play(); }).catch(() => speakDevice(text, rate, "ja"));
       } else speakDevice(text, rate, "ja");
     };
     if (recordedJa) play(); else loadRecordedJa().then(play);
@@ -125,9 +131,8 @@ export function say(text: string, rate = 0.85, lang: "zh" | "ja" = "zh") {
   }
   if (player && hasRecording(text)) {
     try { speechSynthesis?.cancel(); } catch { /* */ }
-    player.src = audioUrl(text);
-    player.playbackRate = rateMul;
-    player.play().catch(() => speakDevice(text, rate));
+    const p = player;
+    playable(audioUrl(text)).then((src) => { p.src = src; p.playbackRate = rateMul; return p.play(); }).catch(() => speakDevice(text, rate));
     return;
   }
   speakDevice(text, rate);
@@ -135,7 +140,7 @@ export function say(text: string, rate = 0.85, lang: "zh" | "ja" = "zh") {
 
 /** Прочитать несколько фраз подряд голосом устройства (диалог). */
 export function sayAll(texts: string[], rate = 0.85, lang: "zh" | "ja" = "zh") {
-  if (!supported()) return;
+  if (!supported()) { if (nativeTts()) void nativeSpeak(texts, lang, rate * rateMul); return; }
   try {
     speechSynthesis.cancel();
     for (const t of texts) {

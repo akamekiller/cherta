@@ -24,8 +24,10 @@ import { setTheme, onThemeChange } from "./theme.ts";
 import { initAmbient } from "./ui/ambient.ts";
 import { app } from "./state.ts";
 import { loadRecorded, setSpeechRate } from "./speech.ts";
+import { initNative, NATIVE } from "./native.ts";
 
 async function boot() {
+  initNative();
   initNav();
   initSheet();
   initHome();
@@ -62,7 +64,8 @@ async function boot() {
   requestPersist();
   void openShared();
   loadRecorded();
-  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+  // в приложении (Capacitor) кэш данных ведёт native.ts, service worker не нужен
+  if (!NATIVE && "serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
     navigator.serviceWorker.register("sw.js").catch(() => { /* офлайн необязателен */ });
   }
 }

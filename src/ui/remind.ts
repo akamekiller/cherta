@@ -41,7 +41,7 @@ export function initRemind() {
   });
   $("rm-ics").addEventListener("click", async () => {
     const r = await load();
-    downloadText("cherta-reminder.ics", icsFor($<HTMLInputElement>("rm-time").value || r.time), "text/calendar;charset=utf-8");
+    void downloadText("cherta-reminder.ics", icsFor($<HTMLInputElement>("rm-time").value || r.time), "text/calendar;charset=utf-8");
     $("rm-msg").textContent = "Файл сохранён — откройте его, и календарь добавит ежедневное напоминание.";
   });
   $("rm-push").addEventListener("click", async () => {

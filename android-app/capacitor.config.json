@@ -1,0 +1,14 @@
+{
+  "appId": "io.github.akamekiller.cherta",
+  "appName": "Черта",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": false,
+    "webContentsDebuggingEnabled": false,
+    "adjustMarginsForEdgeToEdge": "force"
+  }
+}

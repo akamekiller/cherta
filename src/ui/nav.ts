@@ -18,9 +18,14 @@ const WIDE = "(min-width: 1000px)";
 export const isWide = () => matchMedia(WIDE).matches;
 let detailShown = false; // на широком экране последняя открытая статья остаётся справа от списка
 
+/** Откуда пришли: «назад» (кнопка браузера, жест или кнопка «Назад» Android) возвращает по этому списку. */
+const stack: View[] = [];
+let goingBack = false;
+
 export function show(v: View) {
   if (current !== v) leaveHandlers[current]?.();
   const prev = current;
+  if (!goingBack && prev !== v) { stack.push(prev); if (stack.length > 40) stack.shift(); }
   current = v;
   document.documentElement.dataset.view = v; // живой фон темы скрыт на экранах письма (styles.css)
   for (const x of VIEWS) document.getElementById(x)!.hidden = x !== v;
@@ -65,7 +70,45 @@ export function closeMenu() {
   setTimeout(() => { if (!drawer().classList.contains("open")) scrim().hidden = true; }, 220);
 }
 
+/** Кнопки «назад» внутри экранов: урок → курс → курсы, текст → список, статья → слова и т. п. Сначала самые глубокие. */
+const INNER_BACK = ["ex-quit", "hk-quit", "ex-l-back", "ex-s-back", "ex-c-back", "rd-back", "d-back", "deck-back", "w-back"];
+const visible = (el: HTMLElement | null) => !!el && el.offsetParent !== null && !el.closest("[hidden]");
+
+/** Один шаг назад внутри приложения. false — дальше некуда (главный экран): браузер или Android уходит из приложения. */
+export function goBack(): boolean {
+  const sheet = document.getElementById("sheet");
+  if (sheet && !sheet.hidden) { document.getElementById("sheet-close")?.click(); return true; }
+  if (drawer().classList.contains("open")) { closeMenu(); return true; }
+  goingBack = true;
+  try {
+    if (current === "session") { document.getElementById("quit")?.click(); return true; }
+    const sec = document.getElementById(current);
+    for (const id of INNER_BACK) {
+      const el = document.getElementById(id);
+      if (el && sec?.contains(el) && visible(el)) { el.click(); return true; }
+    }
+    while (stack.length && stack[stack.length - 1] === current) stack.pop();
+    const prev = stack.pop();
+    if (prev) { show(prev); return true; }
+    if (current !== "words") { show("words"); return true; }
+    return false;
+  } finally { goingBack = false; }
+}
+
+/** История браузера: всегда одна «запасная» запись сверху; «назад» её снимает, приложение делает шаг назад и кладёт её снова. */
+function initHistory() {
+  try {
+    history.replaceState({ cherta: "base" }, "");
+    history.pushState({ cherta: "guard" }, "");
+  } catch { return; }
+  window.addEventListener("popstate", () => {
+    if (goBack()) history.pushState({ cherta: "guard" }, "");
+    else history.back(); // на главном экране — выйти (в Android закрыть приложение)
+  });
+}
+
 export function initNav() {
+  initHistory();
   // повернули планшет или изменили окно — заново разложить текущий экран
   matchMedia(WIDE).addEventListener?.("change", () => {
     closeMenu();

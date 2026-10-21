@@ -11,7 +11,7 @@ import {
   type Item, type Part, type Sec, type Mode, type Score,
 } from "../core/hsk.ts";
 import { parseRef } from "../core/pinyin.ts";
-import { say, sayAll } from "../speech.ts";
+import { say, sayAll, stopSpeech } from "../speech.ts";
 import { $, esc, pinyinHTML, plural } from "./dom.ts";
 import { onShow, onLeave } from "./nav.ts";
 import { openSheet, closeSheet, confirmInline } from "./sheet.ts";
@@ -180,7 +180,7 @@ function show() {
   const q = run.qs[run.pos];
   const it = q.item;
   pad = null;
-  try { speechSynthesis.cancel(); } catch { /* */ }
+  stopSpeech();
   $("hk-count").textContent = `${run.pos + 1} из ${run.qs.length}`;
   $("hk-prog").style.width = `${(100 * run.qs.filter((x) => answered(x)).length) / run.qs.length}%`;
   const sec = q.part.sec;
@@ -290,7 +290,7 @@ async function finish() {
   if (!run || run.done) return;
   run.done = true;
   clearInterval(timer);
-  try { speechSynthesis.cancel(); } catch { /* */ }
+  stopSpeech();
   const r = run;
   const sc: Score = scoreExam(r.qs.map((q) => ({ item: q.item, sec: q.part.sec, ans: q.ans })));
   const saved = await loadSaved();
@@ -344,11 +344,11 @@ function quit() {
   if (!run || run.done) { stop(); renderHome(); return; }
   confirmInline($("hk-confirm"), "Выйти? Ответы этого варианта не сохранятся.", "Выйти", () => { stop(); renderHome(); });
 }
-function stop() { clearInterval(timer); run = null; try { speechSynthesis.cancel(); } catch { /* */ } }
+function stop() { clearInterval(timer); run = null; stopSpeech(); }
 
 export function initHsk() {
   onShow("hsk", () => { if (!run) renderHome(); });
-  onLeave("hsk", () => { try { speechSynthesis.cancel(); } catch { /* */ } });
+  onLeave("hsk", () => { stopSpeech(); });
   $("hk-home").addEventListener("click", (e) => {
     const t = e.target as HTMLElement;
     const lv = t.closest<HTMLButtonElement>("[data-lv]");

@@ -9,7 +9,7 @@ import { findJ, type JIndex } from "../core/jdict.ts";
 import { loadJDict, jWordAt } from "./lookup.ts";
 import { parseRef } from "../core/pinyin.ts";
 import { dictPyToNumeric, type DictIndex } from "../core/dict.ts";
-import { say, sayAll } from "../speech.ts";
+import { say, sayAll, stopSpeech } from "../speech.ts";
 import { $, esc, pinyinHTML, plural } from "./dom.ts";
 import { onShow, onLeave, show } from "./nav.ts";
 import { openImport } from "./import.ts";
@@ -307,7 +307,7 @@ export function initReading() {
     if (wantId) { cur = texts.find((t) => t.id === wantId) ?? null; wantId = null; if (cur) { extraPy.clear(); for (const [h, py] of cur.words) extraPy.set(h, py); } }
     if (cur) renderText(); else renderList();
   });
-  onLeave("read", () => { try { speechSynthesis.cancel(); } catch { /* */ } });
+  onLeave("read", () => { stopSpeech(); });
   $("rd-list").addEventListener("click", (e) => {
     const t0 = e.target as HTMLElement;
     if (t0.closest("#rd-cat")) { openCatalog(); return; }
@@ -338,7 +338,7 @@ export function initReading() {
     renderText();
     window.scrollTo(0, 0);
   });
-  $("rd-back").addEventListener("click", () => { cur = null; try { speechSynthesis.cancel(); } catch { /* */ } renderList(); });
+  $("rd-back").addEventListener("click", () => { cur = null; stopSpeech(); renderList(); });
   $("rd-all").addEventListener("click", () => cur && sayAll(cur.lines.map((l) => plainLine(cur!, l[0])), 0.85, cur.lang === "ja" ? "ja" : undefined));
   $("rd-py").addEventListener("click", () => { ui.py = !ui.py; save(); renderText(); });
   $("rd-ru").addEventListener("click", () => { ui.ru = !ui.ru; save(); renderText(); });

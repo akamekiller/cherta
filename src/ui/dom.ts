@@ -1,3 +1,4 @@
+import { NATIVE, nativeSave } from "../native.ts";
 import { mark, type Syllable } from "../core/pinyin.ts";
 
 export const $ = <T extends HTMLElement = HTMLElement>(id: string) => {
@@ -25,7 +26,8 @@ export function plural(n: number, one: string, few: string, many: string) {
 export const cssVar = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
 /** Сохранить текст файлом (скачивание в браузере, на телефоне — в «Загрузки»). */
-export function downloadText(name: string, text: string, type = "text/plain;charset=utf-8") {
+export async function downloadText(name: string, text: string, type = "text/plain;charset=utf-8") {
+  if (NATIVE && await nativeSave(name, text)) return;
   const url = URL.createObjectURL(new Blob([text], { type }));
   const a = document.createElement("a");
   a.href = url;

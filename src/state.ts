@@ -1,4 +1,5 @@
 /** Состояние приложения: колоды, карточки, правки, настройки, очередь занятия. */
+import { NATIVE } from "./native.ts";
 import { schedule, newCard, DEFAULT_PARAMS, type Card, type Grade, type Params } from "./core/fsrs.ts";
 import { loadDeck, wordId, type Deck, type DeckFile, type Word } from "./core/deck.ts";
 import { applyEdit, isEmptyEdit, type WordEdit, type DictEntry } from "./core/edits.ts";
@@ -537,7 +538,8 @@ type DictMeta = { v: string; count: number; shards: number };
 /** Данные словаря лежат в отдельном репозитории (cherta-dict, свой GitHub Pages), чтобы не раздувать историю основного.
  * Локально (npm start) сначала пробуем папку dict/ рядом с проектом. */
 export const DICT_REMOTE = "https://akamekiller.github.io/cherta-dict/";
-const DICT_BASES = location.hostname.endsWith("github.io") ? [DICT_REMOTE] : ["dict/", DICT_REMOTE];
+// на сайте и в приложении — только удалённый словарь; локально (npm start) сначала папка dict/
+const DICT_BASES = location.hostname.endsWith("github.io") || NATIVE ? [DICT_REMOTE] : ["dict/", DICT_REMOTE];
 const META_LS = "cherta.dictMeta";
 let dictBase = DICT_BASES[0];
 let dictMeta: Promise<DictMeta> | null = null;

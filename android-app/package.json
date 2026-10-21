@@ -1,0 +1,5 @@
+{
+  "name": "cherta-android",
+  "private": true,
+  "description": "Обёртка Capacitor для Android: собирается только в GitHub Actions (.github/workflows/android.yml)"
+}

@@ -281,6 +281,7 @@
     <div class="book-src">
       <button class="src-pick" id="bk-src" aria-label="Что писать: выбрать колоду"></button>
       <button class="icon-btn" id="bk-opts" aria-label="Настройки прописей"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button>
+      <button class="icon-btn" id="bk-mode" aria-label="Вид тетради: страница с клетками" aria-pressed="true" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h12a2 2 0 0 1 2 2v16H7a2 2 0 0 1-2-2z"/><path d="M5 19a2 2 0 0 1 2-2h12M9 7h6M9 11h6"/></svg></button>
       <button class="icon-btn" id="bk-print" aria-label="Печать прописей"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/></svg></button>
     </div>
     <button class="bk-set" id="bk-block" hidden></button>
@@ -307,6 +308,7 @@
       <button class="btn small" id="bk-again">Заново</button>
     </div>
     <p class="hint center" id="bk-status"></p>
+    <div class="nb" id="bk-nb"></div>
   </section>
 
   <!-- Печать: заполняется перед window.print() -->

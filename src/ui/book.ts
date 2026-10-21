@@ -16,6 +16,7 @@ import { $, esc, pinyinHTML, plural } from "./dom.ts";
 import { createWriter, type Writer } from "./writer.ts";
 import { onShow, onLeave } from "./nav.ts";
 import { openSheet, closeSheet } from "./sheet.ts";
+import { showNotebook, stopNotebook, NB_ROWS } from "./notebook.ts";
 
 type Src = "deck" | "text";
 const LS = "cherta.book";
@@ -25,7 +26,9 @@ const st = { v: 2, src: "deck" as Src, deckId: "", text: "", total: 10, trace: 3
   sets: {} as Record<string, SetEdit>,
   /** Урок колоды (тема из «Уроков по словам»), который пишется в тетради: номер блока, -1 или нет — вся колода. */
   block: {} as Record<string, number>,
-  print: { perRow: 10, traces: 3, rowsPerChar: 1, count: 12, labels: true, all: false } };
+  print: { perRow: 10, traces: 3, rowsPerChar: 1, count: 12, labels: true, all: false },
+  /** Вид «тетрадь» на планшете (ширина от 700px): страница со строками клеток; false — одна большая клетка. */
+  nb: true };
 try {
   const saved = JSON.parse(localStorage.getItem(LS) ?? "{}");
   // v1: по умолчанию было 6 клеток (2 по контуру) — переводим на 10 (3), свои значения не трогаем
@@ -45,6 +48,10 @@ let drawn: P[][] = [];
 let gen = 0;
 
 export const bookWriter = () => writer;
+
+/** Тетрадь-страница: только на широком экране и если не выключена кнопкой. */
+const WIDE = matchMedia("(min-width: 700px)");
+const nbOn = () => WIDE.matches && st.nb;
 
 const key = () => (st.src === "deck" ? `deck:${st.deckId}` : "text");
 /** «иероглифов» / у японских — «знаков» (в наборе есть кана). */
@@ -220,6 +227,8 @@ async function render() {
   $("bk-again").toggleAttribute("disabled", empty);
   if (empty) {
     stop();
+    stopNotebook();
+    $("book").classList.remove("nb-on");
     $("bk-han").textContent = "";
     $("bk-py").innerHTML = "";
     $("bk-ru").textContent = "";
@@ -227,7 +236,24 @@ async function render() {
     return;
   }
   idx = Math.max(0, Math.min(chars.length - 1, st.pos[posKey()] ?? 0));
+  $("bk-mode").hidden = !WIDE.matches;
+  $("bk-mode").setAttribute("aria-pressed", String(st.nb));
+  $("book").classList.toggle("nb-on", nbOn());
+  if (nbOn()) { stop(); gen++; openNotebook(); return; }
+  stopNotebook();
   startChar();
+}
+
+/** Страница тетради с текущего иероглифа (страницы — по NB_ROWS строк). */
+function openNotebook() {
+  const start = Math.floor(idx / NB_ROWS) * NB_ROWS;
+  const b = curBlock();
+  const title = st.src === "text" ? "Свой текст" : deckTitle(st.deckId) + (b >= 0 ? ` · ${blocks[b].title}` : "");
+  void showNotebook($("bk-nb"), {
+    chars, start, lang: bookLang(), total: Math.min(st.total, 12), trace: st.trace, title,
+    info: charInfo,
+    setStart(i) { idx = i; st.pos[posKey()] = i; save(); openNotebook(); window.scrollTo({ top: 0, behavior: "smooth" }); },
+  });
 }
 
 async function startChar() {
@@ -341,7 +367,7 @@ function openOptions() {
         root.querySelectorAll("[data-shuffle]").forEach((x) => x.setAttribute("aria-pressed", String((x as HTMLElement).dataset.shuffle === "1")));
         reordered = true;
       }
-      if ((e.target as HTMLElement).closest("#bo-done")) { closeSheet(); if (reordered) render(); else if (chars.length) startChar(); }
+      if ((e.target as HTMLElement).closest("#bo-done")) { closeSheet(); if (reordered || nbOn()) render(); else if (chars.length) startChar(); }
     });
   });
 }
@@ -437,7 +463,9 @@ async function buildPrint(list: string[]) {
 let t = 0;
 export function initBook() {
   onShow("book", render);
-  onLeave("book", stop);
+  onLeave("book", () => { stop(); stopNotebook(); });
+  $("bk-mode").addEventListener("click", () => { st.nb = !st.nb; save(); render(); });
+  WIDE.addEventListener("change", () => { if (!$("book").hidden) render(); });
   $("bk-src").addEventListener("click", () => pickDeck("Что писать", st.src === "text" ? "text" : st.deckId, (id) => {
     if (id === "text") st.src = "text"; else { st.src = "deck"; st.deckId = id; }
     save();

@@ -5,6 +5,7 @@ import { uniqueChars, cellPlan, printRows, paginate, rowsPerPage } from "../src/
 test("иероглифы без повторов и не-иероглифов", () => {
   assert.deepEqual(uniqueChars(["学习", "学生", "a1 好！"]), ["学", "习", "生", "好"]);
   assert.deepEqual(uniqueChars([]), []);
+  assert.deepEqual(uniqueChars(["あい", "カタカナ", "食べる", "ー"]), ["あ", "い", "カ", "タ", "ナ", "食", "べ", "る"]);
 });
 
 test("клетки упражнения", () => {

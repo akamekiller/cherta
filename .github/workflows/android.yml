@@ -1,6 +1,6 @@
 # Приложение для Android: Capacitor-обёртка над site/. APK — в релизе «android» (Releases → cherta.apk).
 # Проект android/ не хранится в репозитории: каждый раз создаётся заново (npx cap add android) и правится
-# скриптом android-app/patch-android.mjs. Подпись — android-app/cherta.keystore (обновления ставятся поверх).
+# скриптом android-app/patch-android.mjs. Подпись — ключ из секретов репозитория KEYSTORE_BASE64 и KEYSTORE_PASSWORD (в Git его нет; обновления ставятся поверх только с тем же ключом).
 name: Android APK
 on:
   workflow_dispatch:
@@ -15,8 +15,16 @@ concurrency:
 jobs:
   apk:
     runs-on: ubuntu-latest
+    env:
+      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
+      - name: Ключ подписи
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          test -n "$KEYSTORE_BASE64" && test -n "$KEYSTORE_PASSWORD" || { echo "Нет секретов KEYSTORE_BASE64 / KEYSTORE_PASSWORD"; exit 1; }
+          echo "$KEYSTORE_BASE64" | base64 -d > android-app/cherta.keystore
       - uses: actions/setup-node@v4
         with:
           node-version: 22

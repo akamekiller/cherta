@@ -6,3 +6,4 @@ __pycache__/
 dict/
 site/audio/*/packs/
 site/audio/*/packs.json
+android-app/cherta.keystore

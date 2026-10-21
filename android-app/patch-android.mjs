@@ -11,7 +11,8 @@ const code = Number(process.env.GITHUB_RUN_NUMBER || 1);
 // иконки (static/icons → android-app/res, сделаны один раз скриптом на Python)
 cpSync(join(here, "res"), join(app, "src", "main", "res"), { recursive: true });
 
-// версия и подпись
+// версия и подпись (ключ — секрет репозитория, в Git его нет: workflow кладёт файл android-app/cherta.keystore и пароль в KEYSTORE_PASSWORD)
+if (!process.env.KEYSTORE_PASSWORD || !existsSync(join(here, "cherta.keystore"))) throw new Error("Нет ключа подписи: добавьте секреты KEYSTORE_BASE64 и KEYSTORE_PASSWORD (Settings → Secrets and variables → Actions)");
 const gradle = join(app, "build.gradle");
 let g = readFileSync(gradle, "utf8");
 g = g.replace(/versionCode \d+/, `versionCode ${code}`).replace(/versionName "[^"]*"/, `versionName "${version}"`);
@@ -20,9 +21,9 @@ android {
     signingConfigs {
         release {
             storeFile file("../../cherta.keystore")
-            storePassword "cherta-android"
+            storePassword System.getenv("KEYSTORE_PASSWORD")
             keyAlias "cherta"
-            keyPassword "cherta-android"
+            keyPassword System.getenv("KEYSTORE_PASSWORD")
         }
     }
     buildTypes {

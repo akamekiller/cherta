@@ -1099,3 +1099,19 @@ body:has(#book.nb-on:not([hidden])) .wrap{max-width:1180px}
 
 /* Приложение для Android (src/native.ts ставит html[data-native]): печати и фоновых уведомлений в WebView нет */
 html[data-native] :is(#bk-print,#rm-push){display:none!important}
+
+/* Установка на главный экран (src/ui/install.ts) */
+.inst-steps{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px;line-height:1.45}
+.inst-bar{position:fixed;left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));bottom:calc(10px + env(safe-area-inset-bottom));z-index:40;
+  display:flex;align-items:center;gap:10px;padding:10px 10px 10px 12px;background:var(--sheet);border:1px solid var(--line);border-radius:16px;box-shadow:0 10px 30px -10px #0006;max-width:520px;margin:0 auto}
+.inst-ic{font:700 24px var(--f-han);color:var(--jade)}
+.inst-t{flex:1;display:flex;flex-direction:column;font-size:13.5px;line-height:1.3;min-width:0}
+.inst-t small{color:var(--muted);font-size:12.5px}
+
+/* iPhone/iPad (Safari): поле ввода мельче 16px Safari приближает при фокусе; двойной тап не масштабирует;
+   долгое нажатие на поле письма не выделяет и не вызывает меню */
+@supports (-webkit-touch-callout: none) {
+  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]),textarea,select{font-size:max(16px,1em)!important}
+}
+button,.chip-btn,.w{touch-action:manipulation}
+.pad,.hw,.nb-cell,.free-pad,.pen-pad,.tone-pad{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}

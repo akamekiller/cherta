@@ -25,6 +25,7 @@ import { initAmbient } from "./ui/ambient.ts";
 import { app } from "./state.ts";
 import { loadRecorded, setSpeechRate } from "./speech.ts";
 import { initNative, NATIVE } from "./native.ts";
+import { initInstall } from "./ui/install.ts";
 
 async function boot() {
   initNative();
@@ -57,6 +58,7 @@ async function boot() {
   show("words");
   initSync();
   initRemind();
+  initInstall();
   initOffline();
   initLoadBar();
   // при запуске — тихая синхронизация; если что-то пришло с другого устройства, перерисовать экран

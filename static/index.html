@@ -24,6 +24,9 @@
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Черта">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="stylesheet" href="data/fonts/fonts.css?v=__VERSION__">
 <link rel="stylesheet" href="styles.css?v=__VERSION__">
 </head>
@@ -416,7 +419,7 @@
   <!-- Настройки -->
   <section id="settings" class="stack" hidden>
     <nav class="set-nav chips-row" id="set-nav" aria-label="Разделы настроек">
-      <button class="chip-btn" data-go="set-look">Вид и перо</button><button class="chip-btn" data-go="set-study">Занятия</button><button class="chip-btn" data-go="set-voice">Озвучка</button><button class="chip-btn" data-go="set-offline">Офлайн</button><button class="chip-btn" data-go="set-sync">Синхронизация</button><button class="chip-btn" data-go="set-remind">Напоминания</button><button class="chip-btn" data-go="set-data">Прогресс и правки</button><button class="chip-btn" data-go="set-about">О приложении</button>
+      <button class="chip-btn" data-go="set-look">Вид и перо</button><button class="chip-btn" data-go="set-study">Занятия</button><button class="chip-btn" data-go="set-voice">Озвучка</button><button class="chip-btn" data-go="set-offline">Офлайн</button><button class="chip-btn" data-go="set-sync">Синхронизация</button><button class="chip-btn" data-go="set-remind">Напоминания</button><button class="chip-btn" data-go="set-data">Прогресс и правки</button><button class="chip-btn" data-go="set-install">На главный экран</button><button class="chip-btn" data-go="set-about">О приложении</button>
     </nav>
     <div class="panel" id="set-look">
       <div class="label">Вид и перо</div>
@@ -530,6 +533,10 @@
       <div class="row"><button class="btn small danger" id="reset">Сбросить прогресс</button></div>
       <div class="confirm" id="confirm-box" hidden></div>
       <p class="note" id="io-note"></p>
+    </div>
+    <div class="panel stack" id="set-install">
+      <div class="label">Установить на главный экран</div>
+      <div id="inst-box"></div>
     </div>
     <div class="panel stack about" id="set-about">
       <div class="label">О приложении</div>

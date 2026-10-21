@@ -24,8 +24,11 @@
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<link rel="stylesheet" href="data/fonts/fonts.css?v=0.46.0-mvhehudt">
-<link rel="stylesheet" href="styles.css?v=0.46.0-mvhehudt">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Черта">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="stylesheet" href="data/fonts/fonts.css?v=0.46.0-mvhige8w">
+<link rel="stylesheet" href="styles.css?v=0.46.0-mvhige8w">
 </head>
 <body>
 <div class="ambient" id="ambient" aria-hidden="true" hidden></div>
@@ -416,7 +419,7 @@
   <!-- Настройки -->
   <section id="settings" class="stack" hidden>
     <nav class="set-nav chips-row" id="set-nav" aria-label="Разделы настроек">
-      <button class="chip-btn" data-go="set-look">Вид и перо</button><button class="chip-btn" data-go="set-study">Занятия</button><button class="chip-btn" data-go="set-voice">Озвучка</button><button class="chip-btn" data-go="set-offline">Офлайн</button><button class="chip-btn" data-go="set-sync">Синхронизация</button><button class="chip-btn" data-go="set-remind">Напоминания</button><button class="chip-btn" data-go="set-data">Прогресс и правки</button><button class="chip-btn" data-go="set-about">О приложении</button>
+      <button class="chip-btn" data-go="set-look">Вид и перо</button><button class="chip-btn" data-go="set-study">Занятия</button><button class="chip-btn" data-go="set-voice">Озвучка</button><button class="chip-btn" data-go="set-offline">Офлайн</button><button class="chip-btn" data-go="set-sync">Синхронизация</button><button class="chip-btn" data-go="set-remind">Напоминания</button><button class="chip-btn" data-go="set-data">Прогресс и правки</button><button class="chip-btn" data-go="set-install">На главный экран</button><button class="chip-btn" data-go="set-about">О приложении</button>
     </nav>
     <div class="panel" id="set-look">
       <div class="label">Вид и перо</div>
@@ -531,9 +534,13 @@
       <div class="confirm" id="confirm-box" hidden></div>
       <p class="note" id="io-note"></p>
     </div>
+    <div class="panel stack" id="set-install">
+      <div class="label">Установить на главный экран</div>
+      <div id="inst-box"></div>
+    </div>
     <div class="panel stack about" id="set-about">
       <div class="label">О приложении</div>
-      <p>Черта 0.46.0-mvhehudt — бесплатное приложение для письма иероглифов, карточек и словаря.</p>
+      <p>Черта 0.46.0-mvhige8w — бесплатное приложение для письма иероглифов, карточек и словаря.</p>
       <details><summary>Данные и лицензии</summary>
         <ul class="lic">
           <li>Черты китайских иероглифов и их состав — <a href="https://github.com/skishore/makemeahanzi" target="_blank" rel="noopener">Make Me a Hanzi</a> (Arphic Public License, LGPL-3.0); библиотека <a href="https://hanziwriter.org" target="_blank" rel="noopener">Hanzi Writer</a> (MIT).</li>
@@ -553,7 +560,7 @@
   <div class="sheet-head"><h2 id="sheet-title"></h2><button class="icon-btn" id="sheet-close" aria-label="Закрыть">✕</button></div>
   <div class="sheet-body stack" id="sheet-body"></div>
 </section>
-<script type="module" src="app.js?v=0.46.0-mvhehudt"></script>
+<script type="module" src="app.js?v=0.46.0-mvhige8w"></script>
 <div id="print-area" aria-hidden="true"></div>
 </body>
 </html>

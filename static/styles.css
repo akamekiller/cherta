@@ -934,7 +934,7 @@ html{scrollbar-gutter:stable}
   .wrap{max-width:960px;padding-inline:32px}
   header{padding-block:16px}
   .view-title{font-size:21px}
-  .brand-mini{display:none}
+  .brand-mini{display:none!important}
   .loadbar{left:calc(50% + var(--side) / 2)}
   /* слова | статья */
   .wd.split{display:grid;grid-template-columns:minmax(320px,400px) minmax(0,1fr);gap:28px;align-items:start}
@@ -1115,3 +1115,7 @@ html[data-native] :is(#bk-print,#rm-push){display:none!important}
 }
 button,.chip-btn,.w{touch-action:manipulation}
 .pad,.hw,.nb-cell,.free-pad,.pen-pad,.tone-pad{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+
+/* Знак «Черты» — красная печать 笔 (как иконка приложения, static/icons/icon.svg) */
+.dr-head .han,.brand-mini{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:7px;background:#B8322A;color:#F5F1E8!important;font-size:19px!important;line-height:1;
+  box-shadow:inset 0 0 0 3px #B8322A,inset 0 0 0 4.5px #F5F1E8;align-self:center}

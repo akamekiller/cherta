@@ -324,6 +324,7 @@ async function showOwnCourse(fileId: string) {
   await renderHome();
   const c = courses.find((x) => x.fileId === fileId);
   if (c) openCourse(c.key);
+  else $("ex-courses").insertAdjacentHTML("afterbegin", `<p class="note">Курс сохранён, но он не для этого языка приложения — переключите язык (中文 / 日本語) в боковом меню.</p>`);
 }
 
 /* ---------- курс: список уроков ---------- */

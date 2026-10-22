@@ -348,7 +348,7 @@ export function openImport(o: ImportOpts = {}) {
         return;
       }
       const cg = t.closest<HTMLButtonElement>("#im-cgo");
-      if (cg && course) { cg.disabled = true; try { await addOwnCourse(stripFences(src.value), course.title); } catch { cg.disabled = false; } return; }
+      if (cg && course) { cg.disabled = true; try { await addOwnCourse(stripFences(src.value), course.title); } catch (err) { cg.disabled = false; cg.insertAdjacentHTML("beforebegin", `<p class="note">Не удалось добавить курс: ${esc(String((err as Error)?.message ?? err))}. Проверьте, что на устройстве есть свободное место и сайт не в приватном режиме.</p>`); } return; }
       if (t.closest("#im-clear")) { src.value = ""; name = ""; void update(); src.focus(); return; }
       if (t.closest("#im-all") || t.closest("#im-none")) { const v = !!t.closest("#im-all"); for (const r of rows) if (showHave || !r.have) r.on = v && !!(r.py && r.ru); drawCards(); return; }
       if (t.closest("#im-have")) { showHave = !showHave; drawCards(); return; }

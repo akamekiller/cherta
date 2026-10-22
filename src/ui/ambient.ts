@@ -101,25 +101,42 @@ export const motionOn = () => motion;
 let fxBusy = 0;
 const bloodTheme = () => currentPreset() === "ketsu" && motion;
 
-/** Красный росчерк по диагонали — на верно написанный иероглиф и на «Хорошо/Легко». */
-export function slashFx() {
-  if (!bloodTheme()) return;
-  const el = document.createElement("div");
-  el.className = "fx-slash";
-  el.innerHTML = "<i></i><i></i>";
-  el.setAttribute("aria-hidden", "true");
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 800);
+/** Фильтр «грубая кисть»: края иероглифа рваные, как мазок тушью (создаётся один раз). */
+function inkFilter() {
+  if (document.getElementById("fx-ink")) return;
+  document.body.insertAdjacentHTML("beforeend", `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="fx-ink" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="3" seed="7" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="6" xChannelSelector="R" yChannelSelector="G"/></filter></svg>`);
 }
 
-/** Печать «死» — на ошибке и провале карточки; не накладывается сама на себя. */
+/** Росчерк: быстрый клинок (острый с обоих концов) и брызги крови вдоль разреза — на верный иероглиф и «Хорошо/Легко». */
+export function slashFx() {
+  if (!bloodTheme()) return;
+  const flip = Math.random() < 0.5 ? -1 : 1;
+  const ang = flip * (16 + Math.random() * 18);
+  const el = document.createElement("div");
+  el.className = "fx-slash";
+  el.setAttribute("aria-hidden", "true");
+  let drops = "";
+  for (let i = 0; i < 16; i++) {
+    const along = (Math.random() - 0.5) * 70;           // вдоль разреза, vmin
+    const side = (Math.random() < 0.5 ? -1 : 1) * (4 + Math.random() * 24); // в стороны
+    const size = 3 + Math.random() * 7;
+    const delay = 0.12 + Math.random() * 0.1;
+    drops += `<u style="--ax:${along.toFixed(1)}vmin;--sd:${side.toFixed(1)}vmin;--sz:${size.toFixed(1)}px;--dl:${delay.toFixed(2)}s"></u>`;
+  }
+  el.innerHTML = `<div class="sl-flash"></div><div class="sl-cut" style="--ang:${ang.toFixed(1)}deg"><i class="blade"></i><i class="blade thin"></i><span class="spray">${drops}</span></div>`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1100);
+}
+
+/** Печать «死» — на ошибке и провале карточки: тёмная полоса, иероглиф рваной кистью, потёки; не накладывается сама на себя. */
 export function deathFx() {
   if (!bloodTheme() || Date.now() < fxBusy) return;
-  fxBusy = Date.now() + 1600;
+  fxBusy = Date.now() + 2000;
+  inkFilter();
   const el = document.createElement("div");
   el.className = "fx-death";
   el.setAttribute("aria-hidden", "true");
-  el.innerHTML = "<b>死</b>";
+  el.innerHTML = `<div class="dt-band"></div><b>死</b><span class="dt-drips"><i></i><i></i><i></i><i></i></span>`;
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), 1500);
+  setTimeout(() => el.remove(), 1900);
 }

@@ -625,7 +625,7 @@ input[type=range]{width:100%;accent-color:var(--jade)}
 .lesson-row,.step-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border:0;border-top:1px solid var(--line);background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer;width:100%}
 .lesson-row:first-child{border-top:0}
 .step-row{border:1px solid var(--line);border-radius:var(--r);background:var(--sheet)}
-.step-row:disabled{opacity:.55;cursor:default}
+.step-row:disabled,.step-row.locked{opacity:.6}
 .lesson-row.cur,.step-row.cur{box-shadow:inset 3px 0 0 var(--jade)}
 .ln,.sn{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font:600 13px var(--f-mono);background:var(--paper);color:var(--muted)}
 .lesson-row.done .ln{background:var(--jade);color:var(--on-accent)}

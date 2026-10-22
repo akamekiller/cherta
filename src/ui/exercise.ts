@@ -448,11 +448,11 @@ function openLesson(i: number) {
     const state = theory ? (b ? `<span class="st ok">✓</span>` : `<span class="st go">→</span>`)
       : b !== undefined && b >= PASS ? `<span class="st ok">✓ ${Math.round(b * 100)}%</span>` : !open ? `<span class="st lock" aria-label="Закрыто">🔒</span>` : b !== undefined ? `<span class="st mid">${Math.round(b * 100)}%</span>` : `<span class="st go">→</span>`;
     const hint = theory && !l.grammar?.length ? "послушать и запомнить" : info.hint;
-    return `<button class="step-row${k === firstOpen ? " cur" : ""}${theory ? " theory" : ""}" data-step="${s}" ${open ? "" : "disabled"}><span class="sn">${theory ? "📖" : k}</span><span class="lt"><b>${stepName(s, l)}</b><small>${hint}${theory ? " · по желанию" : ""}</small></span>${state}</button>`;
+    return `<button class="step-row${k === firstOpen ? " cur" : ""}${theory ? " theory" : ""}${open ? "" : " locked"}" data-step="${s}"><span class="sn">${theory ? "📖" : k}</span><span class="lt"><b>${stepName(s, l)}</b><small>${hint}${theory ? " · по желанию" : ""}</small></span>${state}</button>`;
   }).join("") + (lessonDone(steps, best) && lessonIdx + 1 < c.set.lessons.length ? `<button class="btn primary wide" data-lesson="${lessonIdx + 1}">Следующий урок →</button>` : "")
     + (!steps.length ? `<p class="hint">В этом уроке нет заданий.</p>` : "")
     + `<div class="quiet-row">${quietChip()}</div><div class="quiet-row">${freeChip()}</div>`
-    + `<p class="hint">Шаг засчитывается от ${Math.round(PASS * 100)}% верных ответов — тогда открывается следующий. Теорию можно открыть в любой момент.</p>`;
+    + `<p class="hint">Шаг засчитывается от ${Math.round(PASS * 100)}% верных ответов. Шаг с замком («🔒») тоже можно открыть тапом — но урок засчитается, только когда пройдены все шаги.</p>`;
   // урок ещё не начат и есть теория — спросить, нужна ли она
   if (l.grammar?.length && !Object.keys(best).length) {
     $("ex-l-steps").insertAdjacentHTML("afterbegin", `<div class="panel theory-ask"><b>Начать с теории?</b><p class="hint">Цель урока, новые слова и ${l.grammar.length} ${plural(l.grammar.length, "правило", "правила", "правил")} с примерами — как в учебнике.</p>

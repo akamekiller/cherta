@@ -1171,10 +1171,11 @@ button,.chip-btn,.w{touch-action:manipulation}
 .ambient[data-kind="ketsu"] .lily-sway .stem{fill:none;stroke:#3C0D10;stroke-width:2.2;stroke-linecap:round}
 .ambient[data-kind="ketsu"] .lily-sway .bloom path{fill:none;stroke:#A5504E;stroke-width:1.5;stroke-linecap:round}
 .ambient[data-kind="ketsu"] .lily-sway .bloom circle{fill:#C4635F}
-.ambient[data-kind="ketsu"] .amb-p i.ash{top:-4vh;width:calc(5px*var(--s));height:calc(3px*var(--s));border-radius:60% 40% 55% 45%;background:#CFC6BC;opacity:.5;filter:blur(.6px);animation-name:amb-ash;animation-duration:calc(var(--d)*.55);animation-timing-function:linear}
-@keyframes amb-ash{0%{transform:translate3d(-8vw,0,0) rotate(0)}25%{transform:translate3d(6vw,26vh,0) rotate(120deg)}50%{transform:translate3d(-2vw,52vh,0) rotate(240deg)}75%{transform:translate3d(10vw,78vh,0) rotate(330deg)}100%{transform:translate3d(4vw,106vh,0) rotate(420deg)}}
-.ambient[data-kind="ketsu"] .amb-p i.ember{top:auto;bottom:-4vh;width:calc(4px*var(--s));height:calc(4px*var(--s));border-radius:50%;background:#E8A070;box-shadow:0 0 6px 2px #C8703A33;
-  animation-name:amb-fly,amb-blink;animation-duration:var(--d),var(--b);animation-timing-function:ease-in-out;animation-direction:normal,alternate}
+.ambient[data-kind="ketsu"] .amb-p i.ash{top:auto;bottom:-6vh;width:calc(6px*var(--s));height:calc(3.8px*var(--s));border-radius:60% 40% 55% 45%;background:#D6CCC2;opacity:0;filter:blur(.5px);animation-name:amb-rise;animation-duration:calc(var(--d)*.4);animation-timing-function:linear}
+@keyframes amb-rise{0%{opacity:0;transform:translate3d(0,0,0) rotate(0)}8%{opacity:.7}30%{transform:translate3d(calc(var(--sw)*.8),-30vh,0) rotate(140deg)}55%{transform:translate3d(calc(var(--sw)*-.5 + 6vw),-62vh,0) rotate(280deg)}82%{opacity:.5;transform:translate3d(calc(var(--sw)*1.2 + 12vw),-92vh,0) rotate(420deg)}100%{opacity:0;transform:translate3d(calc(var(--sw)*.6 + 16vw),-114vh,0) rotate(520deg)}}
+@keyframes amb-rise2{0%{transform:translate3d(0,0,0)}30%{transform:translate3d(calc(var(--sw)*.9),-32vh,0)}60%{transform:translate3d(calc(var(--sw)*-.6 + 7vw),-66vh,0)}100%{transform:translate3d(calc(var(--sw) + 15vw),-114vh,0)}}
+.ambient[data-kind="ketsu"] .amb-p i.ember{top:auto;bottom:-5vh;width:calc(3.5px*var(--s));height:calc(3.5px*var(--s));border-radius:50%;background:#FFB070;box-shadow:0 0 7px 2px #E8803C77;
+  animation-name:amb-rise2,amb-blink;animation-duration:calc(var(--d)*.32),var(--b);animation-timing-function:linear,ease-in-out;animation-direction:normal,alternate}
 .ambient[data-kind="ketsu"] .amb-p i.mist{top:calc(60% + var(--y)*.25);left:-70vw;width:70vw;height:9vh;border-radius:50%;
   background:radial-gradient(ellipse at center,#7A1A2055,#7A1A2000 70%);animation-name:amb-drift;animation-duration:calc(var(--d)*2.2);animation-timing-function:linear}
 .ambient[data-kind="ketsu"].still .amb-fog,.ambient[data-kind="ketsu"].still .lily-sway{animation-play-state:paused}
@@ -1208,3 +1209,6 @@ button,.chip-btn,.w{touch-action:manipulation}
 :root[data-theme="ketsu"] .dt-ghead{background:transparent}
 .ambient[data-kind="ketsu"] .amb-moon{top:calc(env(safe-area-inset-top,0px) + 96px)}
 .ambient[data-kind="ketsu"] .amb-lily{opacity:.6}
+
+/* зарево пожара у земли */
+.ambient[data-kind="ketsu"] .amb-fog{background:radial-gradient(ellipse at 50% 100%,#C9602E4D,#8A3A2A22 45%,transparent 72%)}

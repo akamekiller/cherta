@@ -200,8 +200,8 @@ async function renderHome() {
   progCourse = (await store.getMeta<CourseProg>("course")) ?? {};
   courses = await myCourses();
   if (!courses.length) {
-    $("ex-courses").innerHTML = `<div class="empty-start panel"><span class="han-big" aria-hidden="true">课</span><h2>Курсов пока нет</h2>
-      <p class="hint">Курс — уроки по порядку: слова, узнавание, сборка фраз, аудирование, перевод и диалог. Добавьте готовый курс или соберите свой: в конструкторе, вставкой текста или попросив ИИ сделать его по фото учебника.</p></div>`;
+    $("ex-courses").innerHTML = `<div class="empty-start"><span class="han-big" aria-hidden="true">课</span><h2>Курсов пока нет</h2>
+      <p class="hint">Уроки по порядку: слова, фразы, аудирование, перевод, диалог. Добавьте готовый курс или соберите свой.</p></div>`;
     return;
   }
   // курсы — по уровням, каждый уровень сворачивается

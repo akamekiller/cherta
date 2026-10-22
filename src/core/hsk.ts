@@ -111,7 +111,7 @@ export const SEC_ZH: Record<Sec, string> = { L: "听力", R: "阅读", W: "书�
 export type Mode = "train" | "exam" | "hard";
 export const MODES: { id: Mode; name: string; hint: string }[] = [
   { id: "train", name: "Тренировка", hint: "пиньинь и перевод по кнопке, разбор сразу, без таймера" },
-  { id: "exam", name: "Экзамен", hint: "как на настоящем экзамене: таймер, аудио дважды, разбор в конце" },
+  { id: "exam", name: "Экзамен", hint: "таймер, аудио дважды, разбор в конце" },
   { id: "hard", name: "Сложнее", hint: "сложнее экзамена: аудио один раз и быстрее, времени на треть меньше" },
 ];
 

@@ -105,8 +105,8 @@ function renderList() {
   texts = mine();
   const tools = `<div class="tools"><button class="btn small primary" id="rd-cat">Добавить из готовых</button><button class="btn small" id="rd-file">Вставить или загрузить свой</button></div>`;
   if (!texts.length) {
-    $("rd-list").innerHTML = `<div class="empty-start panel"><span class="han-big" aria-hidden="true">${isJa() ? "読" : "读"}</span><h2>Текстов пока нет</h2>
-      <p class="hint">Добавьте готовые тексты по своему уровню или загрузите свои (например, из учебника). Нажатие на слово в тексте — перевод и «в колоду».</p></div>${tools}`;
+    $("rd-list").innerHTML = `<div class="empty-start"><span class="han-big" aria-hidden="true">${isJa() ? "読" : "读"}</span><h2>Текстов пока нет</h2>
+      <p class="hint">Добавьте готовые тексты по своему уровню или загрузите свои.</p></div>${tools}`;
     return;
   }
   const levels = [...new Set(texts.map((t) => t.level))].sort((x, y) => lvlKey(x) - lvlKey(y));

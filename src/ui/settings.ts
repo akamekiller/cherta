@@ -1,3 +1,5 @@
+import { listSnaps, snapshot, restoreSnap } from "../autobackup.ts";
+import { openWhatsNew } from "./whatsnew.ts";
 import { motionOn, setMotion, fxOpts } from "./ambient.ts";
 import { app, updateSettings, reloadAll, revertEdit } from "../state.ts";
 import { optimize } from "../core/fsrsopt.ts";
@@ -93,6 +95,7 @@ function render() {
   $("s-py-d").textContent = ja ? "После письма — ввод чтения (ромадзи переводятся в кану)" : "Ввод пиньиня после того, как иероглифы написаны";
   const rate = app.settings.speechRate ?? 1;
   document.querySelectorAll<HTMLButtonElement>("#s-rate [data-rate]").forEach((b) => b.setAttribute("aria-pressed", String(Math.abs(Number(b.dataset.rate) - rate) < 0.01)));
+  void renderSnaps();
   $("progress-info").textContent = `Начато слов: ${app.cards.size}. Прогресс хранится в этом браузере на этом устройстве.`;
 }
 
@@ -111,6 +114,13 @@ function confirmBox(question: string, yes: string, onYes: () => void) {
 }
 
 /* ---------- интервалы под вас (FSRS) ---------- */
+
+async function renderSnaps() {
+  const list = await listSnaps();
+  $("snaps-list").innerHTML = list.length
+    ? list.map((s) => `<div class="row"><span class="hint" style="flex:1">${new Date(s.at).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} · ${s.label} · слов: ${s.cards}</span><button class="btn small" data-snap="${s.at}">Вернуть</button></div>`).join("")
+    : `<p class="hint">Копий пока нет — первая появится при следующем запуске.</p>`;
+}
 
 function renderFsrs() {
   const own = !!app.settings.fsrsW;
@@ -231,6 +241,7 @@ export function initSettings() {
     const text = await file.text();
     confirmBox("Заменить текущий прогресс данными из файла?", "Заменить", async () => {
       try {
+        await snapshot("Перед загрузкой из файла");
         const n = await store.importAll(text);
         await reloadAll();
         setTheme(app.settings.theme, app.settings.custom ?? null);
@@ -242,7 +253,21 @@ export function initSettings() {
       }
     });
   });
+  $("whatsnew").addEventListener("click", () => openWhatsNew(true));
+  $("snaps-list").addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-snap]");
+    if (!b) return;
+    confirmBox("Вернуть эту копию? Текущий прогресс заменится (перед этим тоже сохранится копия).", "Вернуть", async () => {
+      try {
+        const n = await restoreSnap(Number(b.dataset.snap));
+        await reloadAll();
+        render();
+        note(`Возвращено карточек: ${n}.`);
+      } catch (err) { note(err instanceof Error ? err.message : "Не удалось вернуть копию.", true); }
+    });
+  });
   $("reset").addEventListener("click", () => confirmBox("Удалить весь прогресс? Настройки останутся.", "Удалить", async () => {
+    await snapshot("Перед сбросом");
     await store.resetProgress();
     await reloadAll();
     render();

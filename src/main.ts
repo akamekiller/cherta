@@ -21,6 +21,8 @@ import { initSettings, penWriter } from "./ui/settings.ts";
 import { recolor, setPen } from "./ui/writer.ts";
 import { initSheet } from "./ui/sheet.ts";
 import { setTheme, onThemeChange } from "./theme.ts";
+import { dailySnapshot } from "./autobackup.ts";
+import { initWhatsNew } from "./ui/whatsnew.ts";
 import { initAmbient, fxOpts } from "./ui/ambient.ts";
 import { app } from "./state.ts";
 import { loadRecorded, setSpeechRate } from "./speech.ts";
@@ -66,6 +68,8 @@ async function boot() {
   // при запуске — тихая синхронизация; если что-то пришло с другого устройства, перерисовать экран
   autoSync().then((changed) => { if (changed) rerender(); });
   requestPersist();
+  initWhatsNew();
+  setTimeout(() => void dailySnapshot(), 8000);
   void openShared();
   loadRecorded();
   // в приложении (Capacitor) кэш данных ведёт native.ts, service worker не нужен

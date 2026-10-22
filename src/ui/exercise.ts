@@ -35,11 +35,14 @@ import { setToCourse } from "../core/coursebuild.ts";
 
 const LS = "cherta.ex3";
 /** pyMode — пиньинь над словами в курсах: «auto» (по уровню и шагу) или явно включён/выключен кнопкой в занятии. */
-const ui = { kinds: ["tr", "gap", "listen"] as Kind[], n: 10, pinyin: true, trMode: "type" as "type" | "tiles", freeDeck: "", pyMode: "auto" as "auto" | "on" | "off", quiet: false };
+const ui = { kinds: ["tr", "gap", "listen"] as Kind[], n: 10, pinyin: true, trMode: "type" as "type" | "tiles", freeDeck: "", pyMode: "auto" as "auto" | "on" | "off", quiet: false, free: false };
 try { Object.assign(ui, JSON.parse(localStorage.getItem(LS) ?? "{}")); } catch { /* */ }
 const save = () => { try { localStorage.setItem(LS, JSON.stringify(ui)); } catch { /* */ } };
 /** Переключатель «Без звука»: аудирование и диктант не нужны для прохождения урока (нет наушников, шумно). */
 const quietChip = () => `<button class="chip-btn quiet-chip" data-quiet aria-pressed="${ui.quiet}" title="Пропускать аудирование и диктант">${ui.quiet ? "🔇" : "🔈"} Без звука</button><small class="hint">${ui.quiet ? "Аудирование и диктант пропускаются" : "Нет наушников? Уроки — без аудирования"}</small>`;
+
+/** «Любой шаг»: все шаги урока открыты, можно идти к грамматике, не набрав 70% в предыдущих. */
+const freeChip = () => `<button class="chip-btn quiet-chip" data-free aria-pressed="${ui.free}" title="Открыть все шаги урока">${ui.free ? "🔓" : "🔒"} Любой шаг</button><small class="hint">${ui.free ? "Все шаги открыты — выбирайте любой" : "Не хватает знаний для следующего шага? Откройте любой"}</small>`;
 
 /* ---------- словарь для пиньиня и деления на слова ---------- */
 
@@ -438,7 +441,7 @@ function openLesson(i: number) {
   const firstOpen = steps.findIndex((s) => (best[s] ?? 0) < PASS);
   $("ex-l-steps").innerHTML = steps.map((s, k) => {
     const info = STEPS.find((x) => x.id === s)!;
-    const open = stepOpen(steps, best, k);
+    const open = ui.free || stepOpen(steps, best, k);
     const b = best[s];
     const theory = s === "words";
     const state = theory ? (b ? `<span class="st ok">✓</span>` : `<span class="st go">→</span>`)
@@ -447,7 +450,7 @@ function openLesson(i: number) {
     return `<button class="step-row${k === firstOpen ? " cur" : ""}${theory ? " theory" : ""}" data-step="${s}" ${open ? "" : "disabled"}><span class="sn">${theory ? "📖" : k}</span><span class="lt"><b>${stepName(s, l)}</b><small>${hint}${theory ? " · по желанию" : ""}</small></span>${state}</button>`;
   }).join("") + (lessonDone(steps, best) && lessonIdx + 1 < c.set.lessons.length ? `<button class="btn primary wide" data-lesson="${lessonIdx + 1}">Следующий урок →</button>` : "")
     + (!steps.length ? `<p class="hint">В этом уроке нет заданий.</p>` : "")
-    + `<div class="quiet-row">${quietChip()}</div>`
+    + `<div class="quiet-row">${quietChip()}</div><div class="quiet-row">${freeChip()}</div>`
     + `<p class="hint">Шаг засчитывается от ${Math.round(PASS * 100)}% верных ответов — тогда открывается следующий. Теорию можно открыть в любой момент.</p>`;
   // урок ещё не начат и есть теория — спросить, нужна ли она
   if (l.grammar?.length && !Object.keys(best).length) {
@@ -939,6 +942,12 @@ export function initExercise() {
   onLeave("ex", () => { stopSpeech(); });
   $("ex-add").addEventListener("click", openCatalog);
   $("ex").addEventListener("click", (e) => {
+    if ((e.target as HTMLElement).closest("[data-free]")) {
+      ui.free = !ui.free;
+      save();
+      if (!$("ex-lesson").hidden && course) openLesson(lessonIdx);
+      return;
+    }
     if (!(e.target as HTMLElement).closest("[data-quiet]")) return;
     ui.quiet = !ui.quiet;
     save();

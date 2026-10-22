@@ -80,7 +80,20 @@ export function parseInput(input: string): ParsedInput {
 
 export function checkPinyin(input: string, ref: Syllable[]): PinyinCheck {
   const u = parseInput(input);
-  if (u.letters !== plain(ref)) return { ok: false, per: ref.map(() => false), letters: false };
+  if (u.letters !== plain(ref)) {
+    // буквы не сошлись целиком — но слоги, введённые через пробел, проверяем по одному: верные не отмечаем ошибкой
+    const parts = input.trim().split(/[\s']+/).filter(Boolean);
+    if (parts.length === ref.length) {
+      const per = parts.map((part, i) => {
+        const x = parseInput(part);
+        if (x.letters !== ref[i].s) return false;
+        const t = x.tones.length ? x.tones[x.tones.length - 1].t : 5;
+        return t === ref[i].t || ref[i].alt.includes(t);
+      });
+      return { ok: false, per, letters: false };
+    }
+    return { ok: false, per: ref.map(() => false), letters: false };
+  }
   let pos = 0;
   const per: boolean[] = [];
   for (const syl of ref) {

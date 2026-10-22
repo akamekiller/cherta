@@ -305,6 +305,13 @@ function charsDone() {
   if (!py.hidden && !py.value) py.focus({ preventScroll: true });
 }
 
+/** « в слоге 3» / « в слогах 1, 3» — если неверны не все слоги. */
+function wrongSyl(per: boolean[]): string {
+  const bad = per.map((x, i) => (x ? 0 : i + 1)).filter(Boolean);
+  if (!bad.length || bad.length === per.length) return "";
+  return bad.length === 1 ? ` в слоге ${bad[0]}` : ` в слогах ${bad.join(", ")}`;
+}
+
 function reveal() {
   if (!s?.word || s.answered) return;
   s.answered = true;
@@ -333,7 +340,7 @@ function reveal() {
     } else if (py) {
       per = py.per;
       chips.push(py.ok ? `<span class="chip ok">Пиньинь верно</span>`
-        : `<span class="chip no">Пиньинь: ${py.letters ? "тоны" : "ошибка"}${typed ? ` · вы: ${esc(pyAnswerShown())}` : ""}</span>`);
+        : `<span class="chip no">Пиньинь: ${py.letters ? "тоны" : "ошибка"}${wrongSyl(py.per)}${typed ? ` · вы: ${esc(pyAnswerShown())}` : ""}</span>`);
     }
     s.mistakes = mistakes;
   } else if (skill === "tone") {

@@ -163,3 +163,12 @@ test("поиск по-русски не находит слово внутри �
   const E = [{ han: "学", py: "xue2", ru: "учиться" }, { han: "出事", py: "chu1 shi4", ru: "случиться (беде)" }];
   assert.deepEqual(searchEntries(E, "учиться").map((e) => e.han), ["学"]);
 });
+
+test("неверные буквы в одном слоге не портят остальные", () => {
+  const r = checkPinyin("shun4 shi2 zheng3", parseRef("shun4 shi2 zhen1"));
+  assert.equal(r.ok, false);
+  assert.deepEqual(r.per, [true, true, false]);
+  assert.equal(r.letters, false);
+  const all = checkPinyin("shunshizhen", parseRef("shun4 shi2 zhen1"));
+  assert.equal(all.per.every((x) => !x), true);
+});

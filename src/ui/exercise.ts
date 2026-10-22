@@ -7,7 +7,7 @@
 import { app, hskLookup, deckById, exCorpus, loadExSets, saveExSets, dictIndex, updateSettings, saveUserDeck, switchDeck, appLang, type ExSetFile } from "../state.ts";
 import {
   KINDS, STEPS, PASS, parseCorpus, segment, sentencesFor, gapTask, diffZh, parseExSet, planSession, tilesFor, checkAssembled, isWordTok, record,
-  lessonSteps, stepOpen, lessonDone, stepTasks, reviewTasks, wordOptions, shortRu, stepName, pinyinOptions, pinyinKey, jaTokens, plainJa,
+  lessonSteps, stepOpen, lessonDone, stepTasks, gramTasks, reviewTasks, wordOptions, shortRu, stepName, pinyinOptions, pinyinKey, jaTokens, plainJa,
   type Kind, type Sent, type Dialog, type Task, type ExProgress, type ExSet, type StepId, type LessonWord, type Gram, type GramX,
 } from "../core/exercise.ts";
 import { dictPyToNumeric, type DictIndex } from "../core/dict.ts";
@@ -23,6 +23,7 @@ import { findJ } from "../core/jdict.ts";
 import { romajiToKana, toHiragana } from "../core/kana.ts";
 import type { Word } from "../core/deck.ts";
 import { openAddToDeck } from "./editor.ts";
+import { toDecomp, parts as decompParts, layoutName, type DecompRow } from "../core/decomp.ts";
 import { openSheet, closeSheet, confirmInline } from "./sheet.ts";
 import { pickDeck, setPickLabel } from "./deckpick.ts";
 import { mountHwPad, type HwPad } from "./hwpad.ts";
@@ -558,6 +559,7 @@ function showWords() {
       return `<div class="item lw"><button class="h" data-wopen="${esc(h)}">${esc(h)}</button><span class="txt"><span class="py">${p}</span><span class="ru">${esc(ru)}</span></span><button class="icon-btn small-ic" data-wsay="${i}" aria-label="Послушать">${PLAY}</button></div>`;
     }).join("")}</div>
     <button class="btn wide" data-words-deck>Учить слова карточками</button>
+    <div id="th-chars"></div>
     <p class="hint" id="ex-words-msg">Слова урока сами попадут в колоду курса «${esc(c.title)}» в «Карточках».</p>` : ""}
     ${(l.grammar ?? []).map((g, gi) => `<div class="panel gram">
       <h3 class="gram-t"><span class="gram-n">${gi + 1}</span>${esc(g.title)}</h3>
@@ -567,6 +569,34 @@ function showWords() {
       ${gramNotes(g)}
     </div>`).join("")}
     <div class="ex-btns"><button class="btn primary wide" data-words-ok>${l.dialogs.length ? "Понятно — к тексту урока" : "Понятно — к заданиям"}</button></div>`;
+  void renderThChars();
+}
+
+let decompDb: Promise<Record<string, DecompRow>> | null = null;
+const loadDecomp = () => (decompDb ??= fetch("data/decomp.json").then((r) => r.json()).catch(() => { decompDb = null; return {}; }));
+
+/** «Новые иероглифы»: знаки, впервые встретившиеся в этом уроке, с составом (ключ, смысл, звучание). */
+async function renderThChars() {
+  const c = course;
+  if (!c || clang === "ja") return;
+  const box = document.getElementById("th-chars");
+  if (!box) return;
+  const han = /\p{Script=Han}/u;
+  const seen = new Set(c.set.lessons.slice(0, lessonIdx).flatMap((x) => x.words.flatMap((w) => [...w[0]])));
+  const fresh: string[] = [];
+  for (const w of c.set.lessons[lessonIdx].words) for (const ch of w[0]) if (han.test(ch) && !seen.has(ch) && !fresh.includes(ch)) fresh.push(ch);
+  if (!fresh.length) return;
+  const db = await loadDecomp();
+  const idx = lessonIdx;
+  const rows = fresh.slice(0, 24).map((ch) => {
+    const d = toDecomp(db[ch]);
+    const ps = d ? decompParts(d.ids).filter((x) => x !== ch) : [];
+    const role = d?.type === "s" ? ` <span class="hint">смысл ${esc(d.semantic)}, звучание ${esc(d.phonetic)}</span>` : "";
+    const lay = d ? layoutName(d.ids) : "";
+    return `<div class="item lw"><button class="h" data-wopen="${esc(ch)}">${esc(ch)}</button><span class="txt"><span class="ru">${ps.length ? `состоит из ${ps.map((x) => `<span class="han">${esc(x)}</span>`).join(" + ")}${lay ? ` · ${lay}` : ""}${role}` : "простой иероглиф"}${d?.radical && d.radical !== ch ? ` · ключ <span class="han">${esc(d.radical)}</span>` : ""}</span></span></div>`;
+  });
+  if (idx !== lessonIdx) return;
+  box.innerHTML = `<h3 class="grp-title"><span>Новые иероглифы</span><span class="grp-n">${fresh.length}</span></h3><div class="grp list">${rows.join("")}</div><p class="hint">Тап по иероглифу — статья со всеми чертами и мнемоникой.</p>`;
 }
 
 async function saveBest(step: StepId, score: number) {
@@ -635,7 +665,7 @@ async function renderSetup() {
 
 /* ---------- занятие ---------- */
 
-type Run = { mode: "step" | "review" | "free"; step?: StepId; focus: Set<string>; words: LessonWord[]; courseWords: LessonWord[]; distract: number; title: string };
+type Run = { mode: "step" | "review" | "free" | "mini"; step?: StepId; focus: Set<string>; words: LessonWord[]; courseWords: LessonWord[]; distract: number; title: string };
 let run: Run = { mode: "free", focus: new Set(), words: [], courseWords: [], distract: 2, title: "" };
 let tasks: Task[] = [];
 let pos = 0;
@@ -681,6 +711,20 @@ async function startStep(step: StepId) {
   const all = c.set.lessons.flatMap((x) => x.words);
   await begin(list, { mode: "step", step, focus: new Set([...l.words.map((w) => w[0]), ...l.sents.flatMap((s) => s.t.filter(isWordTok))]), words: l.words, courseWords: all,
     distract: Math.min(3, 1 + Math.floor(lessonIdx / 5)), title: stepName(step, l) });
+}
+
+/** Мини-проверка после теории: 2–3 вопроса по правилам урока, без оценки шага. */
+let miniNext: StepId | undefined;
+async function startMini(next: StepId | undefined): Promise<boolean> {
+  const c = course;
+  if (!c) return false;
+  const l = c.set.lessons[lessonIdx];
+  const list = gramTasks(l, (rnd = Math.random), 3);
+  if (list.length < 2) return false;
+  miniNext = next;
+  pyOn = autoPinyin("gap");
+  await begin(list, { mode: "mini", focus: new Set(l.words.map((w) => w[0])), words: l.words, courseWords: c.set.lessons.flatMap((x) => x.words), distract: 2, title: "Проверим, что понятно" });
+  return true;
 }
 
 async function startReview() {
@@ -941,6 +985,12 @@ async function finish() {
   $("ex-count").textContent = "";
   const score = tasks.length ? right / tasks.length : 0;
   const pct = Math.round(score * 100);
+  if (run.mode === "mini") {
+    $("ex-card").innerHTML = `<div class="ex-done"><b>${right} из ${tasks.length}</b>${right === tasks.length ? "всё понятно" : "верно"}</div>
+      <p class="hint center">${right === tasks.length ? "Теория усвоена — можно идти дальше." : "Если что-то осталось неясным, откройте «Грамматику курса» на экране курса или прочитайте теорию ещё раз."}</p>
+      <div class="ex-btns"><button class="btn" data-act="to-lesson">К уроку</button>${miniNext ? `<button class="btn primary" data-act="step" data-step="${miniNext}">${stepName(miniNext, course!.set.lessons[lessonIdx])} →</button>` : ""}</div>`;
+    return;
+  }
   if (run.mode === "step" && course && run.step) {
     await saveBest(run.step, score);
     const l = course.set.lessons[lessonIdx];
@@ -999,7 +1049,7 @@ async function glossJa(w: string) {
 
 function quitRun() {
   stopSpeech();
-  if (run.mode === "step") openLesson(lessonIdx);
+  if (run.mode === "step" || run.mode === "mini") openLesson(lessonIdx);
   else if (run.mode === "review" && course) openCourse(course.key);
   else renderSetup();
 }
@@ -1073,7 +1123,7 @@ export function initExercise() {
     if (t.closest("[data-th-py]")) { pyOn = !pyOn; ui.pyMode = pyOn ? "on" : "off"; save(); const y = window.scrollY; showWords(); window.scrollTo(0, y); return; }
     const wo = t.closest<HTMLButtonElement>("[data-wopen]");
     if (wo) { const w = await wordByHan(wo.dataset.wopen!); openEntry(w.id, true); return; }
-    if (t.closest("[data-words-ok]")) { await saveBest("words", 1); await addToCourseDeck(c, [lessonIdx]); $("ex-l-steps").hidden = false; const steps = lessonSteps(l, ui.quiet); const nx = steps[steps.indexOf("words") + 1]; if (nx) startStep(nx); else openLesson(lessonIdx); return; }
+    if (t.closest("[data-words-ok]")) { await saveBest("words", 1); await addToCourseDeck(c, [lessonIdx]); $("ex-l-steps").hidden = false; const steps = lessonSteps(l, ui.quiet); const nx = steps[steps.indexOf("words") + 1]; if (await startMini(nx)) return; if (nx) startStep(nx); else openLesson(lessonIdx); return; }
     if (t.closest("[data-words-deck]")) {
       const { id } = await addToCourseDeck(c, [lessonIdx]);
       await switchDeck(id);

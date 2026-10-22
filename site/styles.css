@@ -1119,3 +1119,26 @@ button,.chip-btn,.w{touch-action:manipulation}
 /* Знак «Черты» — красная печать 笔 (как иконка приложения, static/icons/icon.svg) */
 .dr-head .han,.brand-mini{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:7px;background:#B8322A;color:#F5F1E8!important;font-size:19px!important;line-height:1;
   box-shadow:inset 0 0 0 3px #B8322A,inset 0 0 0 4.5px #F5F1E8;align-self:center}
+
+/* ---- Вариант A (22.10.2026): тише — без вложенных рамок, подписи крупнее ---- */
+.label{font-size:12.5px}
+.hint{font-size:14.5px}
+.stat span{font-size:14px}
+.panel{border-color:transparent}
+.panel .panel,.panel .hk-card{background:var(--paper)}
+.btn{min-height:48px}
+.btn.small{min-height:44px;padding:8px 14px;font-size:15px}
+.brand-mini{display:none!important}
+/* итог ответа: строка с цветным текстом вместо плашек в рамках */
+.verdict{gap:4px 16px}
+.verdict .chip:not(.leech){background:none;border:0;padding:2px 0;font-size:15px}
+.verdict .chip.hand{text-decoration:underline dotted;text-underline-offset:4px;cursor:pointer}
+.chip{font-size:14px}
+.hk-about{margin-top:8px}
+.hk-about summary{font-size:14.5px;color:var(--muted);cursor:pointer;min-height:44px;display:flex;align-items:center}
+.decks-table{background:none;border:0;border-radius:0}
+.dt-head{font-size:13px;border-bottom-color:var(--line)}
+.dt-name small{font-size:13.5px}
+.dt-group{font-size:13px}
+.dt-row.cur{border-radius:12px}
+.deck-list{border:0}

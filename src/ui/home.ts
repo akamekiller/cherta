@@ -111,8 +111,6 @@ export function renderDeck() {
   if (!c.total) {
     const t = nextDueTime();
     hint = t ? `Следующая карточка через ${formatGap(t - Date.now())}.` : c.unseen ? "Новые слова на сегодня закончились — лимит меняется в меню колоды (⋯)." : "Все слова колоды уже в повторении.";
-  } else if (c.unseen === words().length) {
-    hint = `Первое занятие: ${c.newLeft} ${plural(c.newLeft, "новое слово", "новых слова", "новых слов")}, около 10 минут.`;
   }
   $("next-hint").textContent = hint;
   renderSkills();

@@ -309,8 +309,7 @@ async function renderDictHome() {
   }
   const themes = themesOf("hsk3-1");
   box.innerHTML = wodHTML
-    + `<div class="wh-ex"><span class="hint">Ищите иероглифами, пиньинем без тонов, по-русски, рисованием ✍ или голосом. Например:</span>
-       <div class="chips-row wrapped">${EXAMPLES.map((x) => `<button class="chip-btn" data-try="${esc(x)}">${esc(x)}</button>`).join("")}</div></div>`
+    + `<div class="wh-ex"><div class="chips-row wrapped">${EXAMPLES.map((x) => `<button class="chip-btn" data-try="${esc(x)}">${esc(x)}</button>`).join("")}</div></div>`
     + (items.length ? `<h3 class="grp-title"><span>Недавно открытые</span><button class="link-btn small" data-clear-recent>Очистить</button></h3>${listHTML(items)}` : "")
     + (themes.length ? `<h3 class="grp-title"><span>Слова по темам · HSK 1</span><span class="grp-n">${themes.length}</span></h3>
        <div class="chips-row wrapped" id="wh-themes">${themes.map((t, i) => `<button class="chip-btn" data-wtheme="${i}" aria-pressed="${homeOpen?.kind === "theme" && homeOpen.id === String(i)}" ${i >= 8 && !themesAll ? "hidden" : ""}>${esc(t.t)}</button>`).join("")}${themes.length > 8 && !themesAll ? `<button class="chip-btn more" data-wthemes-all>Все темы (${themes.length}) ▾</button>` : ""}</div><div id="wh-theme"></div>` : "")

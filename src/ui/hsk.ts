@@ -96,14 +96,13 @@ async function renderHome() {
   const card = (secs: Sec[], title: string, sub: string) => `<button class="hk-card panel" data-start="${secs.join("")}"><b>${title}</b><small>${sub}</small></button>`;
   const hist = saved.hist.filter((h) => h.level === ui.level).slice(-5).reverse();
   home.innerHTML = `
-    <div class="hk-intro"><p class="hint">Новый HSK 3.0. ${ui.level <= 3 ? "Число заданий и время — по образцам экзамена" : "Образцы нового экзамена для уровней 4–6 ещё не опубликованы: формат — как у прежнего HSK, слова — HSK 3.0"}; задания написаны для «Черты» по схеме HSK, каждый вариант собирается заново из банка.</p></div>
     <div class="seg wide-seg hk-lv" role="group" aria-label="Уровень">${LEVELS.filter((l) => lvs.includes(l.level)).map((l) => `<button data-lv="${l.level}" aria-pressed="${l.level === ui.level}">HSK ${l.level}</button>`).join("")}</div>
     <div class="seg wide-seg" role="group" aria-label="Сложность">${MODES.map((m) => `<button data-mode="${m.id}" aria-pressed="${m.id === ui.mode}">${m.name}</button>`).join("")}</div>
     <p class="hint">${esc(MODES.find((m) => m.id === ui.mode)!.hint)}</p>
     ${card(all, "Полный экзамен", `${n()} ${plural(n(), "задание", "задания", "заданий")}${ui.mode === "train" ? "" : ` · ${mins(all)} мин`} · ${all.map((s) => SEC_NAME[s].toLowerCase()).join(", ")}`)}
     <div class="hk-secs">${all.map((s) => card([s], `${SEC_NAME[s]} <span class="zh">${SEC_ZH[s]}</span>`, `${n([s])} ${plural(n([s]), "задание", "задания", "заданий")}${ui.mode === "train" ? "" : ` · ${mins([s])} мин`}`)).join("")}</div>
     ${hist.length ? `<h3 class="grp-title"><span>Мои результаты · HSK ${ui.level}</span></h3><div class="hk-hist">${hist.map(histRow).join("")}</div>` : ""}
-    <p class="hint">Баллы: каждая часть — из 100, «сдал» — от 60% суммы. Официальные пороги HSK 3.0 ещё не опубликованы, это ориентир. Устной части пока нет.</p>`;
+    <details class="hk-about"><summary>О формате и баллах</summary><p class="hint">Новый HSK 3.0. ${ui.level <= 3 ? "Число заданий и время — по образцам экзамена" : "Образцы нового экзамена для уровней 4–6 ещё не опубликованы: формат — как у прежнего HSK, слова — HSK 3.0"}; задания написаны для «Черты» по схеме HSK, каждый вариант собирается заново из банка.</p><p class="hint">Баллы: каждая часть — из 100, «сдал» — от 60% суммы. Официальные пороги HSK 3.0 ещё не опубликованы, это ориентир. Устной части пока нет.</p></details>`;
 }
 
 const histRow = (h: Hist) => `<div class="hk-h"><span>${new Date(h.at).toLocaleDateString("ru-RU")} · ${esc(MODES.find((m) => m.id === h.mode)?.name ?? "")}${h.secs.length < 2 ? ` · ${esc(SEC_NAME[h.secs[0]])}` : ""}</span><b class="${h.passed ? "ok" : "no"}">${h.total}/${h.max}</b></div>`;

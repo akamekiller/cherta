@@ -121,6 +121,25 @@ async function finishBlind() {
   });
 }
 
+/** Дополнительная проба письма после ответа: на оценку и расписание не влияет. */
+let practiceGen = 0;
+function practiceAgain() {
+  const cur = s;
+  if (!cur?.word || !cur.answered || cur.skill !== "write") return;
+  const my = ++practiceGen, word = cur.word;
+  $("pad").hidden = false;
+  const alive = () => s === cur && cur.word === word && practiceGen === my;
+  const step = (i: number) => {
+    stopWriter();
+    cur.writer = createWriter($("hw"), cur.chars[i], { showOutline: false }, langOf(word));
+    cur.writer.quiz({
+      onMistake: () => { if (app.settings.vibrate) try { navigator.vibrate?.(35); } catch { /* */ } },
+      onComplete: () => setTimeout(() => { if (alive() && i + 1 < cur.chars.length) step(i + 1); }, 350),
+    });
+  };
+  step(0);
+}
+
 function endSession() { stopWriter(); s = null; }
 
 const SKILL_TASK: Record<Skill, string> = {
@@ -154,6 +173,7 @@ function nextQuestion(force?: NextCard) {
   const chars = [...w.han];
   Object.assign(s, { word: w, skill, fresh: next.fresh, chars, ci: 0, miss: chars.map(() => 0), gave: chars.map(() => false), hint: chars.map(() => false), isNew: !skillCard(w, skill), answered: false, grading: false, mistakes: 0, drawn: chars.map(() => []) });
   stopWriter();
+  practiceGen++;
   const write = skill === "write";
   const isNew = s.isNew ? "Новое · " : "";
   // вопрос: для написания и «вспомнить слово» — значение, для остальных навыков — иероглифы
@@ -271,7 +291,8 @@ function charsDone() {
     $("ask").querySelector<HTMLElement>(".tools")!.hidden = true;
     $("kana-field").hidden = false;
     $("b-check").scrollIntoView({ behavior: "smooth", block: "end" });
-    $<HTMLInputElement>("kana-in").focus({ preventScroll: true });
+    // на телефоне клавиатура сама не открывается: поле открывается касанием, а письмо рядом остаётся видно
+    if (!matchMedia("(pointer: coarse)").matches) $<HTMLInputElement>("kana-in").focus({ preventScroll: true });
     return;
   }
   const check = $<HTMLButtonElement>("b-check");
@@ -335,6 +356,7 @@ function reveal() {
   $("pad").hidden = skill !== "write";
   $("slots").hidden = skill !== "write";
   $("r-han").textContent = w.han;
+  $("r-again").hidden = skill !== "write";
   $("r-py").innerHTML = isJa(w) ? readingHTML(w) : pinyinHTML(w.ref, per);
   $("r-ru").textContent = w.ru;
   showNote($("r-note"), w.id);
@@ -415,6 +437,7 @@ function refreshAfterEdit() {
 }
 
 export function initSession() {
+  $("r-again").addEventListener("click", practiceAgain);
   $("r-edit").addEventListener("click", () => s?.word && openWordEditor(s.word, refreshAfterEdit));
   $("quit").addEventListener("click", () => show("deck"));
   $("done-home").addEventListener("click", () => show("deck"));

@@ -11,7 +11,7 @@ import type { PenPoint } from "../core/pen.ts";
 import { parseRef } from "../core/pinyin.ts";
 import { paintStroke, inkColor } from "./writer.ts";
 import { esc, pinyinHTML, plural } from "./dom.ts";
-import { openSheet } from "./sheet.ts";
+import { openSheet, closeSheet } from "./sheet.ts";
 import { app } from "../state.ts";
 
 export type NbCtx = {
@@ -234,9 +234,15 @@ function onClick(e: Event) {
   }
   if (b.dataset.redo) {
     const ri = Number(b.dataset.redo);
-    rows[ri].cells = rows[ri].cells.map(() => ({ strokes: [] }));
-    rows[ri].checked = false;
-    redrawRow(ri);
+    openSheet("Написать строку заново?", `<div class="stack"><p class="hint">Всё написанное в этой строке сотрётся.</p><div class="row"><button class="btn danger" id="nb-redo-yes">Да, заново</button><button class="btn" id="nb-redo-no">Отмена</button></div></div>`, (r) => {
+      r.querySelector("#nb-redo-yes")!.addEventListener("click", () => {
+        closeSheet();
+        rows[ri].cells = rows[ri].cells.map(() => ({ strokes: [] }));
+        rows[ri].checked = false;
+        redrawRow(ri);
+      });
+      r.querySelector("#nb-redo-no")!.addEventListener("click", closeSheet);
+    });
     return;
   }
   if (b.id === "nb-prev") { ctx.setStart(Math.max(0, ctx.start - NB_ROWS)); return; }

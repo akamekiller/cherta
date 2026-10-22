@@ -3,6 +3,7 @@
  * Выбор хранится в настройках и дублируется в localStorage, чтобы встроенный скрипт в <head>
  * применил тему до отрисовки (без вспышки). Своя тема — набор цветов поверх одной из готовых.
  */
+import { nativeBars } from "./native.ts";
 export type ThemeChoice = "auto" | "light" | "dark" | "black" | "sakura" | "yoru" | "shuimo" | "deng" | "custom";
 export type Preset = "light" | "dark" | "black" | "sakura" | "yoru" | "shuimo" | "deng";
 /** Темы с живым фоном (src/ui/ambient.ts): японские — сакура и ночь, китайские — тушь и фонари. */
@@ -115,6 +116,7 @@ function apply() {
   meta.name = "theme-color";
   meta.content = bg;
   document.head.appendChild(meta);
+  nativeBars(bg);
   listeners.forEach((f) => f());
 }
 

@@ -481,7 +481,15 @@ export function initBook() {
   });
   $("bk-prev").addEventListener("click", () => { if (idx > 0) { idx--; startChar(); } });
   $("bk-next").addEventListener("click", () => { if (idx < chars.length - 1) { idx++; startChar(); } });
-  $("bk-again").addEventListener("click", () => { gen++; startChar(); });
+  $("bk-again").addEventListener("click", () => {
+    const again = () => { closeSheet(); gen++; startChar(); };
+    // нечего терять — без вопроса; иначе спрашиваем, чтобы не стереть написанное одним касанием
+    if (ci === 0) { again(); return; }
+    openSheet("Начать иероглиф заново?", `<div class="stack"><p class="hint">Клетки этого иероглифа очистятся, написанное ${ci > 1 ? "в них " : ""}пропадёт.</p><div class="row"><button class="btn danger" id="bk-again-yes">Да, заново</button><button class="btn" id="bk-again-no">Отмена</button></div></div>`, (r) => {
+      r.querySelector("#bk-again-yes")!.addEventListener("click", again);
+      r.querySelector("#bk-again-no")!.addEventListener("click", closeSheet);
+    });
+  });
   $("bk-anim").addEventListener("click", () => {
     if (!writer) return;
     stop();

@@ -1,6 +1,7 @@
 {
   "appId": "io.github.akamekiller.cherta",
   "appName": "Черта",
+  "backgroundColor": "#111615",
   "webDir": "www",
   "server": {
     "androidScheme": "https"

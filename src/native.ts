@@ -84,6 +84,15 @@ export function nativeStop() {
   bridge()?.nativePromise?.("TextToSpeech", "stop", {}).catch(() => {});
 }
 
+/** Покрасить системные полосы Android в цвет фона темы (строка состояния, кнопки навигации, фон окна). */
+export function nativeBars(color: string) {
+  const m = /^#([0-9a-f]{6})$/i.exec(color.trim());
+  if (!NATIVE || !m) return;
+  const n = parseInt(m[1], 16);
+  const lum = (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+  bridge()?.nativePromise?.("ChertaBars", "set", { color: `#${m[1]}`, dark: lum < 0.5 }).catch(() => {});
+}
+
 /**
  * Сохранить файл в приложении: ссылки на скачивание в WebView не работают, поэтому файл пишется во временную папку
  * (плагин Filesystem) и открывается окно «Поделиться» — сохранить в Файлы, на Диск, отправить в мессенджер.

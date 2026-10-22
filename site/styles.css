@@ -1142,3 +1142,13 @@ button,.chip-btn,.w{touch-action:manipulation}
 .dt-group{font-size:13px}
 .dt-row.cur{border-radius:12px}
 .deck-list{border:0}
+/* A, второй проход */
+.deck-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.deck-actions #deck-catalog{grid-column:1/-1;background:var(--jade-soft);border-color:transparent;color:var(--jade)}
+.deck-actions #deck-create,.deck-actions #deck-import{background:none}
+.empty-start{padding:16px;gap:8px}
+.empty-start .han-big{font-size:40px;line-height:1}
+.empty-start h2{font-size:19px}
+.empty-start .hint{font-size:14px}
+.pad{max-width:min(340px,50vh)}
+@media (min-width:700px){.pad{max-width:min(500px,52vh)}}

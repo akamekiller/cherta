@@ -65,3 +65,12 @@ test("checkCourseText: номера строк и понятные причин�
   assert.match(by(9), /без правила/);
   assert.match(by(10), /будет пропущена/);
 });
+
+test("правило с таблицей и заметками проходит через конструктор без потерь", () => {
+  const text = "# К\n## У1\n+ 是 | shi4 | быть\n& Правило\n% Объяснение\n%| форма | значение\n%| 是 | быть\n%! ошибка 我是高兴\n%> заметка\n%e 我是学生。 | Я студент.\n";
+  const set = parseExSet(text, "k");
+  const back = parseExSet(courseToText(setToCourse(set)), "k");
+  assert.deepEqual(back.lessons[0].grammar![0].table, set.lessons[0].grammar![0].table);
+  assert.deepEqual(back.lessons[0].grammar![0].notes, set.lessons[0].grammar![0].notes);
+  assert.deepEqual(checkCourseText(text), []);
+});

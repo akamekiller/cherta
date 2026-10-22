@@ -456,6 +456,20 @@ function openLesson(i: number) {
   }
 }
 
+/** Смесь русского и китайского/японского: иероглифы — шрифтом иероглифов (без плиток пиньиня: в таблице они слишком громоздки), остальное — как есть. */
+const mixHTML = (t: string) => t.split(/([\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}][\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}，。？！、：；（）\s+]*)/u).map((p, i) => (i % 2 ? `<span class="han">${esc(p)}</span>` : esc(p))).join("");
+
+/** Таблица правила: первая строка — заголовок. */
+function gramTable(g: Gram): string {
+  if (!g.table?.length) return "";
+  const [head, ...rows] = g.table;
+  return `<div class="g-table-wrap"><table class="g-table"><thead><tr>${head.map((c) => `<th>${mixHTML(c)}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${mixHTML(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+}
+/** «Частая ошибка» и «Заметка». */
+function gramNotes(g: Gram): string {
+  return (g.notes ?? []).map((n) => `<div class="g-note ${n.k}"><b>${n.k === "err" ? "Частая ошибка" : "Заметка"}</b><span>${mixHTML(n.t)}</span></div>`).join("");
+}
+
 /** Шаг «Теория»: цель урока, новые слова (с озвучкой, «Учить карточками»), правила с примерами. */
 function showWords() {
   const c = course!;
@@ -478,7 +492,9 @@ function showWords() {
     ${(l.grammar ?? []).map((g, gi) => `<div class="panel gram">
       <h3 class="gram-t"><span class="gram-n">${gi + 1}</span>${esc(g.title)}</h3>
       ${g.text.map((t) => `<p>${esc(t)}</p>`).join("")}
+      ${gramTable(g)}
       ${g.ex.length ? `<div class="g-exs"><span class="label">Примеры</span>${g.ex.map((e, k) => exLine(e, `${gi}:${k}`)).join("")}</div>` : ""}
+      ${gramNotes(g)}
     </div>`).join("")}
     <div class="ex-btns"><button class="btn primary wide" data-words-ok>${l.dialogs.length ? "Понятно — к тексту урока" : "Понятно — к заданиям"}</button></div>`;
 }
@@ -1064,7 +1080,7 @@ export function initExercise() {
       sayx(full, 0.8);
       await result(ok, `<div class="chip ${ok ? "ok" : "no"}">${ok ? "Верно" : "Не так"}</div>
         <div class="ex-zh ans">${lineHTML(full)}<button class="icon-btn small-ic" data-act="say-x" aria-label="Послушать">${PLAY}</button></div>
-        ${ok ? "" : `<div class="rule-hint"><b>${esc(task.rule.title)}</b>${task.rule.text[0] ? `<p>${esc(task.rule.text[0])}</p>` : ""}</div>`}`);
+        ${ok ? "" : `<div class="rule-hint"><b>${esc(task.rule.title)}</b>${task.rule.text.map((t) => `<p>${esc(t)}</p>`).join("")}${gramTable(task.rule)}${gramNotes(task.rule)}${task.rule.ex[0] ? `<div class="g-ex"><div class="ex-zh">${lineHTML(task.rule.ex[0][0])}</div>${task.rule.ex[0][1] ? `<div class="g-ru">${esc(task.rule.ex[0][1])}</div>` : ""}</div>` : ""}</div>`}`);
       return;
     }
     if (wo && task?.kind === "word") {

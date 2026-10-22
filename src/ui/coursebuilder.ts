@@ -166,6 +166,7 @@ function lesson(i: number) {
         <div class="row"><input class="cb-in" data-k="${P}.rules.${k}.title" value="${esc(r.title)}" placeholder="Правило, например: 是 — «являться»"><button class="btn small danger" data-del="rules.${k}">Удалить</button></div>
         <div class="field"><span class="label">Объяснение</span><textarea data-k="${P}.rules.${k}.text" rows="3">${esc(r.text)}</textarea></div>
         <div class="field"><span class="label">Примеры: китайский | перевод</span><textarea data-k="${P}.rules.${k}.ex" rows="3">${esc(r.ex)}</textarea></div>
+        <div class="field"><span class="label">Таблица, ошибки, заметки (необязательно)</span><textarea data-k="${P}.rules.${k}.extra" rows="3" placeholder="| форма | значение | пример&#10;| 是 | быть | 我是学生&#10;! Частая ошибка: 我是高兴 — нет, 我很高兴&#10;> Заметка: 是 не нужен перед прилагательным">${esc(r.extra ?? "")}</textarea></div>
         ${r.x.map((x, m) => `<div class="cb-q"><div class="row"><input class="cb-in han" data-k="${P}.rules.${k}.x.${m}.zh" value="${esc(x.zh)}" placeholder="我___学生。 (___ — пропуск)"><button class="icon-btn small-ic" data-del="rules.${k}.x.${m}" aria-label="Удалить задание">✕</button></div>
           <input class="cb-in" data-k="${P}.rules.${k}.x.${m}.ru" value="${esc(x.ru)}" placeholder="Перевод">
           <p class="hint">Варианты, кружок — верный:</p>${opt(`${P}.rules.${k}.x.${m}`, x.o, x.a, 3)}</div>`).join("")}
@@ -183,7 +184,7 @@ function lesson(i: number) {
       if (t.closest("[data-back]")) { main(); return; }
       if (t.closest("[data-fill]")) { await fillWords(); redraw(() => lesson(i)); return; }
       const add = t.closest<HTMLElement>("[data-add]");
-      if (add) { if (add.dataset.add === "dialog") l.dialogs.push({ title: "", lines: "", q: [] }); else l.rules.push({ title: "", text: "", ex: "", x: [] }); saveDraft(); redraw(() => lesson(i)); return; }
+      if (add) { if (add.dataset.add === "dialog") l.dialogs.push({ title: "", lines: "", q: [] }); else l.rules.push({ title: "", text: "", ex: "", x: [], extra: "" }); saveDraft(); redraw(() => lesson(i)); return; }
       const aq = t.closest<HTMLElement>("[data-addq]");
       if (aq) { l.dialogs[Number(aq.dataset.addq)].q.push({ q: "", o: ["", "", ""], a: 0 }); saveDraft(); redraw(() => lesson(i)); return; }
       const ax = t.closest<HTMLElement>("[data-addx]");

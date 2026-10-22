@@ -287,3 +287,12 @@ test("китайский курс не считается японским", asy
   const set = parseExSet("# К\n## У\n你好！ | Привет!", "c", (z) => [...z]);
   assert.equal(set.lang, undefined);
 });
+
+test("теория: таблица, частая ошибка и заметка", () => {
+  const set = parseExSet("# К\n## У1\n& Правило\n% Объяснение\n%| форма | значение\n%| 是 | быть\n%! 我是高兴 — нет\n%> 是 не нужен перед прилагательным\n%e 我是学生。 | Я студент.\n", "k");
+  const g = set.lessons[0].grammar![0];
+  assert.deepEqual(g.table, [["форма", "значение"], ["是", "быть"]]);
+  assert.deepEqual(g.notes, [{ k: "err", t: "我是高兴 — нет" }, { k: "tip", t: "是 не нужен перед прилагательным" }]);
+  assert.equal(g.ex.length, 1);
+  assert.equal(g.text.length, 1);
+});

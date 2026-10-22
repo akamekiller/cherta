@@ -109,7 +109,9 @@ export type LessonWord = [string, string, string];
 /** section — раздел курса (тема, уровень), к которому относится урок: строка «### Раздел» перед уроками. */
 /** Грамматика урока: заголовок, объяснение (абзацы), примеры [китайский, перевод], задания на выбор (___ — пропуск). */
 export type GramX = { zh: string; ru: string; o: string[]; a: number };
-export type Gram = { title: string; text: string[]; ex: [string, string][]; x: GramX[] };
+/** table — строки таблицы (первая — заголовок); notes — «частая ошибка» (err) и «заметка» (tip). */
+export type GramNote = { k: "err" | "tip"; t: string };
+export type Gram = { title: string; text: string[]; ex: [string, string][]; x: GramX[]; table?: string[][]; notes?: GramNote[] };
 export type Lesson = { title: string; words: LessonWord[]; sents: Sent[]; dialogs: Dialog[]; section?: string; goal?: string; grammar?: Gram[] };
 export type ExSet = { id: string; title: string; lessons: Lesson[]; level?: number; about?: string; lang?: "zh" | "ja";
   /** Японский курс: чтения слов с кандзи из предложений и слов урока (для фуриганы). */
@@ -261,7 +263,9 @@ export function parseExSet(text: string, id: string, seg: (zh: string) => string
     if (line.startsWith("= ")) { ensureLesson().goal = line.slice(2).trim(); dialog = null; continue; }
     if (line.startsWith("& ")) { gram = { title: line.slice(2).trim(), text: [], ex: [], x: [] }; (ensureLesson().grammar ??= []).push(gram); dialog = null; continue; }
     if (line.startsWith("%") && gram) {
-      if (line.startsWith("%e ")) { const [zh, ru = ""] = split(line.slice(3)); if (zh) { if (ja) jaSeg(zh); gram.ex.push([zh, ru]); } }
+      if (line.startsWith("%| ")) { const row = split(line.slice(3)).filter((c, i, a) => c || i < a.length - 1); if (row.length) (gram.table ??= []).push(row); }
+      else if (line.startsWith("%! ") || line.startsWith("%> ")) { const t = line.slice(3).trim(); if (t) (gram.notes ??= []).push({ k: line[1] === "!" ? "err" : "tip", t }); }
+      else if (line.startsWith("%e ")) { const [zh, ru = ""] = split(line.slice(3)); if (zh) { if (ja) jaSeg(zh); gram.ex.push([zh, ru]); } }
       else if (line.startsWith("%x ")) {
         const [zh, ru = "", ...opts] = split(line.slice(3));
         const a = opts.findIndex((o) => o.endsWith("*"));

@@ -1226,3 +1226,14 @@ button,.chip-btn,.w{touch-action:manipulation}
 .ambient[data-kind="ketsu"] .lily-sway{animation:none}
 .ambient[data-kind="ketsu"] .amb-p i{backface-visibility:hidden}
 .ambient[data-kind="ketsu"] .amb-fog{will-change:transform,opacity}
+
+/* теория: таблицы, частые ошибки, заметки */
+.g-table-wrap{overflow-x:auto;margin:10px 0}
+.g-table{border-collapse:collapse;width:100%;font-size:15px}
+.g-table th{text-align:left;font-weight:600;font-size:13px;color:var(--muted);padding:6px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.g-table td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.g-note{display:flex;flex-direction:column;gap:2px;margin:10px 0 0;padding:10px 12px;border-radius:var(--r,12px);background:var(--jade-soft);font-size:15px}
+.g-note b{font-size:12.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--muted)}
+.g-note.err{background:color-mix(in srgb,var(--bad) 13%,var(--sheet))}
+.g-note.err b{color:var(--bad)}
+.g-table .han,.g-note .han{font-family:var(--f-han);font-size:1.1em}

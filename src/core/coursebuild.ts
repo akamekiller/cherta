@@ -10,7 +10,8 @@ export type BQ = { q: string; o: string[]; a: number };
 export type BDialog = { title: string; lines: string; q: BQ[] };
 export type BX = { zh: string; ru: string; o: string[]; a: number };
 /** Правило: объяснение (абзацы по строкам), примеры по строке «китайский | перевод», задания на выбор. */
-export type BRule = { title: string; text: string; ex: string; x: BX[] };
+/** extra — таблица, частые ошибки и заметки по строке: «| ячейка | ячейка» (первая строка таблицы — заголовок), «! частая ошибка», «> заметка». */
+export type BRule = { title: string; text: string; ex: string; x: BX[]; extra: string };
 /** Урок: слова по строке («学习» или «学习 | xue2 xi2 | учиться»), предложения по строке («китайский | перевод»). */
 export type BLesson = { title: string; section: string; goal: string; words: string; sents: string; dialogs: BDialog[]; rules: BRule[] };
 export type BCourse = { title: string; level: number; about: string; lessons: BLesson[] };
@@ -56,6 +57,7 @@ export function courseToText(c: BCourse): string {
       out.push(`& ${clean(r.title)}`);
       for (const t of lines(r.text)) out.push(`% ${t}`);
       for (const e of lines(r.ex)) if (HAN.test(e)) out.push(`%e ${e}`);
+      for (const e of lines(r.extra ?? "")) if (/^[|!>]\s*\S/.test(e)) out.push(`%${e}`);
       for (const x of r.x) {
         const o = x.o.map((s) => clean(s)).filter(Boolean);
         if (!x.zh.includes("___") || o.length < 2 || x.a < 0 || x.a >= x.o.length || !clean(x.o[x.a])) continue;
@@ -88,7 +90,8 @@ export function setToCourse(s: ExSet): BCourse {
       words: l.words.map(([h, py, ru]) => (py || ru ? `${h} | ${py} | ${ru}` : h)).join("\n"),
       sents: l.sents.map((x) => (x.ru ? `${x.zh} | ${x.ru}` : x.zh)).join("\n"),
       dialogs: l.dialogs.map((d) => ({ title: d.title, lines: d.lines.map(([w, zh, ru]) => `${w}: ${zh}${ru ? ` | ${ru}` : ""}`).join("\n"), q: d.q.map((q) => ({ q: q.q, o: [...q.o], a: q.a })) })),
-      rules: (l.grammar ?? []).map((g) => ({ title: g.title, text: g.text.join("\n"), ex: g.ex.map(([zh, ru]) => (ru ? `${zh} | ${ru}` : zh)).join("\n"), x: g.x.map((x) => ({ ...x, o: [...x.o] })) })),
+      rules: (l.grammar ?? []).map((g) => ({ title: g.title, text: g.text.join("\n"), ex: g.ex.map(([zh, ru]) => (ru ? `${zh} | ${ru}` : zh)).join("\n"), x: g.x.map((x) => ({ ...x, o: [...x.o] })),
+        extra: [...(g.table ?? []).map((r) => `| ${r.join(" | ")}`), ...(g.notes ?? []).map((n) => `${n.k === "err" ? "!" : ">"} ${n.t}`)].join("\n") })),
     })),
   };
 }

@@ -1152,3 +1152,45 @@ button,.chip-btn,.w{touch-action:manipulation}
 .empty-start .hint{font-size:14px}
 .pad{max-width:min(340px,50vh)}
 @media (min-width:700px){.pad{max-width:min(500px,52vh)}}
+
+/* ---------- Тема «Кровь» (ketsu): чёрная тушь, пепел, багрянец ---------- */
+:root[data-theme="ketsu"]{--paper:#0B0909; --sheet:#151010; --ink:#E8DFD6; --muted:#A99A91; --line:#2E1C1B; --jade:#DC343B; --grid:#8E2A2A; --t1:#F0625A; --t2:#F0A940; --t3:#6BC47E; --t4:#7FA8F5; --outline:#241615; --jade-soft:#2A1214; --on-accent:#FFF3EE; --good:#6BC47E; --t5:#A99A91; --warn:#E3A848; --bad:#F0625A; color-scheme:dark}
+:root[data-theme="ketsu"] .btn.primary{box-shadow:0 0 22px #DC343B33}
+:root[data-theme="ketsu"] .dr-head .han,:root[data-theme="ketsu"] .brand-mini{background:#9E1A21}
+.ambient[data-kind="ketsu"] .amb-moon{position:absolute;top:calc(env(safe-area-inset-top,0px) + 60px);right:9%;width:96px;height:96px;border-radius:50%;
+  background:radial-gradient(circle at 38% 34%,#C2262E 0,#8A1119 55%,#4C0A10 100%);box-shadow:0 0 70px 16px #A3151D55,0 0 160px 50px #5A0A1030;opacity:.9}
+.ambient[data-kind="ketsu"] .amb-fog{position:absolute;left:-10%;right:-10%;bottom:6vh;height:28vh;background:radial-gradient(ellipse at 50% 100%,#5A141955,transparent 70%);animation:amb-breathe 14s ease-in-out infinite alternate}
+@keyframes amb-breathe{from{opacity:.45;transform:translate3d(-2%,0,0)}to{opacity:.9;transform:translate3d(2%,-1vh,0)}}
+.ambient[data-kind="ketsu"] .amb-mount{position:absolute;left:0;right:0;bottom:0;width:100%;height:34vh}
+.ambient[data-kind="ketsu"] .amb-mount path{fill:#000}
+.ambient[data-kind="ketsu"] .m1{opacity:.55}.ambient[data-kind="ketsu"] .m2{opacity:.7}.ambient[data-kind="ketsu"] .m3{opacity:.9}
+.ambient[data-kind="ketsu"] .amb-vignette{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,transparent 45%,#3A06094D 100%)}
+.ambient[data-kind="ketsu"] .amb-lily{position:absolute;left:var(--lx);bottom:-1vh;height:var(--lh);width:calc(var(--lh)*.62);overflow:visible;opacity:.8}
+.ambient[data-kind="ketsu"] .lily-sway{transform-origin:50% 100%;transform-box:view-box;animation:amb-sway 7s ease-in-out infinite alternate;animation-delay:var(--ld)}
+@keyframes amb-sway{from{transform:rotate(-2.5deg)}to{transform:rotate(2.5deg)}}
+.ambient[data-kind="ketsu"] .lily-sway .stem{fill:none;stroke:#3C0D10;stroke-width:2.2;stroke-linecap:round}
+.ambient[data-kind="ketsu"] .lily-sway .bloom path{fill:none;stroke:#B3121B;stroke-width:1.5;stroke-linecap:round}
+.ambient[data-kind="ketsu"] .lily-sway .bloom circle{fill:#E0343B}
+.ambient[data-kind="ketsu"] .amb-p i.ash{width:calc(3px*var(--s));height:calc(3px*var(--s));border-radius:50%;background:#8C8079;opacity:.45;animation-name:amb-fall;animation-duration:var(--d);animation-timing-function:linear}
+.ambient[data-kind="ketsu"] .amb-p i.ember{top:auto;bottom:-4vh;width:calc(4px*var(--s));height:calc(4px*var(--s));border-radius:50%;background:#FF7A3C;box-shadow:0 0 8px 3px #E0502655;
+  animation-name:amb-fly,amb-blink;animation-duration:var(--d),var(--b);animation-timing-function:ease-in-out;animation-direction:normal,alternate}
+.ambient[data-kind="ketsu"] .amb-p i.mist{top:calc(60% + var(--y)*.25);left:-70vw;width:70vw;height:9vh;border-radius:50%;
+  background:radial-gradient(ellipse at center,#7A1A2055,#7A1A2000 70%);animation-name:amb-drift;animation-duration:calc(var(--d)*2.2);animation-timing-function:linear}
+.ambient[data-kind="ketsu"].still .amb-fog,.ambient[data-kind="ketsu"].still .lily-sway{animation-play-state:paused}
+
+/* росчерк меча (верно написанный иероглиф, «Хорошо/Легко») и печать «死» (ошибка, «Снова») */
+.fx-slash{position:fixed;inset:0;z-index:60;pointer-events:none;overflow:hidden}
+.fx-slash i{position:absolute;left:50%;top:46%;width:150vmax;height:4px;margin-left:-75vmax;border-radius:2px;transform-origin:50% 50%;
+  background:linear-gradient(90deg,transparent,#B3121B 18%,#FFE6DF 50%,#E0343B 82%,transparent);box-shadow:0 0 18px 3px #E0343B88;
+  transform:rotate(-24deg) scaleX(0);opacity:0;animation:fx-slash .55s cubic-bezier(.15,.8,.25,1) forwards}
+.fx-slash i:nth-child(2){top:49%;height:2px;opacity:0;animation-delay:.06s}
+@keyframes fx-slash{0%{transform:rotate(-24deg) scaleX(0);opacity:1}35%{transform:rotate(-24deg) scaleX(1);opacity:1}100%{transform:rotate(-24deg) scaleX(1);opacity:0}}
+.fx-death{position:fixed;inset:0;z-index:60;pointer-events:none;display:grid;place-items:center;background:radial-gradient(ellipse at center,#3A060933,transparent 70%);animation:fx-death-bg 1.4s ease-out forwards}
+.fx-death b{font:700 46vmin var(--f-han);line-height:1;color:#B3121B;text-shadow:0 0 36px #5A0A10,0 0 90px #B3121B88;transform-origin:center;animation:fx-death 1.4s ease-out forwards}
+@keyframes fx-death{0%{opacity:0;transform:scale(1.25);filter:blur(10px)}12%{opacity:.95;transform:scale(1);filter:blur(0)}70%{opacity:.9}100%{opacity:0;transform:scale(.98);filter:blur(6px)}}
+@keyframes fx-death-bg{0%{opacity:0}12%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion: reduce){.fx-slash,.fx-death{display:none}}
+:root[data-theme="ketsu"] header{background:linear-gradient(var(--paper) 62%,transparent)}
+:root[data-theme="ketsu"] .dt-ghead{background:transparent}
+.ambient[data-kind="ketsu"] .amb-moon{top:calc(env(safe-area-inset-top,0px) + 96px)}
+.ambient[data-kind="ketsu"] .amb-lily{opacity:.6}

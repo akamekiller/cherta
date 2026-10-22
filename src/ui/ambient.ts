@@ -16,7 +16,7 @@ function rnd(seed: number) {
   return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
 }
 
-const COUNT: Record<string, number> = { sakura: 16, yoru: 18, shuimo: 5, deng: 12 };
+const COUNT: Record<string, number> = { sakura: 16, yoru: 18, shuimo: 5, deng: 12, ketsu: 26 };
 
 function particles(p: Preset): string {
   const r = rnd(p.length * 97 + 13);
@@ -24,13 +24,14 @@ function particles(p: Preset): string {
   let out = "";
   for (let i = 0; i < n; i++) {
     const x = (i + r() * 0.9) / n * 100; // равномерно по ширине
-    const d = p === "shuimo" ? 70 + r() * 50 : p === "yoru" ? 16 + r() * 14 : 14 + r() * 12;
+    const d = p === "shuimo" ? 70 + r() * 50 : p === "yoru" ? 16 + r() * 14 : p === "ketsu" ? 26 + r() * 30 : 14 + r() * 12;
     const delay = -r() * d;
     const s = 0.55 + r() * 0.7;
     const sw = (r() < 0.5 ? -1 : 1) * (18 + r() * 50);
     const y = r() * 100;
     const b = 2 + r() * 3;
-    const kind = p === "shuimo" ? (i < 3 ? "mist" : "bird") : "";
+    // кровь: пепел падает (две трети), искры тлеющих углей поднимаются, пара полос тумана плывёт
+    const kind = p === "shuimo" ? (i < 3 ? "mist" : "bird") : p === "ketsu" ? (i % 9 === 0 ? "mist" : i % 4 === 0 ? "ember" : "ash") : "";
     out += `<i class="${kind}" style="--x:${x.toFixed(1)}%;--y:${y.toFixed(1)}%;--d:${d.toFixed(1)}s;--delay:${delay.toFixed(1)}s;--s:${s.toFixed(2)};--sw:${sw.toFixed(0)}px;--b:${b.toFixed(1)}s"></i>`;
   }
   return out;
@@ -42,7 +43,22 @@ const MOUNTAINS = `<svg class="amb-mount" viewBox="0 0 1200 300" preserveAspectR
   <path class="m3" d="M0 300v-45c100 0 160-30 260-30s180 35 300 35 200-40 320-40 220 35 320 30v50z"/>
 </svg>`;
 
+/** Паучья лилия (хиганбана): стебель и тонкие изогнутые лепестки-тычинки с точками на концах. */
+function lily(x: number, h: number, flip: boolean, delay: number): string {
+  const tips = [[-46, -34], [-34, -50], [-18, -58], [0, -62], [18, -58], [34, -50], [46, -34]];
+  let petals = "";
+  for (const [tx, ty] of tips) {
+    petals += `<path d="M50 78 C ${50 + tx * 0.2} ${78 + ty * 0.9}, ${50 + tx * 0.9} ${78 + ty * 1.25}, ${50 + tx * 1.15} ${78 + ty * 1.05}"/><circle cx="${(50 + tx * 1.15).toFixed(1)}" cy="${(78 + ty * 1.05).toFixed(1)}" r="1.8"/>`;
+  }
+  return `<svg class="amb-lily" style="--lx:${x}%;--lh:${h}vh;--ld:${delay}s;${flip ? "transform:scaleX(-1)" : ""}" viewBox="0 0 100 160" aria-hidden="true"><g class="lily-sway"><path class="stem" d="M50 160 C 52 130 48 100 50 78"/><g class="bloom">${petals}</g></g></svg>`;
+}
+
 function backdrop(p: Preset): string {
+  if (p === "ketsu") {
+    const lilies = [[3, 17, false, 0], [14, 12, true, -2.4], [27, 9, false, -4.1], [70, 10, true, -1.3], [82, 15, false, -3.3], [94, 19, true, -0.6]]
+      .map(([x, h, f, d]) => lily(x as number, h as number, f as boolean, d as number)).join("");
+    return `<div class="amb-moon"></div><div class="amb-fog"></div>${MOUNTAINS}${lilies}<div class="amb-vignette"></div>`;
+  }
   if (p === "yoru") {
     const r = rnd(7);
     let stars = "";
@@ -80,3 +96,30 @@ export function setMotion(on: boolean) {
   build();
 }
 export const motionOn = () => motion;
+
+/* ---------- эффекты темы «Кровь»: росчерк меча и печать 死 ---------- */
+let fxBusy = 0;
+const bloodTheme = () => currentPreset() === "ketsu" && motion;
+
+/** Красный росчерк по диагонали — на верно написанный иероглиф и на «Хорошо/Легко». */
+export function slashFx() {
+  if (!bloodTheme()) return;
+  const el = document.createElement("div");
+  el.className = "fx-slash";
+  el.innerHTML = "<i></i><i></i>";
+  el.setAttribute("aria-hidden", "true");
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 800);
+}
+
+/** Печать «死» — на ошибке и провале карточки; не накладывается сама на себя. */
+export function deathFx() {
+  if (!bloodTheme() || Date.now() < fxBusy) return;
+  fxBusy = Date.now() + 1600;
+  const el = document.createElement("div");
+  el.className = "fx-death";
+  el.setAttribute("aria-hidden", "true");
+  el.innerHTML = "<b>死</b>";
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1500);
+}

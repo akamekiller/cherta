@@ -341,7 +341,8 @@ function openCourse(key: string) {
     ${c.set.about ? `<p class="hint">${esc(c.set.about)}</p>` : ""}
     <p class="hint">Пройдено ${done} из ${n} ${plural(n, "урока", "уроков", "уроков")}</p>
     <div class="c-actions"><button class="btn primary wide" data-lesson="${next}">${done >= n ? "Повторить последний урок" : done || started ? `Продолжить: урок ${next + 1}` : "Начать с урока 1"}</button>
-    ${started ? `<button class="btn wide" data-review>Повторение пройденного</button>` : ""}</div>
+    ${started ? `<button class="btn wide" data-review>Повторение пройденного</button>` : ""}
+    ${c.set.lessons.some((l) => l.grammar?.length) ? `<button class="btn wide" data-gram>Грамматика курса</button>` : ""}</div>
     <div class="quiet-row">${quietChip()}</div>`;
   const row = (l: (typeof c.set.lessons)[number], i: number) => {
     const steps = lessonSteps(l, ui.quiet), best = lessonBest(c, i);
@@ -420,6 +421,71 @@ async function addToCourseDeck(c: Course, lessons: number[]): Promise<{ id: stri
   }
   if (added || !old) await saveUserDeck({ id, title: c.title, words, createdAt: old?.createdAt ?? Date.now(), group: "Курсы", ...(ja ? { lang: "ja" as const } : {}) });
   return { id, added };
+}
+
+/* ---------- «Грамматика курса»: все правила списком, с поиском и отметками ---------- */
+
+/** Отметки правил лежат в прогрессе курса под служебным «уроком» 9999: шаг `g<урок>.<правило>` = 1 («прочитано») или 0.5 («повторить»). */
+const GMARK = 9999;
+async function openGrammar() {
+  const c = course;
+  if (!c) return;
+  progCourse = (await store.getMeta<CourseProg>("course")) ?? {};
+  const mark = (li: number, gi: number): number => (progCourse[c.key]?.[GMARK] as Record<string, number> | undefined)?.[`g${li}.${gi}`] ?? 0;
+  const rules = c.set.lessons.flatMap((l, li) => (l.grammar ?? []).map((g, gi) => ({ l, li, g, gi })));
+  const body = `<div class="gram-list"><input type="search" id="gl-q" placeholder="Поиск по правилам" autocomplete="off" />
+    <div class="chips" id="gl-f"><button class="chip-btn" data-f="all" aria-pressed="true">Все ${rules.length}</button><button class="chip-btn" data-f="rep" aria-pressed="false">Повторить</button><button class="chip-btn" data-f="new" aria-pressed="false">Не прочитано</button></div>
+    <div id="gl-body"></div></div>`;
+  openSheet("Грамматика курса", body, (root) => {
+    const q = root.querySelector<HTMLInputElement>("#gl-q")!;
+    const out = root.querySelector<HTMLElement>("#gl-body")!;
+    let filt = "all";
+    const open = new Set<string>();
+    const draw = () => {
+      const t = q.value.trim().toLowerCase();
+      let lastL = -1, html = "", n = 0;
+      for (const r of rules) {
+        const m = mark(r.li, r.gi);
+        if (filt === "rep" && m !== 0.5) continue;
+        if (filt === "new" && m !== 0) continue;
+        const hay = [r.g.title, ...r.g.text, ...r.g.ex.map((e) => e[0] + " " + e[1])].join(" ").toLowerCase();
+        if (t && !hay.includes(t)) continue;
+        n++;
+        if (r.li !== lastL) { lastL = r.li; html += `<h3 class="grp-title"><span>${esc(r.l.title)}</span></h3>`; }
+        const k = `${r.li}.${r.gi}`, isOpen = open.has(k) || !!t;
+        html += `<div class="panel gram" data-k="${k}"><button class="gram-t gl-head" data-tog="${k}" aria-expanded="${isOpen}"><span class="gram-n">${m === 1 ? "✓" : m === 0.5 ? "↻" : r.gi + 1}</span>${esc(r.g.title)}</button>`
+          + (isOpen ? `${r.g.text.map((x) => `<p>${esc(x)}</p>`).join("")}${gramTable(r.g)}${r.g.ex.length ? `<div class="g-exs"><span class="label">Примеры</span>${r.g.ex.map(([zh, ru]) => `<div class="g-ex"><div class="ex-zh">${lineHTML(zh)}</div>${ru ? `<div class="g-ru">${esc(ru)}</div>` : ""}</div>`).join("")}</div>` : ""}${gramNotes(r.g)}
+            <div class="ex-btns"><button class="btn small${m === 0.5 ? " primary" : ""}" data-mk="${k}" data-v="0.5">↻ Повторить</button><button class="btn small${m === 1 ? " primary" : ""}" data-mk="${k}" data-v="1">✓ Прочитано</button></div>` : "")
+          + `</div>`;
+      }
+      out.innerHTML = html || `<p class="hint">Ничего не найдено.</p>`;
+      void n;
+    };
+    draw();
+    q.addEventListener("input", draw);
+    root.querySelector("#gl-f")!.addEventListener("click", (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-f]");
+      if (!b) return;
+      filt = b.dataset.f!;
+      root.querySelectorAll<HTMLButtonElement>("#gl-f [data-f]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      draw();
+    });
+    out.addEventListener("click", async (e) => {
+      const t = e.target as HTMLElement;
+      const tg = t.closest<HTMLElement>("[data-tog]");
+      if (tg) { const k = tg.dataset.tog!; if (open.has(k)) open.delete(k); else open.add(k); draw(); return; }
+      const mk = t.closest<HTMLElement>("[data-mk]");
+      if (mk) {
+        const [li, gi] = mk.dataset.mk!.split(".").map(Number);
+        const v = Number(mk.dataset.v);
+        const cp = (progCourse[c.key] ??= {});
+        const lb = ((cp[GMARK] ??= {}) as Record<string, number>);
+        lb[`g${li}.${gi}`] = mark(li, gi) === v ? 0 : v;
+        await store.setMeta("course", progCourse);
+        draw();
+      }
+    });
+  });
 }
 
 /* ---------- урок: шаги ---------- */
@@ -978,6 +1044,7 @@ export function initExercise() {
     if (onFold(e)) return;
     const t = e.target as HTMLElement;
     if (t.closest("[data-review]")) { startReview(); return; }
+    if (t.closest("[data-gram]")) { void openGrammar(); return; }
     const l = t.closest<HTMLButtonElement>("[data-lesson]");
     if (l) openLesson(Number(l.dataset.lesson));
   };

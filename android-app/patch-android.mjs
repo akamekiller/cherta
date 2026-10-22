@@ -39,7 +39,7 @@ writeFileSync(gradle, g);
 // свой плагин цвета системных полос (src/native.ts → nativeBars) и MainActivity с его регистрацией
 const javaDir = join(app, "src", "main", "java", "io", "github", "akamekiller", "cherta");
 mkdirSync(javaDir, { recursive: true });
-for (const f of ["ChertaBarsPlugin.java", "MainActivity.java"]) cpSync(join(here, "native", f), join(javaDir, f));
+for (const f of ["ChertaBarsPlugin.java", "ChertaPrintPlugin.java", "MainActivity.java"]) cpSync(join(here, "native", f), join(javaDir, f));
 
 // микрофон — «Тоны → Произношение»
 const manifest = join(app, "src", "main", "AndroidManifest.xml");

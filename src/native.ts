@@ -93,6 +93,16 @@ export function nativeBars(color: string) {
   bridge()?.nativePromise?.("ChertaBars", "set", { color: `#${m[1]}`, dark: lum < 0.5 }).catch(() => {});
 }
 
+/** Печать страницы через системное окно Android (там же «Сохранить как PDF»). false — не вышло. */
+export async function nativePrint(name: string): Promise<boolean> {
+  try {
+    await bridge()?.nativePromise?.("ChertaPrint", "print", { name });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Сохранить файл в приложении: ссылки на скачивание в WebView не работают, поэтому файл пишется во временную папку
  * (плагин Filesystem) и открывается окно «Поделиться» — сохранить в Файлы, на Диск, отправить в мессенджер.

@@ -17,6 +17,7 @@ import { createWriter, type Writer } from "./writer.ts";
 import { onShow, onLeave } from "./nav.ts";
 import { openSheet, closeSheet } from "./sheet.ts";
 import { showNotebook, stopNotebook, NB_ROWS } from "./notebook.ts";
+import { NATIVE, nativePrint } from "../native.ts";
 
 type Src = "deck" | "text";
 const LS = "cherta.book";
@@ -416,7 +417,10 @@ function openPrint() {
         root.querySelector("#pr-note")!.textContent = "Готовлю страницы…";
         await buildPrint(list);
         closeSheet();
-        setTimeout(() => window.print(), 50);
+        setTimeout(async () => {
+          if (NATIVE && (await nativePrint("Прописи"))) return;
+          window.print();
+        }, 50);
       }
     });
   });

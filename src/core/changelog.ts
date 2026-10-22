@@ -3,6 +3,14 @@ export type Change = { id: string; date: string; title: string; items: string[] 
 
 export const CHANGES: Change[] = [
   {
+    id: "0.47.3",
+    date: "23.10.2026",
+    title: "Печать прописей в приложении Android",
+    items: [
+      "В приложении для Android кнопка печати в «Тетради прописей» снова на месте: открывается системное окно печати, там можно выбрать принтер или «Сохранить как PDF». Требуется новая сборка APK.",
+    ],
+  },
+  {
     id: "0.47.2",
     date: "23.10.2026",
     title: "Грамматика курса",

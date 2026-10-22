@@ -27,8 +27,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Черта">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<link rel="stylesheet" href="data/fonts/fonts.css?v=0.46.5-mvjop4py">
-<link rel="stylesheet" href="styles.css?v=0.46.5-mvjop4py">
+<link rel="stylesheet" href="data/fonts/fonts.css?v=0.46.5-mvjoqqn9">
+<link rel="stylesheet" href="styles.css?v=0.46.5-mvjoqqn9">
 </head>
 <body>
 <div class="ambient" id="ambient" aria-hidden="true" hidden></div>
@@ -430,6 +430,10 @@
         <button class="btn small" id="theme-edit">Настроить цвета…</button>
         <label class="pen-keep"><span class="t"><div>Живой фон</div><div>Лепестки сакуры, светлячки, туман над горами, фонарики — в темах Сакура, Ночь, Тушь и Фонари. На экране письма фон всегда неподвижен и скрыт.</div></span>
           <input type="checkbox" class="switch" id="s-motion"></label>
+        <label class="pen-keep"><span class="t"><div>Росчерк меча</div><div>Только в теме «Кровь»: вспышка клинка при верном ответе.</div></span>
+          <input type="checkbox" class="switch" id="s-fx-slash"></label>
+        <label class="pen-keep"><span class="t"><div>Печать «死»</div><div>Только в теме «Кровь»: печать при оценке «Снова».</div></span>
+          <input type="checkbox" class="switch" id="s-fx-death"></label>
       </div>
       <div class="set-row pen-row">
         <div class="t"><div>Перо</div><div id="pen-hint">Чем писать иероглифы в карточках и словаре</div></div>
@@ -541,7 +545,7 @@
     </div>
     <div class="panel stack about" id="set-about">
       <div class="label">О приложении</div>
-      <p>Черта 0.46.5-mvjop4py — бесплатное приложение для письма иероглифов, карточек и словаря.</p>
+      <p>Черта 0.46.5-mvjoqqn9 — бесплатное приложение для письма иероглифов, карточек и словаря.</p>
       <details><summary>Данные и лицензии</summary>
         <ul class="lic">
           <li>Черты китайских иероглифов и их состав — <a href="https://github.com/skishore/makemeahanzi" target="_blank" rel="noopener">Make Me a Hanzi</a> (Arphic Public License, LGPL-3.0); библиотека <a href="https://hanziwriter.org" target="_blank" rel="noopener">Hanzi Writer</a> (MIT).</li>
@@ -561,7 +565,7 @@
   <div class="sheet-head"><h2 id="sheet-title"></h2><button class="icon-btn" id="sheet-close" aria-label="Закрыть">✕</button></div>
   <div class="sheet-body stack" id="sheet-body"></div>
 </section>
-<script type="module" src="app.js?v=0.46.5-mvjop4py"></script>
+<script type="module" src="app.js?v=0.46.5-mvjoqqn9"></script>
 <div id="print-area" aria-hidden="true"></div>
 </body>
 </html>

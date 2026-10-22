@@ -1,4 +1,4 @@
-import { motionOn, setMotion } from "./ambient.ts";
+import { motionOn, setMotion, fxOpts } from "./ambient.ts";
 import { app, updateSettings, reloadAll, revertEdit } from "../state.ts";
 import { optimize } from "../core/fsrsopt.ts";
 import * as store from "../store.ts";
@@ -62,6 +62,8 @@ async function choosePen(patch: { pen?: string; ink?: string; keep?: boolean; si
 function renderThemes() {
   renderThemeChoices($("themes"));
   $<HTMLInputElement>("s-motion").checked = motionOn();
+  $<HTMLInputElement>("s-fx-slash").checked = fxOpts.slash;
+  $<HTMLInputElement>("s-fx-death").checked = fxOpts.death;
 }
 
 function renderEdits() {
@@ -172,6 +174,14 @@ export function initSettings() {
     renderThemes();
   });
   $("theme-edit").addEventListener("click", () => openThemeEditor(renderThemes));
+  $("s-fx-slash").addEventListener("change", (e) => {
+    fxOpts.slash = (e.target as HTMLInputElement).checked;
+    updateSettings({ fxSlash: fxOpts.slash });
+  });
+  $("s-fx-death").addEventListener("change", (e) => {
+    fxOpts.death = (e.target as HTMLInputElement).checked;
+    updateSettings({ fxDeath: fxOpts.death });
+  });
   $("s-motion").addEventListener("change", (e) => {
     const on = (e.target as HTMLInputElement).checked;
     setMotion(on);

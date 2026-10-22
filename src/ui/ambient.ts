@@ -99,6 +99,7 @@ export const motionOn = () => motion;
 
 /* ---------- эффекты темы «Кровь»: росчерк меча и печать 死 ---------- */
 let fxBusy = 0;
+export const fxOpts = { slash: true, death: true };
 const bloodTheme = () => currentPreset() === "ketsu" && motion;
 
 /** Фильтр «грубая кисть»: края иероглифа рваные, как мазок тушью (создаётся один раз). */
@@ -109,7 +110,7 @@ function inkFilter() {
 
 /** Росчерк: быстрый клинок (острый с обоих концов) и брызги крови вдоль разреза — на верный иероглиф и «Хорошо/Легко». */
 export function slashFx() {
-  if (!bloodTheme()) return;
+  if (!bloodTheme() || !fxOpts.slash) return;
   const flip = Math.random() < 0.5 ? -1 : 1;
   const ang = flip * (16 + Math.random() * 18);
   const el = document.createElement("div");
@@ -130,7 +131,7 @@ export function slashFx() {
 
 /** Печать «死» — на ошибке и провале карточки: тёмная полоса, иероглиф рваной кистью, потёки; не накладывается сама на себя. */
 export function deathFx() {
-  if (!bloodTheme() || Date.now() < fxBusy) return;
+  if (!bloodTheme() || !fxOpts.death || Date.now() < fxBusy) return;
   fxBusy = Date.now() + 2000;
   inkFilter();
   const el = document.createElement("div");

@@ -1172,10 +1172,10 @@ button,.chip-btn,.w{touch-action:manipulation}
 .ambient[data-kind="ketsu"] .lily-sway .stem{fill:none;stroke:#3C0D10;stroke-width:2.2;stroke-linecap:round}
 .ambient[data-kind="ketsu"] .lily-sway .bloom path{fill:none;stroke:#A5504E;stroke-width:1.5;stroke-linecap:round}
 .ambient[data-kind="ketsu"] .lily-sway .bloom circle{fill:#C4635F}
-.ambient[data-kind="ketsu"] .amb-p i.ash{top:auto;bottom:-6vh;width:calc(6px*var(--s));height:calc(3.8px*var(--s));border-radius:60% 40% 55% 45%;background:#D6CCC2;opacity:0;filter:blur(.5px);animation-name:amb-rise;animation-duration:calc(var(--d)*.4);animation-timing-function:linear}
+.ambient[data-kind="ketsu"] .amb-p i.ash{top:auto;bottom:-6vh;width:calc(6px*var(--s));height:calc(3.8px*var(--s));border-radius:60% 40% 55% 45%;background:#D6CCC2;opacity:0;animation-name:amb-rise;animation-duration:calc(var(--d)*.4);animation-timing-function:linear}
 @keyframes amb-rise{0%{opacity:0;transform:translate3d(0,0,0) rotate(0)}8%{opacity:.7}30%{transform:translate3d(calc(var(--sw)*.8),-30vh,0) rotate(140deg)}55%{transform:translate3d(calc(var(--sw)*-.5 + 6vw),-62vh,0) rotate(280deg)}82%{opacity:.5;transform:translate3d(calc(var(--sw)*1.2 + 12vw),-92vh,0) rotate(420deg)}100%{opacity:0;transform:translate3d(calc(var(--sw)*.6 + 16vw),-114vh,0) rotate(520deg)}}
 @keyframes amb-rise2{0%{transform:translate3d(0,0,0)}30%{transform:translate3d(calc(var(--sw)*.9),-32vh,0)}60%{transform:translate3d(calc(var(--sw)*-.6 + 7vw),-66vh,0)}100%{transform:translate3d(calc(var(--sw) + 15vw),-114vh,0)}}
-.ambient[data-kind="ketsu"] .amb-p i.ember{top:auto;bottom:-5vh;width:calc(3.5px*var(--s));height:calc(3.5px*var(--s));border-radius:50%;background:#FFB070;box-shadow:0 0 7px 2px #E8803C77;
+.ambient[data-kind="ketsu"] .amb-p i.ember{top:auto;bottom:-5vh;width:calc(8px*var(--s));height:calc(8px*var(--s));border-radius:50%;background:radial-gradient(circle,#FFC890 0,#F08A48 45%,#E8803C00 72%);
   animation-name:amb-rise2,amb-blink;animation-duration:calc(var(--d)*.32),var(--b);animation-timing-function:linear,ease-in-out;animation-direction:normal,alternate}
 .ambient[data-kind="ketsu"] .amb-p i.mist{top:calc(60% + var(--y)*.25);left:-70vw;width:70vw;height:9vh;border-radius:50%;
   background:radial-gradient(ellipse at center,#7A1A2055,#7A1A2000 70%);animation-name:amb-drift;animation-duration:calc(var(--d)*2.2);animation-timing-function:linear}
@@ -1221,3 +1221,8 @@ button,.chip-btn,.w{touch-action:manipulation}
 :root[data-theme="kami"] .btn.primary:active{transform:translateY(1px);box-shadow:inset 0 0 0 2px #FFF8EE33}
 :root[data-theme="kami"] .dr-head .han,:root[data-theme="kami"] .brand-mini{background:#B8322A}
 :root[data-theme="kami"] .hw{background:transparent}
+
+/* «Кровь»: облегчение для слабых телефонов — без фильтров и теней у движущихся частиц, без качания лилий */
+.ambient[data-kind="ketsu"] .lily-sway{animation:none}
+.ambient[data-kind="ketsu"] .amb-p i{backface-visibility:hidden}
+.ambient[data-kind="ketsu"] .amb-fog{will-change:transform,opacity}

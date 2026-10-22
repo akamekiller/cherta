@@ -16,7 +16,7 @@ function rnd(seed: number) {
   return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
 }
 
-const COUNT: Record<string, number> = { sakura: 16, yoru: 18, shuimo: 5, deng: 12, ketsu: 64 };
+const COUNT: Record<string, number> = { sakura: 16, yoru: 18, shuimo: 5, deng: 12, ketsu: 28 };
 
 function particles(p: Preset): string {
   const r = rnd(p.length * 97 + 13);

@@ -1154,25 +1154,26 @@ button,.chip-btn,.w{touch-action:manipulation}
 @media (min-width:700px){.pad{max-width:min(500px,52vh)}}
 
 /* ---------- Тема «Кровь» (ketsu): чёрная тушь, пепел, багрянец ---------- */
-:root[data-theme="ketsu"]{--paper:#0B0909; --sheet:#151010; --ink:#E8DFD6; --muted:#A99A91; --line:#2E1C1B; --jade:#DC343B; --grid:#8E2A2A; --t1:#F0625A; --t2:#F0A940; --t3:#6BC47E; --t4:#7FA8F5; --outline:#241615; --jade-soft:#2A1214; --on-accent:#FFF3EE; --good:#6BC47E; --t5:#A99A91; --warn:#E3A848; --bad:#F0625A; color-scheme:dark}
-:root[data-theme="ketsu"] .btn.primary{box-shadow:0 0 22px #DC343B33}
+:root[data-theme="ketsu"]{--paper:#1B1819; --sheet:#252122; --ink:#E4DCD3; --muted:#A89E97; --line:#3A3334; --jade:#B9514F; --grid:#7A4A48; --t1:#E5746C; --t2:#E0A25A; --t3:#7FB48A; --t4:#8EA9D6; --outline:#2F2A2B; --jade-soft:#3A2526; --on-accent:#FFF3EE; --good:#7FB48A; --t5:#A89E97; --warn:#E0A25A; --bad:#E5746C; color-scheme:dark}
+:root[data-theme="ketsu"] .btn.primary{box-shadow:none}
 :root[data-theme="ketsu"] .dr-head .han,:root[data-theme="ketsu"] .brand-mini{background:#9E1A21}
 .ambient[data-kind="ketsu"] .amb-moon{position:absolute;top:calc(env(safe-area-inset-top,0px) + 60px);right:9%;width:96px;height:96px;border-radius:50%;
-  background:radial-gradient(circle at 38% 34%,#C2262E 0,#8A1119 55%,#4C0A10 100%);box-shadow:0 0 70px 16px #A3151D55,0 0 160px 50px #5A0A1030;opacity:.9}
-.ambient[data-kind="ketsu"] .amb-fog{position:absolute;left:-10%;right:-10%;bottom:6vh;height:28vh;background:radial-gradient(ellipse at 50% 100%,#5A141955,transparent 70%);animation:amb-breathe 14s ease-in-out infinite alternate}
+  background:radial-gradient(circle at 38% 34%,#B5524F 0,#8A3A3A 55%,#5A2B2D 100%);box-shadow:0 0 60px 14px #8A3A3A33,0 0 140px 40px #5A2B2D22;opacity:.8}
+.ambient[data-kind="ketsu"] .amb-fog{position:absolute;left:-10%;right:-10%;bottom:6vh;height:28vh;background:radial-gradient(ellipse at 50% 100%,#8A7F8040,transparent 70%);animation:amb-breathe 14s ease-in-out infinite alternate}
 @keyframes amb-breathe{from{opacity:.45;transform:translate3d(-2%,0,0)}to{opacity:.9;transform:translate3d(2%,-1vh,0)}}
 .ambient[data-kind="ketsu"] .amb-mount{position:absolute;left:0;right:0;bottom:0;width:100%;height:34vh}
-.ambient[data-kind="ketsu"] .amb-mount path{fill:#000}
+.ambient[data-kind="ketsu"] .amb-mount path{fill:#100E0F}
 .ambient[data-kind="ketsu"] .m1{opacity:.55}.ambient[data-kind="ketsu"] .m2{opacity:.7}.ambient[data-kind="ketsu"] .m3{opacity:.9}
-.ambient[data-kind="ketsu"] .amb-vignette{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,transparent 45%,#3A06094D 100%)}
+.ambient[data-kind="ketsu"] .amb-vignette{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,transparent 45%,#0A08094D 100%)}
 .ambient[data-kind="ketsu"] .amb-lily{position:absolute;left:var(--lx);bottom:-1vh;height:var(--lh);width:calc(var(--lh)*.62);overflow:visible;opacity:.8}
 .ambient[data-kind="ketsu"] .lily-sway{transform-origin:50% 100%;transform-box:view-box;animation:amb-sway 7s ease-in-out infinite alternate;animation-delay:var(--ld)}
 @keyframes amb-sway{from{transform:rotate(-2.5deg)}to{transform:rotate(2.5deg)}}
 .ambient[data-kind="ketsu"] .lily-sway .stem{fill:none;stroke:#3C0D10;stroke-width:2.2;stroke-linecap:round}
-.ambient[data-kind="ketsu"] .lily-sway .bloom path{fill:none;stroke:#B3121B;stroke-width:1.5;stroke-linecap:round}
-.ambient[data-kind="ketsu"] .lily-sway .bloom circle{fill:#E0343B}
-.ambient[data-kind="ketsu"] .amb-p i.ash{width:calc(3px*var(--s));height:calc(3px*var(--s));border-radius:50%;background:#8C8079;opacity:.45;animation-name:amb-fall;animation-duration:var(--d);animation-timing-function:linear}
-.ambient[data-kind="ketsu"] .amb-p i.ember{top:auto;bottom:-4vh;width:calc(4px*var(--s));height:calc(4px*var(--s));border-radius:50%;background:#FF7A3C;box-shadow:0 0 8px 3px #E0502655;
+.ambient[data-kind="ketsu"] .lily-sway .bloom path{fill:none;stroke:#A5504E;stroke-width:1.5;stroke-linecap:round}
+.ambient[data-kind="ketsu"] .lily-sway .bloom circle{fill:#C4635F}
+.ambient[data-kind="ketsu"] .amb-p i.ash{top:-4vh;width:calc(5px*var(--s));height:calc(3px*var(--s));border-radius:60% 40% 55% 45%;background:#CFC6BC;opacity:.5;filter:blur(.6px);animation-name:amb-ash;animation-duration:calc(var(--d)*.55);animation-timing-function:linear}
+@keyframes amb-ash{0%{transform:translate3d(-8vw,0,0) rotate(0)}25%{transform:translate3d(6vw,26vh,0) rotate(120deg)}50%{transform:translate3d(-2vw,52vh,0) rotate(240deg)}75%{transform:translate3d(10vw,78vh,0) rotate(330deg)}100%{transform:translate3d(4vw,106vh,0) rotate(420deg)}}
+.ambient[data-kind="ketsu"] .amb-p i.ember{top:auto;bottom:-4vh;width:calc(4px*var(--s));height:calc(4px*var(--s));border-radius:50%;background:#E8A070;box-shadow:0 0 6px 2px #C8703A33;
   animation-name:amb-fly,amb-blink;animation-duration:var(--d),var(--b);animation-timing-function:ease-in-out;animation-direction:normal,alternate}
 .ambient[data-kind="ketsu"] .amb-p i.mist{top:calc(60% + var(--y)*.25);left:-70vw;width:70vw;height:9vh;border-radius:50%;
   background:radial-gradient(ellipse at center,#7A1A2055,#7A1A2000 70%);animation-name:amb-drift;animation-duration:calc(var(--d)*2.2);animation-timing-function:linear}

@@ -33,7 +33,7 @@ export const PRESETS: Record<Preset, Record<ColorKey, string>> = {
   yoru: { paper: "#0E1324", sheet: "#161C32", ink: "#E9E7F2", muted: "#9DA0BA", line: "#262D48", jade: "#E9B860", grid: "#7E6A9E", t1: "#F0625A", t2: "#F0A940", t3: "#54C06E", t4: "#7FA8F5" },
   shuimo: { paper: "#F2EDE3", sheet: "#FBF8F1", ink: "#1F1C19", muted: "#6B645B", line: "#E0D8C8", jade: "#A8322D", grid: "#C46A4F", t1: "#C9302A", t2: "#C77F12", t3: "#2E8A45", t4: "#2F64C0" },
   deng: { paper: "#170D0C", sheet: "#241514", ink: "#F4E8DC", muted: "#B79F8F", line: "#3D2523", jade: "#EDA93E", grid: "#A14C3C", t1: "#F0625A", t2: "#F0B04A", t3: "#5CC274", t4: "#79A4F2" },
-  ketsu: { paper: "#0B0909", sheet: "#151010", ink: "#E8DFD6", muted: "#A99A91", line: "#2E1C1B", jade: "#DC343B", grid: "#8E2A2A", t1: "#F0625A", t2: "#F0A940", t3: "#6BC47E", t4: "#7FA8F5" },
+  ketsu: { paper: "#1B1819", sheet: "#252122", ink: "#E4DCD3", muted: "#A89E97", line: "#3A3334", jade: "#B9514F", grid: "#7A4A48", t1: "#E5746C", t2: "#E0A25A", t3: "#7FB48A", t4: "#8EA9D6" },
   black: { paper: "#000000", sheet: "#0E0E0E", ink: "#F2F2F2", muted: "#8C8C8C", line: "#262626", jade: "#EDEDED", grid: "#4A4A4A", t1: "#F0625A", t2: "#F0A940", t3: "#54C06E", t4: "#6F9FF0" },
 };
 
@@ -46,7 +46,7 @@ export const THEMES: { id: ThemeChoice; name: string; swatch: [string, string, s
   { id: "yoru", name: "Ночь", swatch: ["#0E1324", "#161C32", "#E9B860"] },
   { id: "shuimo", name: "Тушь", swatch: ["#F2EDE3", "#B8B0A2", "#A8322D"] },
   { id: "deng", name: "Фонари", swatch: ["#170D0C", "#7A1E1A", "#EDA93E"] },
-  { id: "ketsu", name: "Кровь", swatch: ["#0B0909", "#5A0F14", "#DC343B"] },
+  { id: "ketsu", name: "Кровь", swatch: ["#1B1819", "#4A2A2B", "#B9514F"] },
 ];
 
 const LS_KEY = "cherta.theme";

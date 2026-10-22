@@ -16,7 +16,7 @@ function rnd(seed: number) {
   return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
 }
 
-const COUNT: Record<string, number> = { sakura: 16, yoru: 18, shuimo: 5, deng: 12, ketsu: 26 };
+const COUNT: Record<string, number> = { sakura: 16, yoru: 18, shuimo: 5, deng: 12, ketsu: 34 };
 
 function particles(p: Preset): string {
   const r = rnd(p.length * 97 + 13);
@@ -31,7 +31,7 @@ function particles(p: Preset): string {
     const y = r() * 100;
     const b = 2 + r() * 3;
     // кровь: пепел падает (две трети), искры тлеющих углей поднимаются, пара полос тумана плывёт
-    const kind = p === "shuimo" ? (i < 3 ? "mist" : "bird") : p === "ketsu" ? (i % 9 === 0 ? "mist" : i % 4 === 0 ? "ember" : "ash") : "";
+    const kind = p === "shuimo" ? (i < 3 ? "mist" : "bird") : p === "ketsu" ? (i % 9 === 0 ? "mist" : i % 7 === 0 ? "ember" : "ash") : "";
     out += `<i class="${kind}" style="--x:${x.toFixed(1)}%;--y:${y.toFixed(1)}%;--d:${d.toFixed(1)}s;--delay:${delay.toFixed(1)}s;--s:${s.toFixed(2)};--sw:${sw.toFixed(0)}px;--b:${b.toFixed(1)}s"></i>`;
   }
   return out;

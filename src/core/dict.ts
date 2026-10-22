@@ -27,7 +27,24 @@ export function pyReadings(py: string): string[] {
 
 export function parseIndex(text: string): DictIndex {
   const idx: DictIndex = { han: [], py: [], ru: [], pk: [], pka: [], rl: [] };
-  for (const line of text.replace(/\r/g, "").split("\n")) {
+  addLines(idx, text.replace(/\r/g, "").split("\n"), 0, Infinity);
+  return idx;
+}
+
+/** То же, но порциями с передышкой для интерфейса: на телефоне цельный разбор 100 тыс. строк «замораживает» экран на секунды. */
+export async function parseIndexAsync(text: string, chunk = 6000): Promise<DictIndex> {
+  const idx: DictIndex = { han: [], py: [], ru: [], pk: [], pka: [], rl: [] };
+  const lines = text.replace(/\r/g, "").split("\n");
+  for (let i = 0; i < lines.length; i += chunk) {
+    addLines(idx, lines, i, i + chunk);
+    await new Promise((r) => setTimeout(r, 0));
+  }
+  return idx;
+}
+
+function addLines(idx: DictIndex, lines: string[], from: number, to: number) {
+  for (let i = from; i < Math.min(to, lines.length); i++) {
+    const line = lines[i];
     if (!line) continue;
     const [han, py = "", ru = ""] = line.split("\t");
     if (!han) continue;
@@ -39,7 +56,6 @@ export function parseIndex(text: string): DictIndex {
     idx.pka.push(readings.length > 1 ? `|${readings.map(searchKey).join("|")}|` : "");
     idx.rl.push(ru.toLowerCase());
   }
-  return idx;
 }
 
 const HAN = /\p{Script=Han}/u;

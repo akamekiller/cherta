@@ -26,7 +26,24 @@ const polKey = (s: string) => s.toLowerCase().replace(/[:\-…ʼ' ]/g, "").repla
 
 export function parseJIndex(text: string): JIndex {
   const x: JIndex = { id: [], kana: [], kanji: [], pol: [], ru: [], tag: [], kk: [], kj: [], pk: [], rl: [] };
-  for (const line of text.replace(/\r/g, "").split("\n")) {
+  addJLines(x, text.replace(/\r/g, "").split("\n"), 0, Infinity);
+  return x;
+}
+
+/** Порциями, чтобы не замораживать интерфейс телефона. */
+export async function parseJIndexAsync(text: string, chunk = 6000): Promise<JIndex> {
+  const x: JIndex = { id: [], kana: [], kanji: [], pol: [], ru: [], tag: [], kk: [], kj: [], pk: [], rl: [] };
+  const lines = text.replace(/\r/g, "").split("\n");
+  for (let i = 0; i < lines.length; i += chunk) {
+    addJLines(x, lines, i, i + chunk);
+    await new Promise((r) => setTimeout(r, 0));
+  }
+  return x;
+}
+
+function addJLines(x: JIndex, lines: string[], from: number, to: number) {
+  for (let n = from; n < Math.min(to, lines.length); n++) {
+    const line = lines[n];
     if (!line) continue;
     const [id, kana = "", kanji = "", pol = "", ru = "", tag = ""] = line.split("\t");
     if (!id) continue;
@@ -36,7 +53,6 @@ export function parseJIndex(text: string): JIndex {
     x.pk.push(`|${pol.split(",").map(polKey).join("|")}|`);
     x.rl.push(ru.toLowerCase());
   }
-  return x;
 }
 
 /** Главное написание статьи: первое иероглифическое, иначе кана. */

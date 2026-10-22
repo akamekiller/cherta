@@ -3,8 +3,8 @@ import { NATIVE } from "./native.ts";
 import { schedule, newCard, DEFAULT_PARAMS, type Card, type Grade, type Params } from "./core/fsrs.ts";
 import { loadDeck, wordId, type Deck, type DeckFile, type Word } from "./core/deck.ts";
 import { applyEdit, isEmptyEdit, type WordEdit, type DictEntry } from "./core/edits.ts";
-import { parseIndex, dictShardOf, shardFile, dictPyToNumeric, type DictIndex, type DictArticle } from "./core/dict.ts";
-import { parseJIndex, jShardOf, type JIndex } from "./core/jdict.ts";
+import { parseIndexAsync, dictShardOf, shardFile, dictPyToNumeric, type DictIndex, type DictArticle } from "./core/dict.ts";
+import { parseJIndexAsync, jShardOf, type JIndex } from "./core/jdict.ts";
 import type { Dialog } from "./core/exercise.ts";
 import { cardId, normSkills, pickNext, queueCounts, ALL_SKILLS, DEFAULT_SKILLS, type Skill, type QPick } from "./core/skills.ts";
 import { byDay, dayOf, type DayStat } from "./core/stats.ts";
@@ -577,7 +577,7 @@ function loadDictMeta(): Promise<DictMeta> {
 export function dictIndex(): Promise<DictIndex> {
   if (!dictIdx) {
     dictIdx = loadDictMeta().then(async (m) => {
-      return parseIndex(await fetchText(`${dictBase}index.tsv?v=${m.v}`, "Словарь загружается (один раз)"));
+      return parseIndexAsync(await fetchText(`${dictBase}index.tsv?v=${m.v}`, "Словарь загружается (один раз)"));
     });
     dictIdx.catch(() => { dictIdx = null; });
   }
@@ -644,7 +644,7 @@ function loadJMeta(): Promise<JMeta> {
 /** Индекс японского словаря (~8,5 МБ, ~3 МБ сжатым) — один раз по требованию, офлайн из кэша SW. */
 export function jdictIndex(): Promise<JIndex> {
   if (!jIdx) {
-    jIdx = loadJMeta().then(async (m) => parseJIndex(await fetchText(`${jBase}ja/index.tsv?v=${m.v}`, "Японский словарь загружается (один раз)")));
+    jIdx = loadJMeta().then(async (m) => parseJIndexAsync(await fetchText(`${jBase}ja/index.tsv?v=${m.v}`, "Японский словарь загружается (один раз)")));
     jIdx.catch(() => { jIdx = null; });
   }
   return jIdx;

@@ -5,11 +5,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Черта</title>
 <meta name="description" content="Прописи китайских иероглифов с проверкой черт и интервальными повторениями">
-<meta name="theme-color" content="#E6E6E3">
+<meta name="theme-color" content="#F2F4F2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111615" media="(prefers-color-scheme: dark)">
 <script>
   // тема до отрисовки, чтобы не было вспышки
   try {
-    var t = localStorage.getItem("cherta.theme") || "yun", r = document.documentElement;
+    var t = localStorage.getItem("cherta.theme") || "auto", r = document.documentElement;
     if (t === "auto") t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     if (t === "custom") {
       var c = JSON.parse(localStorage.getItem("cherta.custom") || "null");
@@ -26,8 +27,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Черта">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<link rel="stylesheet" href="data/fonts/fonts.css?v=0.46.5-mvlbrqio">
-<link rel="stylesheet" href="styles.css?v=0.46.5-mvlbrqio">
+<link rel="stylesheet" href="data/fonts/fonts.css?v=0.46.5-mvlapwbx">
+<link rel="stylesheet" href="styles.css?v=0.46.5-mvlapwbx">
 </head>
 <body>
 <div class="ambient" id="ambient" aria-hidden="true" hidden></div>
@@ -424,14 +425,14 @@
     <div class="panel" id="set-look">
       <div class="label">Вид и перо</div>
       <div class="set-row theme-row">
-        <div class="t"><div>Тема</div><div>Авто следует за настройкой телефона. Золотое облако — тема по умолчанию. Сакура и Ночь — японские, Тушь, Фонари, Кровь — китайские, с живым фоном</div></div>
+        <div class="t"><div>Тема</div><div>Авто следует за настройкой телефона. Сакура и Ночь — японские, Тушь и Фонари — китайские, с живым фоном</div></div>
         <div class="themes" id="themes"></div>
         <button class="btn small" id="theme-edit">Настроить цвета…</button>
         <label class="pen-keep"><span class="t"><div>Живой фон</div><div>Лепестки сакуры, светлячки, туман над горами, фонарики — в темах Сакура, Ночь, Тушь и Фонари. На экране письма фон всегда неподвижен и скрыт.</div></span>
           <input type="checkbox" class="switch" id="s-motion"></label>
-        <label class="pen-keep"><span class="t"><div>Росчерк меча / золотой вихрь</div><div>Темы «Кровь» (вспышка клинка) и «Золотое облако» (золотой вихрь): при верном ответе.</div></span>
+        <label class="pen-keep"><span class="t"><div>Росчерк меча</div><div>Только в теме «Кровь»: вспышка клинка при верном ответе.</div></span>
           <input type="checkbox" class="switch" id="s-fx-slash"></label>
-        <label class="pen-keep"><span class="t"><div>Печать «死» / тёмный дым</div><div>Темы «Кровь» (печать) и «Золотое облако» (тёмный дым): при оценке «Снова».</div></span>
+        <label class="pen-keep"><span class="t"><div>Печать «死»</div><div>Только в теме «Кровь»: печать при оценке «Снова».</div></span>
           <input type="checkbox" class="switch" id="s-fx-death"></label>
       </div>
       <div class="set-row pen-row">
@@ -547,7 +548,7 @@
     </div>
     <div class="panel stack about" id="set-about">
       <div class="label">О приложении</div>
-      <p>Черта 0.46.5-mvlbrqio — бесплатное приложение для письма иероглифов, карточек и словаря.</p>
+      <p>Черта 0.46.5-mvlapwbx — бесплатное приложение для письма иероглифов, карточек и словаря.</p>
       <div class="row"><button class="btn small" id="whatsnew">Что нового</button><button class="btn small" id="tour">Обучение по приложению</button></div>
       <details><summary>Данные и лицензии</summary>
         <ul class="lic">
@@ -568,7 +569,7 @@
   <div class="sheet-head"><h2 id="sheet-title"></h2><button class="icon-btn" id="sheet-close" aria-label="Закрыть">✕</button></div>
   <div class="sheet-body stack" id="sheet-body"></div>
 </section>
-<script type="module" src="app.js?v=0.46.5-mvlbrqio"></script>
+<script type="module" src="app.js?v=0.46.5-mvlapwbx"></script>
 <div id="print-area" aria-hidden="true"></div>
 </body>
 </html>

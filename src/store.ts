@@ -67,7 +67,7 @@ export type DayCounter = { day: string; newCount: number; byDeck?: Record<string
 export type DeckOpts = { title?: string; hidden?: boolean; newPerDay?: number; skills?: string[]; order?: "random" | "seq" };
 export type Review = { id: string; at: number; grade: Grade; state: Card["state"]; mistakes: number };
 
-export const DEFAULT_SETTINGS: Settings = { newPerDay: 10, pinyin: true, voice: true, deck: "", theme: "yun", pen: "brush", ink: "auto", keepStrokes: true, penSize: 1, vibrate: true, dailyGoal: 30, deckOpts: {} };
+export const DEFAULT_SETTINGS: Settings = { newPerDay: 10, pinyin: true, voice: true, deck: "", theme: "auto", pen: "brush", ink: "auto", keepStrokes: true, penSize: 1, vibrate: true, dailyGoal: 30, deckOpts: {} };
 const DB_NAME = "cherta";
 const DB_VERSION = 2;
 const EXPORT_FORMAT = "cherta-progress";

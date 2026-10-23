@@ -1241,3 +1241,20 @@ button,.chip-btn,.w{touch-action:manipulation}
 .gram-list #gl-q{width:100%}
 .gl-head{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;padding:0;font:inherit;font-weight:600;color:inherit;cursor:pointer}
 .gl-head[aria-expanded=false]{opacity:.9}
+
+/* Экскурсия и панда-помощница */
+.tour{position:fixed;inset:0;z-index:70;display:grid;place-items:center;padding:16px}
+.tour-scrim{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+.tour-card{position:relative;width:min(380px,100%);max-height:calc(100vh - 32px);overflow-y:auto;background:var(--sheet);color:var(--ink);border:1px solid var(--line);border-radius:22px;padding:0 20px 18px;text-align:center;box-shadow:0 18px 50px rgba(0,0,0,.35);display:flex;flex-direction:column;align-items:center;gap:8px}
+.tour-pd{width:132px;height:132px;margin-top:-40px;border-radius:50%;background:#E6DAC1;display:grid;place-items:center;box-shadow:0 0 0 5px var(--sheet);flex:none}
+.tour-pd .panda{animation:pd-bob 3.2s ease-in-out infinite;transform-origin:50% 100%}
+.tour-n{font:600 12px var(--f-ui);color:var(--muted);margin-top:4px}
+.tour-card h2{margin:0;font:700 20px var(--f-ui)}
+.tour-card p{margin:0;color:var(--muted);font-size:15px;line-height:1.5}
+.tour-dots{display:flex;gap:6px;margin:4px 0}
+.tour-dots span{width:7px;height:7px;border-radius:50%;background:var(--line)}
+.tour-dots span.on{background:#B8322A;width:18px;border-radius:4px}
+.tour-btns{display:flex;gap:10px;width:100%;margin-top:4px}
+.tour-btns .btn{flex:1}
+@keyframes pd-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@media (prefers-reduced-motion:reduce){.tour-pd .panda{animation:none}}

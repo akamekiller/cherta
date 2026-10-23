@@ -1,3 +1,4 @@
+import { closeTour } from "./tour.ts";
 /** Экраны и боковое меню (кнопка ☰). */
 export type View = "home" | "deck" | "session" | "done" | "words" | "detail" | "book" | "ex" | "read" | "hsk" | "tones" | "stats" | "settings";
 const VIEWS: View[] = ["home", "deck", "session", "done", "words", "detail", "book", "ex", "read", "hsk", "tones", "stats", "settings"];
@@ -76,6 +77,7 @@ const visible = (el: HTMLElement | null) => !!el && el.offsetParent !== null && 
 
 /** Один шаг назад внутри приложения. false — дальше некуда (главный экран): браузер или Android уходит из приложения. */
 export function goBack(): boolean {
+  if (closeTour()) return true;
   const sheet = document.getElementById("sheet");
   if (sheet && !sheet.hidden) { document.getElementById("sheet-close")?.click(); return true; }
   if (drawer().classList.contains("open")) { closeMenu(); return true; }

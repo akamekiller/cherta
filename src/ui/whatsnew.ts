@@ -1,6 +1,7 @@
 import { CHANGES, unseen, type Change } from "../core/changelog.ts";
 import { openSheet } from "./sheet.ts";
 import { esc } from "./dom.ts";
+import { tourPending } from "./tour.ts";
 
 const LS = "cherta.seenChange";
 const get = () => { try { return localStorage.getItem(LS); } catch { return null; } };
@@ -20,6 +21,7 @@ export function openWhatsNew(all = true) {
 /** При запуске: после обновления — один раз показать, что изменилось; на первом запуске просто запомнить. */
 export function initWhatsNew() {
   const seen = get();
+  if (tourPending()) { set(CHANGES[0].id); return; } // сначала экскурсия; сводку после неё не показываем
   if (seen === null) { set(CHANGES[0].id); return; }
   if (unseen(seen).length) setTimeout(() => openWhatsNew(false), 1200);
 }

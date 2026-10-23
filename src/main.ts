@@ -28,6 +28,7 @@ import { app } from "./state.ts";
 import { loadRecorded, setSpeechRate } from "./speech.ts";
 import { initNative, NATIVE } from "./native.ts";
 import { initInstall } from "./ui/install.ts";
+import { initTour } from "./ui/tour.ts";
 
 async function boot() {
   initNative();
@@ -69,6 +70,7 @@ async function boot() {
   autoSync().then((changed) => { if (changed) rerender(); });
   requestPersist();
   initWhatsNew();
+  initTour();
   setTimeout(() => void dailySnapshot(), 8000);
   void openShared();
   loadRecorded();

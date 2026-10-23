@@ -62,6 +62,8 @@ mkdirSync(join(out, "data/hsk"), { recursive: true });
 const hskIndex = JSON.parse(readFileSync(join(root, "data/hsk/index.json"), "utf8"));
 for (const x of hskIndex) writeFileSync(join(out, "data/hsk", x.file), readFileSync(join(root, "data/hsk", x.file), "utf8"));
 writeFileSync(join(out, "data/hsk/index.json"), JSON.stringify(hskIndex));
+// Устная часть HSKK (python scripts/build_hskk.py)
+writeFileSync(join(out, "data/hsk/hskk.txt"), readFileSync(join(root, "data/hsk/hskk.txt"), "utf8"));
 // Встроенные курсы упражнений (python scripts/build_courses.py → data/courses)
 const coursesOut = join(out, "data/courses");
 mkdirSync(coursesOut, { recursive: true });
@@ -81,7 +83,7 @@ if (!fontFiles.length) console.warn("! Нет site/data/fonts — запусти
 const shell = ["./", "index.html", "app.js", "styles.css", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png",
   "data/fonts/fonts.css", ...fontFiles.filter((f) => f.core).map((f) => `data/fonts/${f.file}`), "audio/zh/index.json",
   "data/decks/index.json", ...decks.map((d) => `data/decks/${d.id}.json`),
-  "data/dialogs.json", "data/texts.json", "data/texts-ja.json", "data/themes.json", "data/hsk/index.json", ...hskIndex.map((x) => `data/hsk/${x.file}`), "data/decomp.json", "data/courses/index.json", ...courses.map((c) => `data/courses/${c.file}`)];
+  "data/dialogs.json", "data/texts.json", "data/texts-ja.json", "data/themes.json", "data/hsk/index.json", "data/hsk/hskk.txt", ...hskIndex.map((x) => `data/hsk/${x.file}`), "data/decomp.json", "data/courses/index.json", ...courses.map((c) => `data/courses/${c.file}`)];
 writeFileSync(join(out, "sw.js"), readFileSync(join(root, "static/sw.js"), "utf8")
   .replace("__VERSION__", VERSION).replace("__SHELL_FILES__", JSON.stringify(shell)));
 writeFileSync(join(out, ".nojekyll"), "");

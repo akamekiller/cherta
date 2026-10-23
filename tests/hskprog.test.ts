@@ -58,3 +58,12 @@ test("слияние: ошибки по свежести, варианты об�
   assert.deepEqual(m.stat["1L1"], [3, 4]);
   assert.deepEqual(m.cur, { at: 4 });
 });
+
+test("слияние: устная часть", () => {
+  const a = { oral: { seen: { a: 1, b: 5 }, hist: [{ at: 1 }] } };
+  const b = { oral: { seen: { a: 3 }, hist: [{ at: 2 }] } };
+  const m = mergeProg(a, b) as never as { oral: { seen: Record<string, number>; hist: unknown[] } };
+  assert.deepEqual(m.oral.seen, { a: 3, b: 5 });
+  assert.equal(m.oral.hist.length, 2);
+  assert.equal((mergeProg({}, {}) as { oral?: unknown }).oral, undefined);
+});

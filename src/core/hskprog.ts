@@ -93,7 +93,11 @@ export function mergeProg(a: Record<string, unknown> | undefined, b: Record<stri
   for (const [k, v] of Object.entries((x.wrong ?? {}) as Record<string, WrongRec>)) if (!wrong[k] || v.last > wrong[k].last) wrong[k] = v;
   const stat: Record<string, PartStat> = {};
   for (const src of [y.stat ?? {}, x.stat ?? {}]) for (const [k, v] of Object.entries(src as Record<string, PartStat>)) if (!stat[k] || v[1] > stat[k][1]) stat[k] = v;
+  // устная часть: когда задание звучало — позже; результаты — объединение
+  const oral: Any = { seen: { ...(y.oral?.seen ?? {}) }, hist: [] };
+  for (const [k, v] of Object.entries((x.oral?.seen ?? {}) as Record<string, number>)) oral.seen[k] = Math.max(v, oral.seen[k] ?? 0);
+  oral.hist = byAt([...(y.oral?.hist ?? []), ...(x.oral?.hist ?? [])]).slice(-60);
   const curs = [x.cur, y.cur].filter(Boolean) as SavedRun[];
   const cur = curs.sort((p, q) => q.at - p.at)[0];
-  return { ...y, ...x, seen, hist, runs, wrong, stat, ...(cur ? { cur } : {}) };
+  return { ...y, ...x, seen, hist, runs, wrong, stat, ...(x.oral || y.oral ? { oral } : {}), ...(cur ? { cur } : {}) };
 }

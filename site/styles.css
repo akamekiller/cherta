@@ -1279,3 +1279,19 @@ button,.chip-btn,.w{touch-action:manipulation}
 .gd-btns .primary{min-width:96px}
 .gd-x{position:absolute;top:4px;right:6px;min-width:36px;min-height:36px}
 @media (min-width:1000px){.gd-bubble{left:auto;right:28px;margin:0;width:420px}}
+
+/* Устная часть HSKK */
+.zh-sm{font:400 12px var(--f-ui);color:var(--muted)}
+.hk-lv [aria-pressed="true"] .zh-sm{color:inherit;opacity:.8}
+.ho-pic{font-size:56px;letter-spacing:6px;text-align:center}
+.ho-mic{display:flex;flex-direction:column;gap:10px}
+.ho-rec small{opacity:.8;font-weight:400;margin-left:6px}
+.ho-live{display:flex;align-items:center;justify-content:center;gap:8px;font:600 15px var(--f-ui);color:var(--bad,#c0392b)}
+.ho-dot{width:12px;height:12px;border-radius:50%;background:var(--bad,#c0392b);animation:ho-pulse 1s ease-in-out infinite}
+@keyframes ho-pulse{50%{opacity:.25;transform:scale(.8)}}
+@media (prefers-reduced-motion:reduce){.ho-dot{animation:none}}
+.ho-said{min-height:48px;padding:10px 12px;border:1px dashed var(--line);border-radius:var(--r);font:500 18px var(--f-han);word-break:break-all}
+.ho-heard audio{width:100%;margin-top:6px}
+.ho-diff{font-size:22px;line-height:1.5;word-break:break-all}
+.ho-diff .ok{color:var(--good)}.ho-diff .miss{color:var(--bad,#c0392b);text-decoration:underline dotted}
+.ho-self{display:flex;flex-direction:column;gap:6px;margin-top:8px}

@@ -4,19 +4,19 @@
  * как на экзамене (таймер, аудио дважды, разбор в конце), сложнее (аудио один раз и быстрее, времени на треть меньше).
  * Прогресс — meta `hsk`: {seen: id → время, hist: результаты}.
  */
-import { hskEntries } from "../state.ts";
 import * as store from "../store.ts";
 import {
   LEVELS, MODES, SEC_NAME, SEC_ZH, levelSpec, parseBank, assemble, shuffleOpts, isRight, scoreExam, freeCheck, hanCount,
   type Item, type Part, type Sec, type Mode, type Score,
 } from "../core/hsk.ts";
 import { noteAnswer, wrongPool, wrongCount, weakParts, addPartStats, permOf, applyPerm, KEEP_RUNS, type SavedRun, type SavedQ, type WrongRec, type PartStat } from "../core/hskprog.ts";
-import { parseRef } from "../core/pinyin.ts";
+import { ensurePy, rubyHTML } from "./hskpy.ts";
 import { say, sayAll, stopSpeech } from "../speech.ts";
-import { $, esc, pinyinHTML, plural } from "./dom.ts";
+import { $, esc, plural } from "./dom.ts";
 import { onShow, onLeave } from "./nav.ts";
 import { openSheet, closeSheet, confirmInline } from "./sheet.ts";
 import { mountHwPad, type HwPad } from "./hwpad.ts";
+import { initHskk, renderOralHome, leaveOral } from "./hskk.ts";
 
 type Hist = { at: number; level: number; mode: Mode; secs: Sec[]; total: number; max: number; passed: boolean; sec: Partial<Record<Sec, [number, number]>>; secsUsed: number; fix?: boolean };
 type Saved = { seen: Record<string, number>; hist: Hist[]; runs: SavedRun[]; wrong: Record<string, WrongRec>; stat: Record<string, PartStat>; cur?: SavedRun };
@@ -24,7 +24,7 @@ type Ans = number | string | string[] | null;
 type Q = { item: Item; part: Part; ans: Ans; tiles?: string[]; plays: number; shown: boolean; hid?: boolean; perm?: number[] };
 
 const LS = "cherta.hsk";
-const ui = { level: 1, mode: "exam" as Mode, py: true };
+const ui = { level: 1, mode: "exam" as Mode, py: true, kind: "w" as "w" | "o" };
 try { Object.assign(ui, JSON.parse(localStorage.getItem(LS) ?? "{}")); } catch { /* */ }
 const save = () => { try { localStorage.setItem(LS, JSON.stringify(ui)); } catch { /* */ } };
 
@@ -58,34 +58,28 @@ let pad: HwPad | null = null;
 
 /* ---------- пиньинь для тренировки ---------- */
 
-let pyMap: Map<string, string> | null = null;
-async function ensurePy() {
-  if (pyMap) return;
-  pyMap = new Map();
-  for (const e of await hskEntries()) if (!pyMap.has(e.han)) pyMap.set(e.han, e.py);
-}
 /** Китайский текст; в тренировке с включённым пиньинем — над словами. */
 function zhHTML(text: string): string {
-  if (!(run?.mode === "train" && ui.py) || !pyMap) return esc(text);
-  const out: string[] = [];
-  const chars = [...text];
-  for (let i = 0; i < chars.length;) {
-    if (!/\p{Script=Han}/u.test(chars[i])) { out.push(`<span class="p">${esc(chars[i])}</span>`); i++; continue; }
-    let L = Math.min(4, chars.length - i);
-    for (; L > 1 && !pyMap.has(chars.slice(i, i + L).join("")); L--);
-    const w = chars.slice(i, i + L).join("");
-    let p = "";
-    try { const py = pyMap.get(w); p = py ? pinyinHTML(parseRef(py)) : ""; } catch { p = ""; }
-    out.push(`<ruby>${esc(w)}<rt>${p}</rt></ruby>`);
-    i += L;
-  }
-  return out.join("");
+  if (!(run?.mode === "train" && ui.py)) return esc(text);
+  return rubyHTML(text);
 }
 const stripWho = (s: string) => s.replace(/^[男女][：:]\s*/, "");
 
 /* ---------- главный экран ---------- */
 
+const bar = (show: boolean) => { $("hk-kind").hidden = !show; };
+/** Письменная часть или устная (HSKK). */
+function showKind() {
+  document.querySelectorAll<HTMLButtonElement>("#hk-kind [data-kind]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.kind === ui.kind)));
+  const oral = ui.kind === "o";
+  $("hk-oral").hidden = !oral;
+  if (oral) { $("hk-home").hidden = true; $("hk-run").hidden = true; void renderOralHome(); }
+  else void renderHome();
+}
+
 async function renderHome() {
+  bar(true);
+  $("hk-oral").hidden = true;
   $("hk-run").hidden = true;
   const home = $("hk-home");
   home.hidden = false;
@@ -113,7 +107,7 @@ async function renderHome() {
     <div class="hk-secs">${all.map((s) => card([s], `${SEC_NAME[s]} <span class="zh">${SEC_ZH[s]}</span>`, `${n([s])} ${plural(n([s]), "задание", "задания", "заданий")}${ui.mode === "train" ? "" : ` · ${mins([s])} мин`}`)).join("")}</div>
     ${weak.length ? `<h3 class="grp-title"><span>Слабые места</span></h3><div class="hk-hist">${weak.map((w) => `<div class="hk-h"><span>${esc(partName(w.part))}</span><b class="no">${Math.round(w.share * 100)}%</b></div>`).join("")}</div>` : ""}
     ${hist.length ? `<h3 class="grp-title"><span>Мои результаты · HSK ${ui.level}</span></h3><div class="hk-hist">${hist.map((h) => histRow(h, have.has(h.at))).join("")}</div>` : ""}
-    <details class="hk-about"><summary>О формате и баллах</summary><p class="hint">Новый HSK 3.0. ${ui.level <= 3 ? "Число заданий и время — по образцам экзамена" : "Образцы нового экзамена для уровней 4–6 ещё не опубликованы: формат — как у прежнего HSK, слова — HSK 3.0"}; задания написаны для «Черты» по схеме HSK, каждый вариант собирается заново из банка.</p><p class="hint">Баллы: каждая часть — из 100, «сдал» — от 60% суммы. Официальные пороги HSK 3.0 ещё не опубликованы, это ориентир. Устная часть — HSKK — в разделе «Экзамен HSKK».</p></details>`;
+    <details class="hk-about"><summary>О формате и баллах</summary><p class="hint">Новый HSK 3.0. ${ui.level <= 3 ? "Число заданий и время — по образцам экзамена" : "Образцы нового экзамена для уровней 4–6 ещё не опубликованы: формат — как у прежнего HSK, слова — HSK 3.0"}; задания написаны для «Черты» по схеме HSK, каждый вариант собирается заново из банка.</p><p class="hint">Баллы: каждая часть — из 100, «сдал» — от 60% суммы. Официальные пороги HSK 3.0 ещё не опубликованы, это ориентир. Устная часть — HSKK — переключатель «Устная · HSKK» вверху.</p></details>`;
 }
 
 const histRow = (h: Hist, open: boolean) => `<${open ? `button data-run="${h.at}"` : "div"} class="hk-h${open ? " link" : ""}"><span>${new Date(h.at).toLocaleDateString("ru-RU")} · ${h.fix ? "Ошибки" : esc(MODES.find((m) => m.id === h.mode)?.name ?? "")}${h.secs.length < 2 ? ` · ${esc(SEC_NAME[h.secs[0]])}` : ""}</span><b class="${h.fix ? "" : h.passed ? "ok" : "no"}">${h.total}/${h.max}</b></${open ? "button" : "div"}>`;
@@ -140,6 +134,7 @@ async function begin(level: number, mode: Mode, secs: Sec[], qs: Q[], bank: Item
     level, mode, secs, qs, pos: Math.min(f?.pos ?? 0, qs.length - 1), started: now - (f?.spent ?? 0), at: f?.at ?? now, spent: f?.spent ?? 0, bank,
     deadline: mode === "train" ? 0 : now + (f?.left ?? minutes * 60_000), done: false, gplays: { ...(f?.gplays ?? {}) }, fix: opt.fix,
   };
+  bar(false);
   $("hk-home").hidden = true;
   $("hk-run").hidden = false;
   clearInterval(timer);
@@ -228,6 +223,7 @@ async function view(at: number) {
   try { bank = await bankOf(sr.level); } catch { openSheet("Экзамен HSK", `<p class="note danger">Задания не загрузились.</p>`); return; }
   const qs = restore(sr, bank);
   run = { level: sr.level, mode: sr.mode as Mode, secs: sr.secs, qs, pos: 0, started: Date.now(), at: sr.at, spent: sr.spent ?? 0, bank, deadline: 0, done: true, gplays: {}, fix: sr.fix };
+  bar(false);
   $("hk-home").hidden = true;
   $("hk-run").hidden = false;
   clearInterval(timer);
@@ -483,9 +479,15 @@ function quit() {
 function stop() { clearInterval(timer); clearTimeout(saveT); run = null; stopSpeech(); }
 
 export function initHsk() {
-  onShow("hsk", () => { if (!run) renderHome(); });
+  initHskk(bar);
+  $("hk-kind").addEventListener("click", (e) => {
+    const k = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-kind]");
+    if (k) { ui.kind = k.dataset.kind as "w" | "o"; save(); showKind(); }
+  });
+  onShow("hsk", () => { if (!run) showKind(); });
   onLeave("hsk", () => {
     stopSpeech();
+    leaveOral();
     if (run && !run.done) { clearTimeout(saveT); const c = snap(); if (c) update((x) => { x.cur = c; }); }
   });
   $("hk-home").addEventListener("click", (e) => {

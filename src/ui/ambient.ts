@@ -117,14 +117,14 @@ export function slashFx() {
   el.className = "fx-slash";
   el.setAttribute("aria-hidden", "true");
   let drops = "";
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 16; i++) {
     const along = (Math.random() - 0.5) * 70;           // вдоль разреза, vmin
     const side = (Math.random() < 0.5 ? -1 : 1) * (4 + Math.random() * 24); // в стороны
     const size = 3 + Math.random() * 7;
     const delay = 0.12 + Math.random() * 0.1;
     drops += `<u style="--ax:${along.toFixed(1)}vmin;--sd:${side.toFixed(1)}vmin;--sz:${size.toFixed(1)}px;--dl:${delay.toFixed(2)}s"></u>`;
   }
-  el.innerHTML = `<div class="sl-flash"></div><div class="sl-cut" style="--ang:${ang.toFixed(1)}deg"><i class="blade glow"></i><i class="blade"></i><i class="blade thin"></i><span class="spray">${drops}</span></div>`;
+  el.innerHTML = `<div class="sl-flash"></div><div class="sl-cut" style="--ang:${ang.toFixed(1)}deg"><i class="blade"></i><i class="blade thin"></i><span class="spray">${drops}</span></div>`;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 1100);
 }

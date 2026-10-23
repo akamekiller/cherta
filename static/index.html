@@ -5,12 +5,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Черта</title>
 <meta name="description" content="Прописи китайских иероглифов с проверкой черт и интервальными повторениями">
-<meta name="theme-color" content="#F2F4F2" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#111615" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#E6E6E3">
 <script>
   // тема до отрисовки, чтобы не было вспышки
   try {
-    var t = localStorage.getItem("cherta.theme") || "auto", r = document.documentElement;
+    var t = localStorage.getItem("cherta.theme") || "yun", r = document.documentElement;
     if (t === "auto") t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     if (t === "custom") {
       var c = JSON.parse(localStorage.getItem("cherta.custom") || "null");
@@ -425,14 +424,14 @@
     <div class="panel" id="set-look">
       <div class="label">Вид и перо</div>
       <div class="set-row theme-row">
-        <div class="t"><div>Тема</div><div>Авто следует за настройкой телефона. Сакура и Ночь — японские, Тушь и Фонари — китайские, с живым фоном</div></div>
+        <div class="t"><div>Тема</div><div>Авто следует за настройкой телефона. Золотое облако — тема по умолчанию. Сакура и Ночь — японские, Тушь, Фонари, Кровь — китайские, с живым фоном</div></div>
         <div class="themes" id="themes"></div>
         <button class="btn small" id="theme-edit">Настроить цвета…</button>
         <label class="pen-keep"><span class="t"><div>Живой фон</div><div>Лепестки сакуры, светлячки, туман над горами, фонарики — в темах Сакура, Ночь, Тушь и Фонари. На экране письма фон всегда неподвижен и скрыт.</div></span>
           <input type="checkbox" class="switch" id="s-motion"></label>
-        <label class="pen-keep"><span class="t"><div>Росчерк меча</div><div>Только в теме «Кровь»: вспышка клинка при верном ответе.</div></span>
+        <label class="pen-keep"><span class="t"><div>Росчерк меча / золотой вихрь</div><div>Темы «Кровь» (вспышка клинка) и «Золотое облако» (золотой вихрь): при верном ответе.</div></span>
           <input type="checkbox" class="switch" id="s-fx-slash"></label>
-        <label class="pen-keep"><span class="t"><div>Печать «死»</div><div>Только в теме «Кровь»: печать при оценке «Снова».</div></span>
+        <label class="pen-keep"><span class="t"><div>Печать «死» / тёмный дым</div><div>Темы «Кровь» (печать) и «Золотое облако» (тёмный дым): при оценке «Снова».</div></span>
           <input type="checkbox" class="switch" id="s-fx-death"></label>
       </div>
       <div class="set-row pen-row">

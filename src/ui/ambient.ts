@@ -53,7 +53,34 @@ function lily(x: number, h: number, flip: boolean, delay: number): string {
   return `<svg class="amb-lily" style="--lx:${x}%;--lh:${h}vh;--ld:${delay}s;${flip ? "transform:scaleX(-1)" : ""}" viewBox="0 0 100 160" aria-hidden="true"><g class="lily-sway"><path class="stem" d="M50 160 C 52 130 48 100 50 78"/><g class="bloom">${petals}</g></g></svg>`;
 }
 
+/** Серые холмы в манере туши: пять слоёв округлых хребтов с мягким светлым верхом, тёмной кромкой, «сухой кистью» и редким лесом на гребне. */
+function hills(): string {
+  const layers = [[11, 116, 80, 60, 0.2, 0], [23, 134, 70, 66, 0.28, 0], [37, 152, 62, 72, 0.38, 1], [41, 170, 52, 78, 0.5, 1], [53, 188, 38, 86, 0.64, 1]] as const;
+  let out = "";
+  layers.forEach(([seed, y0, amp, step, op], li) => {
+    const r = rnd(seed);
+    const P: [number, number][] = [];
+    for (let x = -40; x <= 440; ) {
+      const tall = r() < 0.34;
+      P.push([x, y0 - amp * (tall ? 0.7 + r() * 0.3 : 0.12 + r() * 0.3)]);
+      x += step * (tall ? 0.7 + r() * 0.4 : 1 + r() * 0.8);
+    }
+    let d = `M${P[0][0].toFixed(0)} ${P[0][1].toFixed(0)}`;
+    const mids: [number, number][] = [];
+    for (let i = 1; i < P.length - 1; i++) {
+      const m: [number, number] = [(P[i][0] + P[i + 1][0]) / 2, (P[i][1] + P[i + 1][1]) / 2];
+      d += ` Q${P[i][0].toFixed(0)} ${(P[i][1] - 5).toFixed(0)} ${m[0].toFixed(0)} ${m[1].toFixed(0)}`;
+      mids.push(P[i]);
+    }
+    out += `<path class="hl" d="${d} L460 230 L-40 230Z" fill="url(#hg${li})"/><path class="hr" d="${d}" style="opacity:${(op * 0.5).toFixed(2)}"/>`;
+    });
+  const mixes = [22, 36, 52, 70, 92];
+  const defs = layers.map((_, i) => `<linearGradient id="hg${i}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:color-mix(in srgb,var(--hill) ${mixes[i]}%,var(--fog))"/><stop offset=".55" style="stop-color:color-mix(in srgb,var(--hill) ${Math.round(mixes[i] * 0.55)}%,var(--fog))"/><stop offset=".9" style="stop-color:var(--fog)"/></linearGradient>`).join("");
+  return `<svg class="amb-hills" viewBox="0 0 400 200" preserveAspectRatio="xMidYMax slice" aria-hidden="true"><defs>${defs}</defs>${out}</svg>`;
+}
+
 function backdrop(p: Preset): string {
+  if (p === "yun") return `<div class="amb-sun"></div>${hills()}<div class="amb-mist a"></div><div class="amb-mist b"></div>`;
   if (p === "ketsu") {
     const lilies = [[3, 17, false, 0], [14, 12, true, -2.4], [27, 9, false, -4.1], [70, 10, true, -1.3], [82, 15, false, -3.3], [94, 19, true, -0.6]]
       .map(([x, h, f, d]) => lily(x as number, h as number, f as boolean, d as number)).join("");
@@ -101,6 +128,7 @@ export const motionOn = () => motion;
 let fxBusy = 0;
 export const fxOpts = { slash: true, death: true };
 const bloodTheme = () => currentPreset() === "ketsu" && motion;
+const yunTheme = () => currentPreset() === "yun" && motion;
 
 /** Фильтр «грубая кисть»: края иероглифа рваные, как мазок тушью (создаётся один раз). */
 function inkFilter() {
@@ -110,6 +138,7 @@ function inkFilter() {
 
 /** Росчерк: быстрый клинок (острый с обоих концов) и брызги крови вдоль разреза — на верный иероглиф и «Хорошо/Легко». */
 export function slashFx() {
+  if (yunTheme() && fxOpts.slash) { goldFx(); return; }
   if (!bloodTheme() || !fxOpts.slash) return;
   const flip = Math.random() < 0.5 ? -1 : 1;
   const ang = flip * (16 + Math.random() * 18);
@@ -131,6 +160,7 @@ export function slashFx() {
 
 /** Печать «死» — на ошибке и провале карточки: тёмная полоса, иероглиф рваной кистью, потёки; не накладывается сама на себя. */
 export function deathFx() {
+  if (yunTheme() && fxOpts.death && Date.now() >= fxBusy) { fxBusy = Date.now() + 1500; smokeFx(); return; }
   if (!bloodTheme() || !fxOpts.death || Date.now() < fxBusy) return;
   fxBusy = Date.now() + 2000;
   inkFilter();
@@ -140,4 +170,33 @@ export function deathFx() {
   el.innerHTML = `<div class="dt-band"></div><b>死</b><span class="dt-drips"><i></i><i></i><i></i><i></i></span>`;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 1900);
+}
+
+/* ---------- эффекты темы «Золотое облако» ---------- */
+
+/** Золотой вихрь: кольцо-спираль раскручивается от центра и тает; блёстки разлетаются. */
+function goldFx() {
+  const el = document.createElement("div");
+  el.className = "fx-gold";
+  el.setAttribute("aria-hidden", "true");
+  let sp = "";
+  for (let i = 0; i < 14; i++) {
+    const a = (i / 14) * Math.PI * 2 + Math.random() * 0.4, d = 16 + Math.random() * 22;
+    sp += `<u style="--dx:${(Math.cos(a) * d).toFixed(1)}vmin;--dy:${(Math.sin(a) * d).toFixed(1)}vmin;--sz:${(3 + Math.random() * 5).toFixed(1)}px;--dl:${(0.08 + Math.random() * 0.18).toFixed(2)}s"></u>`;
+  }
+  el.innerHTML = `<i class="gl-swirl"></i><i class="gl-swirl two"></i><i class="gl-ring"></i>${sp}`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1200);
+}
+
+/** Тёмный дым: клубы туши поднимаются снизу и рассеиваются. */
+function smokeFx() {
+  const el = document.createElement("div");
+  el.className = "fx-smoke";
+  el.setAttribute("aria-hidden", "true");
+  let b = "";
+  for (let i = 0; i < 9; i++) b += `<i style="--x:${(8 + i * 10.5 + Math.random() * 6).toFixed(1)}%;--s:${(0.8 + Math.random() * 0.9).toFixed(2)};--dl:${(Math.random() * 0.3).toFixed(2)}s;--dr:${((Math.random() - 0.5) * 16).toFixed(1)}vw"></i>`;
+  el.innerHTML = b;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1700);
 }

@@ -49,10 +49,9 @@ function face(p: Pose): string {
 /** Всё, что рисуется поверх головы. */
 function front(p: Pose): string {
   if (p === "hello") return arm("M140 142 Q170 132 164 98");
-  if (p === "happy") return arm("M60 142 Q30 132 36 98") + arm("M140 142 Q170 132 164 98");
+  if (p === "happy") return arm("M60 142 Q30 132 36 98") + arm("M140 142 Q170 132 164 98") + `<path d="M20 60 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3z" fill="#E7B64F"/><path d="M176 66 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2z" fill="#E7B64F"/>`;
   if (p === "think") return arm("M142 148 Q152 134 122 128") + `<g font-family="sans-serif"><circle cx="160" cy="46" r="3" fill="${INK}" opacity=".3"/><circle cx="172" cy="32" r="4.6" fill="${INK}" opacity=".3"/><circle cx="186" cy="16" r="6.4" fill="${INK}" opacity=".3"/></g>`;
   if (p === "sleep") return `<g font-family="sans-serif" font-weight="800" fill="${INK}" opacity=".5"><text x="30" y="30" font-size="20">z</text><text x="16" y="10" font-size="14">z</text></g>`;
-  if (p === "happy") return `<path d="M20 60 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3z" fill="#E7B64F"/><path d="M176 66 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2z" fill="#E7B64F"/>`;
   return "";
 }
 

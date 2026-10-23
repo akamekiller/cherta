@@ -44,7 +44,7 @@ export function openTour() {
     const s = steps[i], last = i === steps.length - 1;
     el.innerHTML = `<div class="tour-scrim" data-skip></div>
       <div class="tour-card">
-        <div class="tour-pd">${pandaSvg(s.pose, 118)}</div>
+        <div class="tour-pd">${pandaSvg(s.pose, 128)}</div>
         <div class="tour-n">${stepLabel(i, steps.length)}</div>
         <h2>${esc(s.title)}</h2>
         <p>${esc(s.text)}</p>

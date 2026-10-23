@@ -97,7 +97,6 @@ function front(p: Pose): string {
 export function pandaSvg(pose: Pose = "hello", size = 132): string {
   return `<svg class="panda" data-pose="${pose}" viewBox="0 -34 200 244" width="${size}" height="${Math.round(size * 244 / 200)}" role="img" aria-label="Панда-помощница" xmlns="http://www.w3.org/2000/svg">
 <defs><linearGradient id="iris" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7A5644"/><stop offset="1" stop-color="#46302A"/></linearGradient><radialGradient id="blush" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#EE8E86" stop-opacity=".9"/><stop offset=".55" stop-color="#F2A79D" stop-opacity=".55"/><stop offset="1" stop-color="#F6B9B0" stop-opacity="0"/></radialGradient></defs>
-<ellipse cx="100" cy="203" rx="64" ry="6" fill="#000" opacity=".14"/>
 <g transform="rotate(30 144 50)"><rect x="140" y="-4" width="8" height="70" rx="4" fill="#C98F3F" ${O} stroke-width="2.4"/><rect x="139" y="26" width="10" height="4.5" rx="1.5" fill="#8A5A22"/><rect x="139" y="10" width="10" height="4" rx="1.5" fill="#D8D2C6" stroke="${LN}" stroke-width="1.4"/>
   <path d="M144 -4 C136 -10 136 -26 144 -38 C152 -26 152 -10 144 -4Z" fill="${INK}" ${O} stroke-width="2"/><path d="M141 -10 C139 -18 140 -25 143 -31" fill="none" stroke="#6B5E55" stroke-width="1.6" stroke-linecap="round"/></g>
 <ellipse cx="70" cy="190" rx="22" ry="13" fill="${INK}"/><ellipse cx="130" cy="190" rx="22" ry="13" fill="${INK}"/>

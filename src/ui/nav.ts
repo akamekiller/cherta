@@ -9,6 +9,7 @@ const handlers: Partial<Record<View, () => void>> = {};
 const leaveHandlers: Partial<Record<View, () => void>> = {};
 let current: View = "words";
 
+export const currentView = (): View => current;
 export function onShow(v: View, f: () => void) { handlers[v] = f; }
 /** Перерисовать текущий экран (например, после синхронизации). Занятие не трогаем. */
 export function rerender() { if (current !== "session") handlers[current]?.(); }

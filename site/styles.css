@@ -1242,20 +1242,34 @@ button,.chip-btn,.w{touch-action:manipulation}
 .gl-head{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;padding:0;font:inherit;font-weight:600;color:inherit;cursor:pointer}
 .gl-head[aria-expanded=false]{opacity:.9}
 
-/* Экскурсия и панда-помощница */
+/* Обучение и панда-помощница */
 .tour{position:fixed;inset:0;z-index:70;display:grid;place-items:center;padding:16px;overflow-y:auto}
 .tour-scrim{position:fixed;inset:0;background:rgba(0,0,0,.55)}
 .tour-card{position:relative;width:min(380px,100%);margin-top:104px;background:var(--sheet);color:var(--ink);border:1px solid var(--line);border-radius:22px;padding:0 20px 18px;text-align:center;box-shadow:0 18px 50px rgba(0,0,0,.35);display:flex;flex-direction:column;align-items:center;gap:8px}
-.tour-pd{position:relative;width:150px;height:110px;margin-top:0;flex:none}
+.tour-pd{position:relative;width:150px;height:110px;flex:none;margin-bottom:46px}
 .tour-pd::before{content:"";position:absolute;left:0;right:0;bottom:-40px;height:150px;border-radius:50%;background:#E6DAC1;box-shadow:0 0 0 5px var(--sheet)}
 .tour-pd .panda{position:absolute;left:50%;margin-left:-75px;bottom:-40px;animation:pd-bob 3.2s ease-in-out infinite;transform-origin:50% 100%}
-.tour-n{font:600 12px var(--f-ui);color:var(--muted);margin-top:46px}
 .tour-card h2{margin:0;font:700 20px var(--f-ui)}
 .tour-card p{margin:0;color:var(--muted);font-size:15px;line-height:1.5}
-.tour-dots{display:flex;gap:6px;margin:4px 0}
-.tour-dots span{width:7px;height:7px;border-radius:50%;background:var(--line)}
-.tour-dots span.on{background:#B8322A;width:18px;border-radius:4px}
-.tour-btns{display:flex;gap:10px;width:100%;margin-top:4px}
+.tour-sub{font-size:13px!important}
+.tour-btns{display:flex;gap:10px;width:100%;margin-top:6px}
 .tour-btns .btn{flex:1}
 @keyframes pd-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 @media (prefers-reduced-motion:reduce){.tour-pd .panda{animation:none}}
+/* ведение по разделам: подсветка и реплика панды */
+.guide{position:fixed;inset:0;z-index:70}
+.gd-block{position:absolute;inset:0;touch-action:none}
+.guide.dim .gd-block{background:rgba(0,0,0,.5)}
+.gd-spot{position:fixed;border-radius:14px;box-shadow:0 0 0 100vmax rgba(0,0,0,.58);outline:2px solid #E7B64F;pointer-events:none;transition:left .22s,top .22s,width .22s,height .22s}
+.gd-bubble{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));max-width:440px;margin-inline:auto;background:var(--sheet);color:var(--ink);border:1px solid var(--line);border-radius:20px;padding:12px 14px 12px 10px;display:grid;grid-template-columns:78px 1fr;gap:2px 10px;box-shadow:0 14px 40px rgba(0,0,0,.4)}
+.gd-bubble.top{bottom:auto;top:calc(12px + env(safe-area-inset-top,0px))}
+.gd-pd{grid-row:1;align-self:end}
+.gd-pd .panda{display:block;margin-top:-18px}
+.gd-tx{padding-right:22px;min-width:0}
+.gd-tx b{display:block;font:700 16px var(--f-ui);margin:1px 0 2px}
+.gd-tx p{margin:0;font-size:14px;line-height:1.45;color:var(--muted)}
+.gd-sec{font:600 11px var(--f-ui);color:var(--muted)}
+.gd-btns{grid-column:1/-1;display:flex;gap:8px;margin-top:8px;justify-content:flex-end}
+.gd-btns .primary{min-width:96px}
+.gd-x{position:absolute;top:4px;right:6px;min-width:36px;min-height:36px}
+@media (min-width:1000px){.gd-bubble{left:auto;right:28px;margin:0;width:420px}}

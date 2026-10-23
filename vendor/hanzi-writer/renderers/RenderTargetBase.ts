@@ -76,19 +76,22 @@ export default class RenderTargetBase<
   }
 
   addPointerEndListener(callback: () => void) {
-    if (hasPointer) {
-      const end = (evt: Event) => {
+    // Правка для Черты: слушатели на document раньше копились — на каждое новое поле письма по паре, и никогда не
+    // снимались (через полчаса занятий в памяти сотни старых полей и лаги). Теперь поле, убранное со страницы,
+    // снимает свои слушатели при ближайшем отпускании пальца.
+    const names = hasPointer ? ['pointerup', 'pointercancel'] : ['mouseup', 'touchend'];
+    const end = (evt: Event) => {
+      if (!this.node.isConnected) {
+        names.forEach((n) => document.removeEventListener(n, end));
+        return;
+      }
+      if (hasPointer) {
         if ((evt as PointerEvent).pointerId !== this._pointerId) return;
         this._pointerId = undefined;
-        callback();
-      };
-      document.addEventListener('pointerup', end);
-      document.addEventListener('pointercancel', end);
-      return;
-    }
-    // TODO: find a way to not need global listeners
-    document.addEventListener('mouseup', callback);
-    document.addEventListener('touchend', callback);
+      }
+      callback();
+    };
+    names.forEach((n) => document.addEventListener(n, end));
   }
 
   getBoundingClientRect() {

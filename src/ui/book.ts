@@ -417,6 +417,7 @@ function openPrint() {
         root.querySelector("#pr-note")!.textContent = "Готовлю страницы…";
         await buildPrint(list);
         closeSheet();
+        // Не очищаем страницы после печати: на телефоне окно печати/PDF строится позже, чем срабатывает afterprint.
         setTimeout(async () => {
           if (NATIVE && (await nativePrint("Прописи"))) return;
           window.print();
@@ -467,7 +468,7 @@ async function buildPrint(list: string[]) {
 let t = 0;
 export function initBook() {
   onShow("book", render);
-  onLeave("book", () => { stop(); stopNotebook(); });
+  onLeave("book", () => { stop(); stopNotebook(); $("print-area").innerHTML = ""; });
   $("bk-mode").addEventListener("click", () => { st.nb = !st.nb; save(); render(); });
   WIDE.addEventListener("change", () => { if (!$("book").hidden) render(); });
   $("bk-src").addEventListener("click", () => pickDeck("Что писать", st.src === "text" ? "text" : st.deckId, (id) => {
@@ -505,5 +506,4 @@ export function initBook() {
   $("bk-set").addEventListener("click", openSetEditor);
   $("bk-block").addEventListener("click", pickBlock);
   $("bk-print").addEventListener("click", () => { if (chars.length) openPrint(); });
-  window.addEventListener("afterprint", () => { $("print-area").innerHTML = ""; });
 }

@@ -1098,7 +1098,7 @@ body:has(#book.nb-on:not([hidden])) .wrap{max-width:1180px}
 .nb-cmp .nb-big{border:1.5px solid var(--grid);border-radius:4px;cursor:default}
 .nb-notes{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
 
-/* Приложение для Android (src/native.ts ставит html[data-native]): печати и фоновых уведомлений в WebView нет */
+/* Приложение для Android (src/native.ts ставит html[data-native]): фоновых уведомлений в WebView нет, печать — через плагин ChertaPrint */
 html[data-native] #rm-push{display:none!important}
 
 /* Установка на главный экран (src/ui/install.ts) */

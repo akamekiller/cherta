@@ -11,7 +11,8 @@ type Recognition = {
 type RecognitionCtor = new () => Recognition;
 
 const LS = "cherta.voiceLang";
-const Ctor: RecognitionCtor | undefined =
+// В Electron (приложение для Windows) у Chromium нет ключа службы распознавания речи — кнопку не показываем.
+const Ctor: RecognitionCtor | undefined = /Electron\//.test(navigator.userAgent) ? undefined :
   (window as unknown as { SpeechRecognition?: RecognitionCtor }).SpeechRecognition
   ?? (window as unknown as { webkitSpeechRecognition?: RecognitionCtor }).webkitSpeechRecognition;
 

@@ -7,3 +7,7 @@ dict/
 site/audio/*/packs/
 site/audio/*/packs.json
 android-app/cherta.keystore
+desktop-app/www/
+desktop-app/build/
+desktop-app/dist/
+desktop-app/node_modules/

@@ -1,0 +1,56 @@
+# Черта для Windows: Electron-оболочка над site/. Установщик Cherta-Setup.exe — в релизе «windows» (Releases).
+# Установщик без цифровой подписи: Windows SmartScreen предупредит («Подробнее → Выполнить в любом случае»).
+name: Windows installer
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["package.json", "desktop-app/**", ".github/workflows/windows.yml"]
+permissions:
+  contents: write
+concurrency:
+  group: windows
+  cancel-in-progress: true
+jobs:
+  win:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Веб-часть
+        shell: bash
+        run: node desktop-app/prepare-www.mjs
+      - name: Установщик
+        working-directory: desktop-app
+        shell: bash
+        run: |
+          set -o pipefail
+          V=$(node -p "require('../package.json').version")
+          npm install --no-audit --no-fund 2>&1 | tail -5
+          npx electron-builder --win --publish never -c.extraMetadata.version=$V 2>&1 | tee "$GITHUB_WORKSPACE/build.log" | tail -30
+          test -f dist/Cherta-Setup.exe
+      - name: Релиз
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V=$(node -p "require('./package.json').version")
+          NOTES="Черта $V для Windows. Скачайте Cherta-Setup.exe и запустите. Windows может показать предупреждение SmartScreen (установщик без цифровой подписи): «Подробнее» → «Выполнить в любом случае». Данные хранятся на этом компьютере; резервная копия — Настройки → Прогресс → «Сохранить в файл»."
+          gh release view windows >/dev/null 2>&1 || gh release create windows --title "Черта для Windows" --notes "$NOTES"
+          gh release edit windows --title "Черта $V для Windows" --notes "$NOTES"
+          gh release upload windows desktop-app/dist/Cherta-Setup.exe --clobber
+      - name: Журнал ошибки сборки
+        if: failure()
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin
+          git checkout --orphan windows-log
+          git rm -rf . >/dev/null 2>&1 || true
+          tail -300 build.log > tail.log 2>/dev/null || echo "нет журнала" > tail.log
+          git add tail.log
+          git commit -m "Журнал сборки Windows"
+          git push -f origin windows-log

@@ -1,0 +1,30 @@
+{
+  "name": "cherta-desktop",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Черта для Windows: оболочка Electron вокруг site/",
+  "main": "main.cjs",
+  "author": "Влад",
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "ru.cherta.app",
+    "productName": "Черта",
+    "directories": { "output": "dist", "buildResources": "build" },
+    "files": ["main.cjs", "server.cjs", "package.json"],
+    "extraResources": [{ "from": "www", "to": "www" }],
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "build/icon.png",
+      "artifactName": "Cherta-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "shortcutName": "Черта"
+    }
+  }
+}

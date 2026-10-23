@@ -1275,29 +1275,40 @@ button,.chip-btn,.w{touch-action:manipulation}
 @media (min-width:1000px){.gd-bubble{left:auto;right:28px;margin:0;width:420px}}
 
 
-/* ---------- Тема «Золотое облако» (yun): тушь (фон как у «Туши») и яркое золото в интерфейсе ---------- */
-:root[data-theme="yun"]{--paper:#ECE8DF; --sheet:#F8F5EE; --ink:#1E1C19; --muted:#6B665D; --line:#D8D2C5; --jade:#8C6100; --grid:#A29678; --t1:#C0392F; --t2:#B8760F; --t3:#2E7D46; --t4:#2F62B5; --outline:#E0DACE; --jade-soft:#F3E6BD; --on-accent:#FFF8E1; --good:#2E7D46; --t5:#6B665D; --warn:#B8760F; --bad:#C0392F; --gold:#E0A91E; --gold-hi:#F5CB55; --gold-line:#E0A91E80; color-scheme:light}
-:root[data-theme="yun"] .btn.primary{background:linear-gradient(var(--gold-hi),var(--gold));color:#2A1B00;border-color:#C99410;box-shadow:0 2px 0 #B07F0A}
-:root[data-theme="yun"] .btn.primary:active{transform:translateY(1px);box-shadow:0 1px 0 #B07F0A}
-:root[data-theme="yun"] .panel,:root[data-theme="yun"] .set-row{background:color-mix(in srgb,var(--sheet) 92%,transparent);border-color:var(--gold-line);box-shadow:none}
+/* ---------- Тема «Золотое облако» (yun): серый туман и холмы, золото в интерфейсе ---------- */
+:root[data-theme="yun"]{--paper:#E3DFD7; --sheet:#F2EFE9; --ink:#1F1D1A; --muted:#6A655C; --line:#D0CABE; --jade:#8A6A2B; --grid:#9A8F7E; --t1:#C0392F; --t2:#B8760F; --t3:#2E7D46; --t4:#2F62B5; --outline:#D8D2C6; --jade-soft:#E8DFC8; --on-accent:#FFF8EA; --good:#2E7D46; --t5:#6A655C; --warn:#B8760F; --bad:#C0392F; --gold:#B8964F; --gold-line:#B8964F66; --hill:#3B3833; --fog:#F1EEE8; --sunc:#FFFFFF; color-scheme:light}
+:root[data-theme="yun"] .btn.primary{background:var(--gold);color:#1F1810;border-color:var(--gold);box-shadow:none}
+:root[data-theme="yun"] .btn.primary:active{transform:translateY(1px)}
+:root[data-theme="yun"] .panel,:root[data-theme="yun"] .set-row{background:color-mix(in srgb,var(--sheet) 90%,transparent);border-color:var(--gold-line);box-shadow:none}
 :root[data-theme="yun"] header{background:linear-gradient(var(--paper) 62%,transparent)}
-:root[data-theme="yun"] header::after{content:"";position:absolute;left:var(--pad,16px);right:var(--pad,16px);bottom:0;height:1.5px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+:root[data-theme="yun"] header::after{content:"";position:absolute;left:var(--pad,16px);right:var(--pad,16px);bottom:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
 :root[data-theme="yun"] .goal-bar{background:var(--line)}
-:root[data-theme="yun"] .goal-bar i{background:linear-gradient(90deg,var(--gold),var(--gold-hi))}
+:root[data-theme="yun"] .goal-bar i{background:var(--gold)}
 :root[data-theme="yun"] .dr-head .han,:root[data-theme="yun"] .brand-mini{background:#B8322A}
 :root[data-theme="yun"] .hw{background:transparent}
 :root[data-theme="yun"] .grp-title{background:transparent}
-:root[data-theme="yun"] .ambient[data-kind="shuimo"] .amb-sun{background:radial-gradient(circle,#F5CB55 0,#E0A91E 60%,#E0A91E00 72%);opacity:.5}
-:root[data-theme="yun"] .ambient[data-kind="shuimo"] .m1{opacity:.07}:root[data-theme="yun"] .ambient[data-kind="shuimo"] .m2{opacity:.1}:root[data-theme="yun"] .ambient[data-kind="shuimo"] .m3{opacity:.15}
+.ambient[data-kind="yun"] .amb-sun{position:absolute;top:calc(env(safe-area-inset-top,0px) + 70px);right:10%;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--sunc) 80%,transparent) 0,color-mix(in srgb,var(--sunc) 38%,transparent) 52%,transparent 72%)}
+.ambient[data-kind="yun"] .amb-hills{position:absolute;left:0;right:0;bottom:0;width:100%;height:58vh}
+.ambient[data-kind="yun"] .amb-hills .hr{fill:none;stroke:var(--hill);stroke-width:.7}
+.ambient[data-kind="yun"] .amb-mist{position:absolute;left:-30%;width:160%;height:30vh;background:radial-gradient(ellipse 34% 50% at 28% 50%,color-mix(in srgb,var(--fog) 70%,transparent),transparent 72%),radial-gradient(ellipse 30% 44% at 72% 58%,color-mix(in srgb,var(--fog) 55%,transparent),transparent 72%);will-change:transform;animation:amb-fogdrift 70s ease-in-out infinite alternate}
+.ambient[data-kind="yun"] .amb-mist.a{bottom:28vh}
+.ambient[data-kind="yun"] .amb-mist.b{bottom:8vh;animation-duration:90s;animation-direction:alternate-reverse}
+@keyframes amb-fogdrift{from{transform:translate3d(-6%,0,0)}to{transform:translate3d(6%,0,0)}}
+.ambient[data-kind="yun"].still .amb-mist{animation-play-state:paused}
 .fx-gold{position:fixed;inset:0;z-index:60;pointer-events:none;display:grid;place-items:center;overflow:hidden}
-.fx-gold svg{width:78vmin;height:78vmin;overflow:visible}
-.fx-gold path{fill:none;stroke:url(#gfx);stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1;transform-origin:50% 50%;opacity:0}
-.fx-gold .g1{stroke-width:2.2;animation:gl-draw 1.05s cubic-bezier(.3,.6,.2,1) forwards}
-.fx-gold .g2{stroke-width:1.4;animation:gl-draw 1.05s cubic-bezier(.3,.6,.2,1) .1s forwards}
-@keyframes gl-draw{0%{stroke-dashoffset:1;opacity:0;transform:scale(.75) rotate(-30deg)}12%{opacity:1}60%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0;transform:scale(1.18) rotate(24deg)}}
-.fx-gold u{position:absolute;left:50%;top:50%;width:var(--sz);height:var(--sz);border-radius:50%;background:#F7D26A;box-shadow:0 0 8px 2px #F0B82Aaa;opacity:0;animation:gl-spark 1s ease-out var(--dl) forwards}
+.fx-gold i{position:absolute;width:46vmin;height:46vmin;border-radius:50%;opacity:0}
+.fx-gold .gl-swirl{background:conic-gradient(from 0deg,#E3C06A00,#E3C06A 18%,#E3C06A00 36%,#C99A2E 58%,#E3C06A00 80%);-webkit-mask:radial-gradient(circle,transparent 46%,#000 48%,#000 62%,transparent 64%);mask:radial-gradient(circle,transparent 46%,#000 48%,#000 62%,transparent 64%);animation:gl-spin 1s cubic-bezier(.2,.7,.2,1) forwards}
+.fx-gold .gl-swirl.two{width:30vmin;height:30vmin;animation-name:gl-spin2;animation-delay:.08s}
+.fx-gold .gl-ring{border:2px solid #E3C06A;box-shadow:0 0 22px 4px #E3C06A88,inset 0 0 22px 2px #E3C06A66;animation:gl-ring .9s ease-out forwards}
+.fx-gold u{position:absolute;width:var(--sz);height:var(--sz);border-radius:50%;background:#F1D27E;box-shadow:0 0 8px 2px #E3C06Aaa;opacity:0;animation:gl-spark .9s ease-out var(--dl) forwards}
+@keyframes gl-spin{0%{opacity:0;transform:scale(.2) rotate(0)}20%{opacity:1}100%{opacity:0;transform:scale(1.7) rotate(300deg)}}
+@keyframes gl-spin2{0%{opacity:0;transform:scale(.2) rotate(0)}20%{opacity:.9}100%{opacity:0;transform:scale(1.9) rotate(-330deg)}}
+@keyframes gl-ring{0%{opacity:0;transform:scale(.2)}25%{opacity:.9}100%{opacity:0;transform:scale(1.5)}}
 @keyframes gl-spark{0%{opacity:0;transform:translate3d(0,0,0) scale(.4)}20%{opacity:1}100%{opacity:0;transform:translate3d(var(--dx),var(--dy),0) scale(1)}}
 .fx-smoke{position:fixed;inset:0;z-index:60;pointer-events:none;overflow:hidden}
-.fx-smoke i{position:absolute;left:var(--x);bottom:-20vh;width:calc(36vmin*var(--s));height:calc(30vmin*var(--s));margin-left:calc(-18vmin*var(--s));background:radial-gradient(ellipse,#101010F5 0,#262626B8 48%,#26262600 74%);opacity:0;will-change:transform,opacity;animation:sm-rise 1.8s cubic-bezier(.25,.6,.3,1) var(--dl) forwards}
-@keyframes sm-rise{0%{opacity:0;transform:translate3d(0,0,0) scale(.5)}22%{opacity:.95}100%{opacity:0;transform:translate3d(var(--dr),-82vh,0) scale(1.9) rotate(12deg)}}
+.fx-smoke i{position:absolute;left:var(--x);bottom:-18vh;width:calc(34vmin*var(--s));height:calc(34vmin*var(--s));margin-left:calc(-17vmin*var(--s));border-radius:50%;background:radial-gradient(circle,#161616F2 0,#2A2A2AB3 45%,#2A2A2A00 72%);opacity:0;will-change:transform,opacity;animation:sm-rise 1.5s ease-out var(--dl) forwards}
+@keyframes sm-rise{0%{opacity:0;transform:translate3d(0,0,0) scale(.6)}25%{opacity:.95}100%{opacity:0;transform:translate3d(var(--dr),-75vh,0) scale(1.8)}}
 @media (prefers-reduced-motion: reduce){.fx-gold,.fx-smoke{display:none}}
+:root[data-theme="yun"] .grp-title{background:transparent}
+.fx-gold .gl-swirl{background:conic-gradient(from 0deg,#E3C06A00,#F1D27E 18%,#E3C06A00 36%,#D9AE45 58%,#E3C06A00 80%)!important;-webkit-mask:radial-gradient(circle,transparent 40%,#000 43%,#000 66%,transparent 69%)!important;mask:radial-gradient(circle,transparent 40%,#000 43%,#000 66%,transparent 69%)!important;filter:drop-shadow(0 0 6px #E3C06A)}
+.fx-gold .gl-ring{border-width:3px}

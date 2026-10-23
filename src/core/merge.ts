@@ -5,17 +5,10 @@
  * прогресс упражнений и курсов — лучший результат.
  */
 import { mergeLib } from "./reading.ts";
+import { mergeProg } from "./hskprog.ts";
 type Any = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 const byId = <T extends Any>(list: T[] | undefined, key = "id") => new Map((list ?? []).map((x) => [x[key], x] as const));
-
-/** Экзамен HSK: когда задание попадалось — позже; результаты — объединение по времени. */
-function mergeHsk(a?: Any, b?: Any): Any {
-  const seen: Record<string, number> = { ...(b?.seen ?? {}) };
-  for (const [k, v] of Object.entries((a?.seen ?? {}) as Record<string, number>)) seen[k] = Math.max(v, seen[k] ?? 0);
-  const hist = [...byId([...(b?.hist ?? []), ...(a?.hist ?? [])], "at").values()].sort((x: Any, y: Any) => x.at - y.at);
-  return { seen, hist };
-}
 
 export function mergeBackups(local: Any, remote: Any): Any {
   if (!remote) return local;
@@ -68,7 +61,7 @@ export function mergeBackups(local: Any, remote: Any): Any {
     userDecks: [...decks.values()].filter((d: Any) => alive(`ud:${d.id}`)),
     settings, ex, exsets, course,
     reading: local.reading || remote.reading ? mergeLib(local.reading, remote.reading) : undefined,
-    hsk: local.hsk || remote.hsk ? mergeHsk(local.hsk, remote.hsk) : undefined,
+    hsk: local.hsk || remote.hsk ? mergeProg(local.hsk, remote.hsk) : undefined,
     day: local.day ?? remote.day,
   };
 }

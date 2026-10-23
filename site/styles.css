@@ -797,6 +797,12 @@ html{scrollbar-gutter:stable}
 .hk-hist{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
 .hk-h{display:flex;justify-content:space-between;gap:8px;padding:10px 12px;border-top:1px solid var(--line);font-size:14px}
 .hk-h:first-child{border-top:0}
+button.hk-h.link{background:none;border:0;border-top:1px solid var(--line);color:var(--ink);font:inherit;font-size:14px;cursor:pointer;text-align:left;width:100%}
+button.hk-h.link:first-child{border-top:0}
+button.hk-h.link span::after{content:' ›';color:var(--muted)}
+.hk-cur{display:flex;flex-direction:column;gap:6px;padding:10px}
+.hk-cur .hk-card{border:0;background:none;padding:0}
+.hk-fixbtn .chip{margin-left:6px}
 .hk-h b.ok,.hk-total.ok b{color:var(--good)}.hk-h b.no,.hk-total.no b{color:var(--bad, #c0392b)}
 .hk-timer{margin-left:auto;font:600 14px var(--f-mono);color:var(--muted)}
 .hk-timer.low{color:var(--bad, #c0392b)}

@@ -66,12 +66,32 @@ async function createWindow() {
 
 app.whenReady().then(async () => {
   try {
-    await startServer(wwwDir, PORT, "127.0.0.1", (u, o) => fetch(u, o));
+    await startServer(wwwDir, PORT, "127.0.0.1", (u, o) => fetch(u, o), path.join(app.getPath("userData"), "site-cache"));
   } catch (e) {
     dialog.showErrorBox("Черта", `Не удалось запустить: порт ${PORT} занят другой программой. Закройте её и откройте Черту снова.\n\n${e && e.message}`);
     app.quit();
     return;
   }
   await createWindow();
+  checkUpdates();
 });
+
+// Обновление самой программы: новый установщик берётся из релиза «windows», скачивается тихо, при выходе ставится сам.
+function checkUpdates() {
+  if (!app.isPackaged) return;
+  try {
+    const { autoUpdater } = require("electron-updater");
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
+    autoUpdater.on("update-downloaded", (info) => {
+      dialog.showMessageBox(win, {
+        type: "info", title: "Черта", message: `Готово обновление программы до ${info.version}`,
+        detail: "Перезапустить и обновить сейчас? Иначе оно поставится само, когда вы закроете Черту.",
+        buttons: ["Перезапустить", "Позже"], defaultId: 0, cancelId: 1,
+      }).then((r) => { if (r.response === 0) autoUpdater.quitAndInstall(); }).catch(() => {});
+    });
+    autoUpdater.on("error", () => { /* нет связи или релиза — не мешаем */ });
+    autoUpdater.checkForUpdates().catch(() => {});
+  } catch { /* модуль недоступен */ }
+}
 app.on("window-all-closed", () => app.quit());

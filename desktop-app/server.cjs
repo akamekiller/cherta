@@ -15,7 +15,30 @@ const TYPES = {
 };
 
 /** Раздаёт root на host:port. Возвращает Promise<http.Server>; ошибка (например, порт занят) — отказ промиса. */
-function startServer(root, port, host = "127.0.0.1", fetchImpl = globalThis.fetch) {
+function startServer(root, port, host = "127.0.0.1", fetchImpl = globalThis.fetch, cacheDir = null) {
+  // Живое обновление сайта: файл, который есть в установщике, сначала берём с сайта (сеть → запись в cacheDir),
+  // без связи — прошлую загрузку из cacheDir, затем то, что в установщике. Так правки сайта доходят без переустановки.
+  let offlineUntil = 0;
+  async function live(rel) {
+    if (!cacheDir || !fetchImpl) return null;
+    const cached = path.join(cacheDir, rel);
+    if (Date.now() > offlineUntil) {
+      try {
+        const r = await fetchImpl(SITE + rel, { signal: AbortSignal.timeout(4000), cache: "no-store" });
+        if (r.ok) {
+          const buf = Buffer.from(await r.arrayBuffer());
+          const ct = r.headers.get("content-type") ?? "";
+          // GitHub Pages на неизвестный адрес отдаёт страницу 404/html — такое в кэш не берём
+          if (!(ct.includes("text/html") && !rel.endsWith(".html"))) {
+            await fs.mkdir(path.dirname(cached), { recursive: true });
+            await fs.writeFile(cached, buf);
+            return buf;
+          }
+        }
+      } catch { offlineUntil = Date.now() + 60000; }
+    }
+    try { return await fs.readFile(cached); } catch { return null; }
+  }
   const server = http.createServer(async (req, res) => {
     try {
       let rel = decodeURIComponent(new URL(req.url, "http://x").pathname);
@@ -25,10 +48,13 @@ function startServer(root, port, host = "127.0.0.1", fetchImpl = globalThis.fetc
       const file = path.join(root, rel);
       if (!file.startsWith(root)) { res.writeHead(403).end(); return; }
       let body = null;
+      let bundled = false;
       try {
         const st = await fs.stat(file);
+        bundled = true;
         body = await fs.readFile(st.isDirectory() ? path.join(file, "index.html") : file);
       } catch { /* нет файла */ }
+      if (body && bundled && !req.headers.range) body = (await live(rel)) ?? body;
       if (body) {
         res.writeHead(200, { "Content-Type": TYPES[path.extname(file)] ?? "application/octet-stream", "Cache-Control": "no-cache" });
         res.end(body);

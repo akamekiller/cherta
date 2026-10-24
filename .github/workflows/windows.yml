@@ -30,7 +30,7 @@ jobs:
           V=$(node -p "require('../package.json').version")
           npm install --no-audit --no-fund 2>&1 | tail -5
           npx electron-builder --win --publish never -c.extraMetadata.version=$V 2>&1 | tee "$GITHUB_WORKSPACE/build.log" | tail -30
-          test -f dist/Cherta-Setup.exe
+          test -f dist/Cherta-Setup.exe && test -f dist/latest.yml
       - name: Релиз
         shell: bash
         env:
@@ -40,7 +40,7 @@ jobs:
           NOTES="Черта $V для Windows. Скачайте Cherta-Setup.exe и запустите. Windows может показать предупреждение SmartScreen (установщик без цифровой подписи): «Подробнее» → «Выполнить в любом случае». Данные хранятся на этом компьютере; резервная копия — Настройки → Прогресс → «Сохранить в файл»."
           gh release view windows >/dev/null 2>&1 || gh release create windows --title "Черта для Windows" --notes "$NOTES"
           gh release edit windows --title "Черта $V для Windows" --notes "$NOTES"
-          gh release upload windows desktop-app/dist/Cherta-Setup.exe --clobber
+          gh release upload windows desktop-app/dist/Cherta-Setup.exe desktop-app/dist/Cherta-Setup.exe.blockmap desktop-app/dist/latest.yml --clobber
       - name: Журнал ошибки сборки
         if: failure()
         shell: bash

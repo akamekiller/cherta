@@ -12,11 +12,30 @@
   "build": {
     "appId": "ru.cherta.app",
     "productName": "Черта",
-    "directories": { "output": "dist", "buildResources": "build" },
-    "files": ["main.cjs", "server.cjs", "package.json"],
-    "extraResources": [{ "from": "www", "to": "www" }],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.cjs",
+      "server.cjs",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "www",
+        "to": "www"
+      }
+    ],
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "icon": "build/icon.png",
       "artifactName": "Cherta-Setup.${ext}"
     },
@@ -25,6 +44,13 @@
       "allowToChangeInstallationDirectory": true,
       "perMachine": false,
       "shortcutName": "Черта"
+    },
+    "publish": {
+      "provider": "generic",
+      "url": "https://github.com/akamekiller/cherta/releases/download/windows/"
     }
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
   }
 }

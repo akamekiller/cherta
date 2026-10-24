@@ -89,6 +89,21 @@ export function initAmbient(on: boolean | undefined) {
   motion = on ?? !reduce;
   onThemeChange(build);
   build();
+  initWritingPause();
+}
+
+/** Пока перо на поле письма, анимации фона стоят: телефону не нужно в это время двигать слои под пером. */
+let pauseTimer = 0;
+function initWritingPause() {
+  const root = document.documentElement;
+  addEventListener("pointerdown", (e) => {
+    if (!(e.target as Element | null)?.closest?.("svg, canvas")) return;
+    clearTimeout(pauseTimer);
+    root.classList.add("writing");
+  }, { capture: true, passive: true });
+  const end = () => { clearTimeout(pauseTimer); pauseTimer = window.setTimeout(() => root.classList.remove("writing"), 500); };
+  addEventListener("pointerup", end, { capture: true, passive: true });
+  addEventListener("pointercancel", end, { capture: true, passive: true });
 }
 
 export function setMotion(on: boolean) {

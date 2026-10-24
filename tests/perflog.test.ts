@@ -50,3 +50,14 @@ test("касания: типичное и хвост", () => {
   assert.match(s, /дольше 16 мс: 21/);
   assert.match(s, /самое долгое 400 мс/);
 });
+
+test("кадры: средний и распределение", () => {
+  const l = new PerfLog();
+  for (let i = 0; i < 10; i++) l.addFrame(i * 33, 33);
+  const s = summarize(l, 5000, {});
+  assert.match(s, /средний кадр 33 мс \(около 30 кадров\/с\)/);
+  assert.match(s, /26–36: 100%/);
+  l.reset();
+  for (let i = 0; i < 10; i++) l.addFrame(i * 8, 8);
+  assert.match(summarize(l, 5000, {}), /до 12 мс: 100%/);
+});

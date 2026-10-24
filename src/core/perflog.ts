@@ -5,11 +5,18 @@ export type Sample = { t: number; d: number; n?: string };
 /** Сколько записей каждого вида хранить (старые вытесняются). */
 export const CAP = 400;
 
+/** Границы интервалов между кадрами, мс: до 12 (≥ 90 кадр/с), до 20 (60), до 26, до 36 (30), до 50, до 100, дольше. */
+export const FRAME_BINS = [12, 20, 26, 36, 50, 100, Infinity];
+export const BIN_NAMES = ["до 12 мс", "12–20", "20–26", "26–36", "36–50", "50–100", "дольше 100"];
+
 export class PerfLog {
   long: Sample[] = [];
   ev: Sample[] = [];
   /** Кадры, пока палец на экране: сколько всего и самые долгие. */
   frames = { n: 0, slow: 0, bad: 0, max: 0 };
+  /** Сколько кадров попало в каждый интервал FRAME_BINS (мс между кадрами). */
+  hist: number[] = FRAME_BINS.map(() => 0);
+  sumGap = 0;
   slowFrames: Sample[] = [];
   writes = 0;
 
@@ -18,12 +25,14 @@ export class PerfLog {
   addEvent(t: number, d: number, n: string) { this.push(this.ev, { t, d, n }); }
   addFrame(t: number, gap: number) {
     this.frames.n++;
+    this.sumGap += gap;
+    this.hist[FRAME_BINS.findIndex((b) => gap < b)]++;
     if (gap > 34) this.frames.slow++;
     if (gap > 100) this.frames.bad++;
     if (gap > this.frames.max) this.frames.max = gap;
     if (gap > 50) this.push(this.slowFrames, { t, d: gap });
   }
-  reset() { this.long = []; this.ev = []; this.slowFrames = []; this.frames = { n: 0, slow: 0, bad: 0, max: 0 }; this.writes = 0; }
+  reset() { this.long = []; this.ev = []; this.slowFrames = []; this.frames = { n: 0, slow: 0, bad: 0, max: 0 }; this.hist = FRAME_BINS.map(() => 0); this.sumGap = 0; this.writes = 0; }
 }
 
 export const BUCKETS: [number, number, string][] = [
@@ -62,6 +71,9 @@ export function summarize(log: PerfLog, uptimeMs: number, info: Record<string, s
   const f = log.frames;
   if (!f.n) out.push("  кадров не записано — напишите пару иероглифов и откройте ещё раз");
   else {
+    const avg = log.sumGap / f.n;
+    out.push(`  средний кадр ${ms(avg)} (около ${Math.round(1000 / avg)} кадров/с)`);
+    out.push("  кадры по длине: " + log.hist.map((c, i) => `${BIN_NAMES[i]}: ${Math.round((c / f.n) * 100)}%`).join(", "));
     out.push(`  кадров ${f.n}, медленных (больше 34 мс) ${f.slow}, провалов (больше 100 мс) ${f.bad}, самый долгий ${ms(f.max)}`);
     const w = [...log.slowFrames].sort((a, b) => b.d - a.d).slice(0, 5);
     if (w.length) out.push("  самые долгие кадры: " + w.map((s) => `${ms(s.d)} на ${mmss(s.t)}`).join(", "));

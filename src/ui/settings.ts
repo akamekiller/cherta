@@ -257,6 +257,9 @@ export function initSettings() {
   });
   $("whatsnew").addEventListener("click", () => openWhatsNew(true));
   $("perfdiag").addEventListener("click", openPerfDiag);
+  $("fullscr").addEventListener("click", () => {
+    try { if (document.fullscreenElement) void document.exitFullscreen(); else void document.documentElement.requestFullscreen(); } catch { /* не поддерживается */ }
+  });
   $("tour").addEventListener("click", () => openTour());
   $("snaps-list").addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-snap]");

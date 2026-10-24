@@ -1298,34 +1298,14 @@ button,.chip-btn,.w{touch-action:manipulation}
 .ho-diff .ok{color:var(--good)}.ho-diff .miss{color:var(--bad,#c0392b);text-decoration:underline dotted}
 .ho-self{display:flex;flex-direction:column;gap:6px;margin-top:8px}
 
-/* ---------- Экзамен и HSKK на планшете и компьютере: крупнее текст и картинки (размеры выше — под телефон) ---------- */
+/* Китайская подпись задания («听后判断…») и картинка — заметно крупнее на компьютере и планшете */
 @media (min-width:700px){
-  .hsk .label{font-size:14px}
-  .hk-instr{font-size:17px;margin:4px 0 10px}
-  .hk-text{font-size:26px}
-  .hk-q{font-size:24px}
-  .hk-pic{font-size:130px}
-  .hk-opt{padding:14px 18px;border-radius:14px;gap:14px}
-  .hk-o{font-size:23px}
-  .hk-l{font-size:15px}
-  .hk-opts.tf .hk-o{font-size:18px}
-  .hk-opts.pics .hk-o{font-size:78px}
-  .hk-opts.pics .hk-opt{padding:12px 6px}
-  .hk-text rt,.hk-q rt,.hk-opt rt{font-size:13px}
-  .hk-rev,.hk-wq,.hk-h,.hk-sec{font-size:16px}
-  .hk-timer{font-size:16px}
-  .hk-audio small{font-size:14px}
-  .hk-audio .btn{font-size:17px;padding:12px 20px}
-  .hk-free{font-size:20px}
-  .ho-pic{font-size:84px}
-  .ho-said{font-size:22px}
-  .ho-diff{font-size:28px}
+  .hk-instr .zh{font-size:28px;display:block;margin-top:4px;line-height:1.35}
+  .hk-pic{font-size:200px}
+  .hk-opts.tf .hk-o{font-size:22px}
+  .hk-card .zh{font-size:1.2em}
 }
 @media (min-width:1000px){
-  .hk-text{font-size:30px}
-  .hk-q{font-size:27px}
-  .hk-o{font-size:25px}
-  .hk-pic{font-size:160px}
-  .hk-opts.pics .hk-o{font-size:92px}
-  .hk-instr{font-size:18px}
+  .hk-instr .zh{font-size:32px}
+  .hk-pic{font-size:260px}
 }

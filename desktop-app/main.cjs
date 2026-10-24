@@ -18,7 +18,7 @@ const ZOOMS = [0.75, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5];
 const zoomFile = () => path.join(app.getPath("userData"), "zoom.json");
 function loadZoom() {
   try { const z = JSON.parse(fs.readFileSync(zoomFile(), "utf8")).factor; if (z >= 0.5 && z <= 3) return z; } catch { /* первый запуск */ }
-  return 1.25; // по умолчанию крупнее: на мониторе мелкий текст читается хуже, чем на телефоне
+  return 1; // масштаб по умолчанию обычный; Ctrl + плюс/минус меняет
 }
 function setZoom(factor) {
   if (!win) return;
@@ -52,6 +52,12 @@ async function createWindow() {
     if (input.key === "=" || input.key === "+") { e.preventDefault(); stepZoom(1); }
     else if (input.key === "-" || input.key === "_") { e.preventDefault(); stepZoom(-1); }
     else if (input.key === "0") { e.preventDefault(); setZoom(1); }
+  });
+  // F11 — полный экран, Esc — выход из него.
+  win.webContents.on("before-input-event", (e, input) => {
+    if (input.type !== "keyDown") return;
+    if (input.key === "F11") { e.preventDefault(); win.setFullScreen(!win.isFullScreen()); }
+    else if (input.key === "Escape" && win.isFullScreen()) { e.preventDefault(); win.setFullScreen(false); }
   });
   win.webContents.on("zoom-changed", (_e, dir) => stepZoom(dir === "in" ? 1 : -1));
   win.webContents.on("did-finish-load", () => win.webContents.setZoomFactor(loadZoom()));

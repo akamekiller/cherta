@@ -23,6 +23,7 @@ import { initSheet } from "./ui/sheet.ts";
 import { setTheme, onThemeChange } from "./theme.ts";
 import { dailySnapshot } from "./autobackup.ts";
 import { initWhatsNew } from "./ui/whatsnew.ts";
+import { initPerfDiag } from "./ui/perfdiag.ts";
 import { initAmbient, fxOpts } from "./ui/ambient.ts";
 import { app } from "./state.ts";
 import { loadRecorded, setSpeechRate } from "./speech.ts";
@@ -31,6 +32,7 @@ import { initInstall } from "./ui/install.ts";
 import { initTour } from "./ui/tour.ts";
 
 async function boot() {
+  initPerfDiag(); // раньше всего: нужны задержки с первых секунд запуска
   initNative();
   initNav();
   initSheet();

@@ -1,5 +1,6 @@
 import { listSnaps, snapshot, restoreSnap } from "../autobackup.ts";
 import { openWhatsNew } from "./whatsnew.ts";
+import { openPerfDiag } from "./perfdiag.ts";
 import { openTour } from "./tour.ts";
 import { motionOn, setMotion, fxOpts } from "./ambient.ts";
 import { app, updateSettings, reloadAll, revertEdit } from "../state.ts";
@@ -255,6 +256,7 @@ export function initSettings() {
     });
   });
   $("whatsnew").addEventListener("click", () => openWhatsNew(true));
+  $("perfdiag").addEventListener("click", openPerfDiag);
   $("tour").addEventListener("click", () => openTour());
   $("snaps-list").addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-snap]");

@@ -42,7 +42,7 @@ function render() {
   const box = document.getElementById("inst-box");
   if (!box) return;
   if (NATIVE) { box.innerHTML = `<p class="hint">Это приложение для Android — уже установлено.</p>`; return; }
-  if (isElectron()) { box.innerHTML = `<p class="hint">Это приложение для Windows — уже установлено. Обновление: скачайте новый установщик с сайта.</p>`; return; }
+  if (isElectron()) { box.innerHTML = `<p class="hint">Это приложение для Windows — уже установлено. Масштаб: Ctrl + плюс / Ctrl + минус, сброс — Ctrl + 0. Обновление: скачайте новый установщик с сайта.</p>`; return; }
   if (isStandalone()) { box.innerHTML = `<p class="hint">«Черта» уже на главном экране — вы открыли её оттуда. Обновления приходят сами.</p>`; return; }
   if (isIOS()) { box.innerHTML = iosSteps(); return; }
   box.innerHTML = `${bip ? `<button class="btn primary wide" id="inst-go">Установить на этот телефон / компьютер</button>` : ""}

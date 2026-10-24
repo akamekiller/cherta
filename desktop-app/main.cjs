@@ -1,6 +1,7 @@
 // Черта для Windows: окно Electron вокруг веб-части. Сборка — .github/workflows/windows.yml.
 const { app, BrowserWindow, shell, session, dialog, Menu } = require("electron");
 const path = require("node:path");
+const fs = require("node:fs");
 const { startServer } = require("./server.cjs");
 
 // Адрес (а значит и хранилище IndexedDB/localStorage) должен быть всегда один и тот же: фиксированный порт.
@@ -11,6 +12,25 @@ const wwwDir = app.isPackaged ? path.join(process.resourcesPath, "www") : path.j
 if (!app.requestSingleInstanceLock()) app.quit();
 
 let win = null;
+
+// Масштаб: меню убрано, поэтому клавиши Ctrl+ / Ctrl− / Ctrl+0 и Ctrl+колесо обрабатываем сами; значение помним между запусками.
+const ZOOMS = [0.75, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5];
+const zoomFile = () => path.join(app.getPath("userData"), "zoom.json");
+function loadZoom() {
+  try { const z = JSON.parse(fs.readFileSync(zoomFile(), "utf8")).factor; if (z >= 0.5 && z <= 3) return z; } catch { /* первый запуск */ }
+  return 1.25; // по умолчанию крупнее: на мониторе мелкий текст читается хуже, чем на телефоне
+}
+function setZoom(factor) {
+  if (!win) return;
+  const f = Math.min(3, Math.max(0.5, factor));
+  win.webContents.setZoomFactor(f);
+  try { fs.writeFileSync(zoomFile(), JSON.stringify({ factor: f })); } catch { /* не страшно */ }
+}
+const stepZoom = (dir) => {
+  const cur = win.webContents.getZoomFactor();
+  const next = dir > 0 ? ZOOMS.find((z) => z > cur + 0.01) : [...ZOOMS].reverse().find((z) => z < cur - 0.01);
+  if (next) setZoom(next);
+};
 app.on("second-instance", () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
 
 async function createWindow() {
@@ -27,6 +47,14 @@ async function createWindow() {
   const external = (url) => { if (!url.startsWith(ORIGIN)) { shell.openExternal(url); return true; } return false; };
   win.webContents.setWindowOpenHandler(({ url }) => { external(url); return { action: "deny" }; });
   win.webContents.on("will-navigate", (e, url) => { if (external(url)) e.preventDefault(); });
+  win.webContents.on("before-input-event", (e, input) => {
+    if (input.type !== "keyDown" || !(input.control || input.meta) || input.alt) return;
+    if (input.key === "=" || input.key === "+") { e.preventDefault(); stepZoom(1); }
+    else if (input.key === "-" || input.key === "_") { e.preventDefault(); stepZoom(-1); }
+    else if (input.key === "0") { e.preventDefault(); setZoom(1); }
+  });
+  win.webContents.on("zoom-changed", (_e, dir) => stepZoom(dir === "in" ? 1 : -1));
+  win.webContents.on("did-finish-load", () => win.webContents.setZoomFactor(loadZoom()));
   await win.loadURL(ORIGIN);
 }
 

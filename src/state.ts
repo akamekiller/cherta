@@ -44,10 +44,10 @@ function rollDay() {
 }
 
 export async function init() {
-  const [settings, cards, day, edits, userDecks, reviews] = await Promise.all([
-    store.loadSettings(), store.allCards(), store.getMeta<store.DayCounter>("day"), store.allEdits(), store.allUserDecks(), store.allReviews(),
+  const [settings, cards, day, edits, userDecks] = await Promise.all([
+    store.loadSettings(), store.allCards(), store.getMeta<store.DayCounter>("day"), store.allEdits(), store.allUserDecks(),
   ]);
-  app.days = byDay(reviews);
+  await loadDays();
   app.settings = settings;
   app.cards = cards;
   app.edits = edits;
@@ -61,6 +61,21 @@ export async function init() {
   rebuildDeckList();
   await loadFirstDeck();
 }
+
+/** Сводка по дням: готовая из хранилища, если журнал не менялся; иначе пересчёт по всему журналу (и запись сводки). */
+let reviewN = 0;
+async function loadDays() {
+  const [agg, n] = await Promise.all([store.getMeta<store.DaysAgg>("days"), store.countReviews()]);
+  if (agg && agg.n === n && Array.isArray(agg.days)) {
+    app.days = new Map(agg.days.map(([k, count, again]) => [k, { count, again }]));
+    reviewN = n;
+    return;
+  }
+  app.days = byDay(await store.allReviews());
+  reviewN = n;
+  await store.setDaysAgg(daysAgg());
+}
+const daysAgg = (): store.DaysAgg => ({ n: reviewN, days: [...app.days].map(([k, s]) => [k, s.count, s.again]) });
 
 /** Текущая колода из настроек, иначе первая в списке; если колод нет — ничего. */
 async function loadFirstDeck() {
@@ -307,7 +322,7 @@ export async function reloadAll() {
   app.cards = await store.allCards();
   app.edits = await store.allEdits();
   app.userDecks = await store.allUserDecks();
-  app.days = byDay(await store.allReviews());
+  await loadDays();
   app.day = (await store.getMeta<store.DayCounter>("day")) ?? { day: "", newCount: 0, byDeck: {} };
   rollDay();
   await migrateAdded();
@@ -478,9 +493,10 @@ export async function answer(w: Word, skill: Skill, g: Grade, mistakes: number, 
     app.day = { ...app.day, newCount: app.day.newCount + 1, byDeck: { ...app.day.byDeck, [deckId]: (app.day.byDeck?.[deckId] ?? 0) + 1 } };
   }
   app.cards.set(id, next);
-  const reviewKey = await store.saveAnswer(next, { id, at: now, grade: g, state: before?.state ?? "new", mistakes }, app.day);
   const k = dayOf(now), ds = app.days.get(k) ?? { count: 0, again: 0 };
   app.days.set(k, { count: ds.count + 1, again: ds.again + (g === 1 ? 1 : 0) });
+  reviewN++;
+  const reviewKey = await store.saveAnswer(next, { id, at: now, grade: g, state: before?.state ?? "new", mistakes }, app.day, daysAgg());
   return { id, before, reviewKey, day: dayBefore, at: now, grade: g };
 }
 
@@ -489,7 +505,8 @@ export async function undoAnswer(u: UndoInfo) {
   app.day = u.day;
   const ds = app.days.get(dayOf(u.at));
   if (ds) app.days.set(dayOf(u.at), { count: Math.max(0, ds.count - 1), again: Math.max(0, ds.again - (u.grade === 1 ? 1 : 0)) });
-  await store.undoAnswer(u.id, u.before, u.reviewKey, u.day);
+  reviewN = Math.max(0, reviewN - 1);
+  await store.undoAnswer(u.id, u.before, u.reviewKey, u.day, daysAgg());
 }
 
 export function nextDueTime(): number | null {

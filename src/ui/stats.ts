@@ -42,7 +42,7 @@ function bars(values: number[], labels: string[], fmt: (v: number, i: number) =>
 async function render() {
   const now = Date.now();
   const st = streak(app.days, now);
-  const reviews = await store.allReviews();
+  const reviews = await store.recentReviews(now - 30 * 86400e3);
   const acc = accuracy(reviews, now);
   const writeCards = [...app.cards.keys()].filter((id) => splitCardId(id).skill === "write").map((id) => ({ id, han: id.split(":")[1] ?? "" }));
   const chars = writableChars(writeCards, (id) => app.cards.get(id));

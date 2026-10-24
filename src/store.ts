@@ -113,24 +113,59 @@ export async function allCards(): Promise<Map<string, Card>> {
 }
 
 /** Сохранить ответ; возвращает ключ записи в журнале (для отмены). */
-export async function saveAnswer(card: Card, review: Review, day: DayCounter): Promise<IDBValidKey> {
+export async function saveAnswer(card: Card, review: Review, day: DayCounter, agg?: DaysAgg): Promise<IDBValidKey> {
   const db = await open();
   const tx = db.transaction(["cards", "reviews", "meta"], "readwrite");
   tx.objectStore("cards").put(card);
   const req = tx.objectStore("reviews").add(review);
   tx.objectStore("meta").put(day, "day");
+  if (agg) tx.objectStore("meta").put(agg, "days");
   await txDone(tx);
   return req.result;
 }
 
 /** Отменить ответ: вернуть карточку (или удалить новую), убрать запись из журнала, вернуть счётчик дня. */
-export async function undoAnswer(id: string, before: Card | undefined, reviewKey: IDBValidKey, day: DayCounter): Promise<void> {
+export async function undoAnswer(id: string, before: Card | undefined, reviewKey: IDBValidKey, day: DayCounter, agg?: DaysAgg): Promise<void> {
   const db = await open();
   const tx = db.transaction(["cards", "reviews", "meta"], "readwrite");
   if (before) tx.objectStore("cards").put(before); else tx.objectStore("cards").delete(id);
   tx.objectStore("reviews").delete(reviewKey);
   tx.objectStore("meta").put(day, "day");
+  if (agg) tx.objectStore("meta").put(agg, "days");
   await txDone(tx);
+}
+
+/**
+ * Сводка журнала по дням ([день, ответов, «Снова»]) и сколько записей в журнале было при подсчёте.
+ * Нужна, чтобы при запуске не читать весь журнал (за год — десятки тысяч записей): если число записей совпало, сводка верна.
+ */
+export type DaysAgg = { n: number; days: [string, number, number][] };
+export async function countReviews(): Promise<number> {
+  const db = await open();
+  return done(db.transaction("reviews").objectStore("reviews").count());
+}
+export async function setDaysAgg(agg: DaysAgg): Promise<void> { await setMeta("days", agg); }
+
+/**
+ * Записи журнала не старше since (для статистики за 30 дней): читаем с конца, не весь журнал.
+ * Ключи идут в порядке записи, но после синхронизации среди новых ключей бывают старые ответы с другого устройства —
+ * поэтому останавливаемся только после многих старых подряд.
+ */
+export async function recentReviews(since: number, patience = 800): Promise<Review[]> {
+  const db = await open();
+  return new Promise((resolve, reject) => {
+    const out: Review[] = [];
+    let old = 0;
+    const req = db.transaction("reviews").objectStore("reviews").openCursor(null, "prev");
+    req.onsuccess = () => {
+      const cur = req.result;
+      if (!cur) return resolve(out);
+      const r = cur.value as Review;
+      if (r.at >= since) { out.push(r); old = 0; } else if (++old >= patience) return resolve(out);
+      cur.continue();
+    };
+    req.onerror = () => reject(req.error);
+  });
 }
 
 export async function allReviews(): Promise<Review[]> {

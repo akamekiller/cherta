@@ -71,7 +71,12 @@ async function boot() {
   requestPersist();
   initWhatsNew();
   initTour();
-  setTimeout(() => void dailySnapshot(), 8000);
+  // ежедневная копия — в простое, чтобы не мешать письму (на большом журнале это сотни миллисекунд)
+  setTimeout(() => {
+    const run = () => void dailySnapshot();
+    const ric = (window as unknown as { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => void }).requestIdleCallback;
+    if (ric) ric(run, { timeout: 60_000 }); else run();
+  }, 8000);
   void openShared();
   loadRecorded();
   // в приложении (Capacitor) кэш данных ведёт native.ts, service worker не нужен

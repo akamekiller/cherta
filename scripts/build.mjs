@@ -34,7 +34,7 @@ await build({
 
 // 3. Статика с подстановкой версии
 cpSync(join(root, "static/icons"), join(out, "icons"), { recursive: true });
-for (const f of ["styles.css", "manifest.webmanifest"]) cpSync(join(root, "static", f), join(out, f));
+for (const f of ["styles.css", "manifest.webmanifest", "privacy.html"]) cpSync(join(root, "static", f), join(out, f));
 writeFileSync(join(out, "index.html"), readFileSync(join(root, "static/index.html"), "utf8").replaceAll("__VERSION__", VERSION));
 
 // 4. Колоды из data/*.tsv

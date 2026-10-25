@@ -3,7 +3,7 @@ import { appLang } from "../state.ts";
 import { useBookDeck } from "./book.ts";
 import { useTonesDeck } from "./tones.ts";
 import { SKILLS, type Skill } from "../core/skills.ts";
-import { app, counts, countsFor, deckById, visibleDecks, nextDueTime, words, switchDeck, newLimit, deckSkills, setDeckOpts, renameDeck, deleteDeck, deleteDecks, deckBlocks, wordStarted, wordKnown, setFocus,
+import { app, counts, countsFor, deckById, visibleDecks, nextDueTime, switchDeck, newLimit, deckSkills, setDeckOpts, renameDeck, deleteDeck, deleteDecks, deckBlocks, wordStarted, wordKnown, setFocus,
   deckOrder, addBuiltinDecks, removeBuiltinDeck, isAdded, refreshCharDeck, updateSettings, removeUserDeck, CHAR_DECK, type DeckInfo } from "../state.ts";
 import { countChars } from "../core/deck.ts";
 import { formatGap } from "../core/fsrs.ts";

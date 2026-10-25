@@ -57,7 +57,6 @@ function addJLines(x: JIndex, lines: string[], from: number, to: number) {
 
 /** Главное написание статьи: первое иероглифическое, иначе кана. */
 export const jHan = (x: JIndex, i: number) => (x.kanji[i] ? x.kanji[i].split("･")[0] : x.kana[i].split(", ")[0]);
-export const jReadings = (x: JIndex, i: number) => x.kana[i].split(", ");
 const hit = (x: JIndex, i: number): JHit => ({ i, id: x.id[i], han: jHan(x, i), kana: x.kana[i], ru: x.ru[i], tag: x.tag[i] });
 
 const HAN = /\p{Script=Han}/u;

@@ -5,7 +5,7 @@
  */
 import type { Pose } from "../core/tour.ts";
 
-const LID = "#F4EBDD", INK = "#2B2420", LN = "#3B302A", FUR = "#FCF9F2", SHADE = "#EDE4D2", PINK = "#F2A79D", RED = "#C23A2F", RED2 = "#9C2A21";
+const LID = "#F4EBDD", INK = "#2B2420", LN = "#3B302A", FUR = "#FCF9F2", SHADE = "#EDE4D2", RED = "#C23A2F", RED2 = "#9C2A21";
 const O = `stroke="${LN}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"`;
 
 type Pt = [number, number];

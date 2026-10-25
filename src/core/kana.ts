@@ -80,7 +80,6 @@ export const toHiragana = (s: string) => s.replace(/[ァ-ヶ]/g, (c) => String.f
 export const isKana = (s: string) => /^[぀-ヿー]+$/.test(s);
 
 /** Есть ли в строке японская кана (чтобы отличить японское слово от китайского). */
-export const hasKana = (s: string) => /[぀-ヿ]/.test(s);
 
 const clean = (s: string) => s.replace(/[\s・.,、。]/g, "");
 const norm = (s: string, strict = false) => clean(toHiragana(romajiToKana(s.trim(), true, strict)));

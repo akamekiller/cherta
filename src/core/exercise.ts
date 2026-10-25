@@ -367,7 +367,6 @@ export function stepName(id: StepId, l: Lesson): string {
 export const PASS = 0.7;
 
 /** Шаги со звуком: без возможности слушать их можно пропускать (режим «Без звука»). */
-export const AUDIO_STEPS: StepId[] = ["listen", "dict"];
 
 /** Шаги, которые есть в уроке (без слов нет узнавания, без предложений — сборки и т. д.); quiet — без аудирования и диктанта. */
 export function lessonSteps(l: Lesson, quiet = false): StepId[] {

@@ -89,4 +89,3 @@ export function initVoice(cb: (text: string) => void) {
   });
 }
 
-export const stopVoice = () => { if (rec) stop(); };

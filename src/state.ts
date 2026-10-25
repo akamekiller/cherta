@@ -5,7 +5,6 @@ import { loadDeck, wordId, type Deck, type DeckFile, type Word } from "./core/de
 import { applyEdit, isEmptyEdit, type WordEdit, type DictEntry } from "./core/edits.ts";
 import { parseIndexAsync, dictShardOf, shardFile, dictPyToNumeric, type DictIndex, type DictArticle } from "./core/dict.ts";
 import { parseJIndexAsync, jShardOf, type JIndex } from "./core/jdict.ts";
-import type { Dialog } from "./core/exercise.ts";
 import { cardId, normSkills, pickNext, queueCounts, ALL_SKILLS, DEFAULT_SKILLS, type Skill, type QPick } from "./core/skills.ts";
 import { byDay, dayOf, type DayStat } from "./core/stats.ts";
 import * as store from "./store.ts";
@@ -163,7 +162,6 @@ export const deckSkills = (deckId: string): Skill[] => {
 /** Занятие одним уроком колоды (из экрана урока): остальные слова колоды в нём не участвуют. */
 let focus: { deckId: string; idx: Set<number> } | null = null;
 export const setFocus = (deckId: string | null, idx?: number[]) => { focus = deckId && idx ? { deckId, idx: new Set(idx) } : null; };
-export const focusOn = () => focus;
 const qWords = (deck: Deck) => deck.words.map((w, i) => ({ id: w.id, hidden: !!app.edits.get(w.id)?.hidden || (focus?.deckId === deck.id && !focus.idx.has(i)) }));
 
 /* ---------- уроки по словам (блоки колоды) ---------- */
@@ -721,16 +719,6 @@ export function exCorpus(): Promise<[string, string, string, number][]> {
     corpus.catch(() => { corpus = null; });
   }
   return corpus;
-}
-
-let dialogs: Promise<Dialog[]> | null = null;
-/** Диалоги из data/dialogs.json (написаны для приложения). */
-export function exDialogs(): Promise<Dialog[]> {
-  if (!dialogs) {
-    dialogs = fetch("data/dialogs.json").then((r) => { if (!r.ok) throw new Error("нет диалогов"); return r.json(); });
-    dialogs.catch(() => { dialogs = null; });
-  }
-  return dialogs;
 }
 
 /** Свои наборы упражнений (текст файла хранится как есть, разбирается при открытии). */

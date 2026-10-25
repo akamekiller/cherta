@@ -154,4 +154,3 @@ export function sayAll(texts: string[], rate = 0.85, lang: "zh" | "ja" = "zh") {
   } catch { /* озвучка необязательна */ }
 }
 
-export const canSpeak = () => supported();

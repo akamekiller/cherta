@@ -73,7 +73,14 @@ async function ensure() {
   await loadLib();
   texts = mine();
   if (cur && langOf(cur) !== lang) cur = null;
-  if (lang === "ja") {
+}
+
+/**
+ * Словари для деления текста на слова и пиньиня — только когда открывают сам текст:
+ * список текстов показывается сразу, а индекс словаря (8 МБ) не качается без нужды.
+ */
+async function ensureLex() {
+  if (appLang() === "ja") {
     if (!jx) loadJDict().then((x) => { jx = x; buildJLex(x); if (cur) renderText(); }).catch(() => {});
     return;
   }
@@ -82,6 +89,12 @@ async function ensure() {
     for (const d of app.builtinDecks) if (/^hsk[23]-/.test(d.id)) for (const w of (await deckById(d.id)).words) lex.add(w.han);
   }
   if (!dict) dictIndex().then((d) => { dict = d; for (const w of d.han) if (w.length <= 4) lex.add(w); if (cur) renderText(); }).catch(() => {});
+}
+/** Открыть текст: сначала словари (быстро — HSK уже в памяти после первого раза), потом показ. */
+async function openText() {
+  if (!cur) return;
+  try { await ensureLex(); } catch { /* без словаря текст делится по знакам */ }
+  if (cur) renderText();
 }
 
 function pyOf(w: string): string {
@@ -305,7 +318,7 @@ export function initReading() {
     $("rd-list").innerHTML = `<p class="hint">Загружаю…</p>`;
     try { await ensure(); } catch { $("rd-list").innerHTML = `<p class="hint">Тексты не загрузились.</p>`; return; }
     if (wantId) { cur = texts.find((t) => t.id === wantId) ?? null; wantId = null; if (cur) { extraPy.clear(); for (const [h, py] of cur.words) extraPy.set(h, py); } }
-    if (cur) renderText(); else renderList();
+    if (cur) void openText(); else renderList();
   });
   onLeave("read", () => { stopSpeech(); });
   $("rd-list").addEventListener("click", (e) => {
@@ -335,8 +348,7 @@ export function initReading() {
     extraPy.clear();
     for (const [h, py] of cur?.words ?? []) extraPy.set(h, py);
     $("rd-gloss").hidden = true;
-    renderText();
-    window.scrollTo(0, 0);
+    void openText().then(() => window.scrollTo(0, 0));
   });
   $("rd-back").addEventListener("click", () => { cur = null; stopSpeech(); renderList(); });
   $("rd-all").addEventListener("click", () => cur && sayAll(cur.lines.map((l) => plainLine(cur!, l[0])), 0.85, cur.lang === "ja" ? "ja" : undefined));

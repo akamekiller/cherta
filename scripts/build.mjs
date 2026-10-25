@@ -25,7 +25,7 @@ await build({
   bundle: true,
   format: "esm",
   target: ["es2020", "safari15"],
-  minify: true,
+  minify: !process.env.NOMIN,
   sourcemap: false,
   outfile: join(out, "app.js"),
   legalComments: "eof",

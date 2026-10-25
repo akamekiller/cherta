@@ -38,7 +38,13 @@ const PACKS: Pack[] = [
   { id: "audio", lang: "zh", title: "Озвучка", hint: "Записи нейросетевого голоса для слов колод", approx: "36 МБ", urls: allAudioUrls },
 ];
 
-const abs = (u: string) => new URL(u, location.href).href;
+// адрес → полный адрес (как ключ в кэше); new URL на тысячах записей озвучки заметно тормозит экран настроек
+const absMemo = new Map<string, string>();
+const abs = (u: string) => {
+  let v = absMemo.get(u);
+  if (v === undefined) { v = new URL(u, location.href).href; absMemo.set(u, v); }
+  return v;
+};
 let cached = new Set<string>();
 const has = (u: string) => cached.has(abs(u));
 async function refreshCached() {

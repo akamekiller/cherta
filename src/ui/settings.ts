@@ -148,7 +148,7 @@ export function initSettings() {
   renderFsrs();
   $("fs-run").addEventListener("click", runFsrs);
   $("fs-reset").addEventListener("click", async () => { await updateSettings({ fsrsW: undefined }); renderFsrs(); $("fs-msg").textContent = "Вернул параметры по умолчанию."; });
-  onShow("settings", () => { render(); renderOffline(); requestAnimationFrame(startTry); });
+  onShow("settings", () => { render(); offlineWhenVisible(); requestAnimationFrame(startTry); });
   onLeave("settings", () => { tryWriter = null; const el = document.getElementById("pen-hw"); if (el) el.innerHTML = ""; });
   $("pens").addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-pen]");
@@ -280,4 +280,16 @@ export function initSettings() {
     render();
     note("Прогресс удалён.");
   }));
+}
+
+/** «Офлайн» считает тысячи файлов в кэше — делаем это, только когда раздел подъезжает к экрану, а не при каждом открытии настроек. */
+let offObs: IntersectionObserver | null = null;
+function offlineWhenVisible() {
+  const el = document.getElementById("set-offline");
+  if (!el || typeof IntersectionObserver === "undefined") { renderOffline(); return; }
+  offObs?.disconnect();
+  offObs = new IntersectionObserver((es) => {
+    if (es.some((e) => e.isIntersecting)) { offObs?.disconnect(); offObs = null; renderOffline(); }
+  }, { rootMargin: "400px 0px" });
+  offObs.observe(el);
 }

@@ -99,17 +99,21 @@ def main():
         lines = [f"# HSK {n} (3.0): банк заданий, собран scripts/build_hsk.py — не править вручную"]
         path = os.path.join(SRC, f"hsk{n}.txt")
         own = open(path, encoding="utf8").read().splitlines() if os.path.exists(path) else []
-        for l in own:
-            s = l.strip()
-            if not s or s.startswith("#") or s.startswith("=="):
+
+        def add_own(own):
+            nonlocal problems
+            for l in own:
+                s = l.strip()
+                if not s or s.startswith("#") or s.startswith("=="):
+                    lines.append(s)
+                    continue
+                zh = s.split("| =")[0]
+                bad = check(zh, known, lex)
+                if bad:
+                    problems += 1
+                    print(f"HSK{n}: незнакомые слова {' '.join(sorted(set(bad)))} в «{zh.strip()}»")
                 lines.append(s)
-                continue
-            zh = s.split("| =")[0]
-            bad = check(zh, known, lex)
-            if bad:
-                problems += 1
-                print(f"HSK{n}: незнакомые слова {' '.join(sorted(set(bad)))} в «{zh.strip()}»")
-            lines.append(s)
+        add_own(own)
         # картинки к словам уровня
         mine = [(w, p) for w, p, x in pics if x == n] or [(w, p) for w, p, x in pics if x <= n]
         allp = [(w, p) for w, p, x in pics if x <= n + 1]
@@ -158,6 +162,10 @@ def main():
             if n <= 3:
                 lines.append(f"== {n}W2")
                 lines += write[:120]
+        # пополнение банка (25.10.2026) — в конце файла, чтобы номера прежних заданий (id в прогрессе) не сдвинулись
+        more = os.path.join(SRC, f"hsk{n}-more.txt")
+        if os.path.exists(more):
+            add_own(open(more, encoding="utf8").read().splitlines())
         text = "\n".join(lines) + "\n"
         open(os.path.join(OUT, f"hsk{n}.txt"), "w", encoding="utf8", newline="\n").write(text)
         parts = {}

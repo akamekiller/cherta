@@ -3,6 +3,14 @@ export type Change = { id: string; date: string; title: string; items: string[] 
 
 export const CHANGES: Change[] = [
   {
+    id: "0.49.8",
+    date: "25.10.2026",
+    title: "Связь",
+    items: [
+      "Настройки → «О приложении»: кнопки «Telegram-канал» и «GitHub».",
+    ],
+  },
+  {
     id: "0.49.7",
     date: "24.10.2026",
     title: "Программа для Windows обновляется сама",

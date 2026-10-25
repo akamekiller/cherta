@@ -12,7 +12,7 @@ import { dictPyToNumeric, type DictIndex } from "../core/dict.ts";
 import { parseRef, toMarked } from "../core/pinyin.ts";
 import { getChar, type StrokeLang } from "../strokes.ts";
 import { scoreHandwriting, beautyLabel, type P } from "../core/beauty.ts";
-import { $, esc, pinyinHTML, plural } from "./dom.ts";
+import { $, esc, pinyinHTML, plural, buzz } from "./dom.ts";
 import { createWriter, type Writer } from "./writer.ts";
 import { onShow, onLeave } from "./nav.ts";
 import { openSheet, closeSheet } from "./sheet.ts";
@@ -312,7 +312,7 @@ function startCell() {
     onCorrectStroke: (d: { strokeNum: number; drawnPath: { points: P[] } }) => { drawn[d.strokeNum] = d.drawnPath.points.map((p) => ({ x: p.x, y: p.y })); },
     onMistake: () => {
       miss[i]++;
-      if (app.settings.vibrate) try { navigator.vibrate?.(35); } catch { /* */ }
+      if (app.settings.vibrate) buzz();
       const pad = $("bk-pad");
       pad.classList.add("miss");
       setTimeout(() => pad.classList.remove("miss"), 280);

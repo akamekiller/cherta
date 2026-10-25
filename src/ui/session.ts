@@ -14,7 +14,7 @@ import { checkPinyin } from "../core/pinyin.ts";
 import { autoGrade } from "../core/grade.ts";
 import { say } from "../speech.ts";
 import { preload } from "../strokes.ts";
-import { $, esc, pinyinHTML, plural } from "./dom.ts";
+import { $, esc, pinyinHTML, plural, buzz } from "./dom.ts";
 import { createWriter, type Writer } from "./writer.ts";
 import { show, onLeave } from "./nav.ts";
 import { mountFreePad, type FreePad } from "./freepad.ts";
@@ -104,7 +104,7 @@ async function finishBlind() {
   const ok = cur.miss[i] === 0;
   const pad = $("pad");
   pad.classList.add(ok ? "hit" : "miss");
-  if (!ok && app.settings.vibrate) try { navigator.vibrate?.(35); } catch { /* */ }
+  if (!ok && app.settings.vibrate) buzz();
   setTimeout(() => pad.classList.remove("hit", "miss"), 400);
   // образец поверх своего рисунка
   free.destroy();
@@ -134,7 +134,7 @@ function practiceAgain() {
     stopWriter();
     cur.writer = createWriter($("hw"), cur.chars[i], { showOutline: false }, langOf(word));
     cur.writer.quiz({
-      onMistake: () => { if (app.settings.vibrate) try { navigator.vibrate?.(35); } catch { /* */ } },
+      onMistake: () => { if (app.settings.vibrate) buzz(); },
       onComplete: () => setTimeout(() => { if (alive() && i + 1 < cur.chars.length) step(i + 1); }, 350),
     });
   };
@@ -262,7 +262,7 @@ function runQuiz() {
     },
     onMistake: () => {
       cur.miss[i]++;
-      if (app.settings.vibrate) try { navigator.vibrate?.(35); } catch { /* не все устройства умеют */ }
+      if (app.settings.vibrate) buzz();
       const pad = $("pad");
       pad.classList.add("miss");
       setTimeout(() => pad.classList.remove("miss"), 280);

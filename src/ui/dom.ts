@@ -37,3 +37,8 @@ export async function downloadText(name: string, text: string, type = "text/plai
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
+
+/** Короткая вибрация (не все устройства умеют). */
+export function buzz() {
+  try { navigator.vibrate?.(35); } catch { /* нет поддержки */ }
+}

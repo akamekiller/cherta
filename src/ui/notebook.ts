@@ -10,7 +10,7 @@ import { beautyLabel, type P } from "../core/beauty.ts";
 import type { PenPoint } from "../core/pen.ts";
 import { parseRef } from "../core/pinyin.ts";
 import { paintStroke, inkColor } from "./writer.ts";
-import { esc, pinyinHTML, plural } from "./dom.ts";
+import { esc, pinyinHTML, plural, buzz } from "./dom.ts";
 import { openSheet, closeSheet } from "./sheet.ts";
 import { app } from "../state.ts";
 
@@ -144,7 +144,7 @@ function checkRow(ri: number) {
   if (!r.cells.some((c) => c.strokes.length)) return;
   for (const c of r.cells) if (c.strokes.length) c.res = checkCell(c.strokes.map((s) => s.map(toChar)), r.data.medians);
   r.checked = true;
-  if (app.settings.vibrate && r.cells.some((c) => c.res && !c.res.ok)) try { navigator.vibrate?.(35); } catch { /* */ }
+  if (app.settings.vibrate && r.cells.some((c) => c.res && !c.res.ok)) buzz();
   redrawRow(ri);
 }
 

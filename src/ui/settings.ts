@@ -7,7 +7,7 @@ import { app, updateSettings, reloadAll, revertEdit } from "../state.ts";
 import { optimize } from "../core/fsrsopt.ts";
 import * as store from "../store.ts";
 import { say, voiceStatus, voiceStatusJa, onVoices, setSpeechRate } from "../speech.ts";
-import { $, esc, plural, downloadText } from "./dom.ts";
+import { $, esc, plural, downloadText, buzz } from "./dom.ts";
 import { NATIVE } from "../native.ts";
 import { setTheme, type ThemeChoice } from "../theme.ts";
 import { renderThemeChoices, openThemeEditor } from "./themeEditor.ts";
@@ -208,7 +208,7 @@ export function initSettings() {
   $("s-vibrate").addEventListener("change", (e) => {
     const on = (e.target as HTMLInputElement).checked;
     updateSettings({ vibrate: on });
-    if (on) try { navigator.vibrate?.(35); } catch { /* */ }
+    if (on) buzz();
   });
   $("s-test").addEventListener("click", () => (app.settings.lang === "ja" ? say("こんにちは", 0.9, "ja") : say("你好")));
   $("s-rate").addEventListener("click", async (e) => {

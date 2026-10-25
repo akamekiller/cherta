@@ -77,7 +77,7 @@ function hasPressure(pts: PenPoint[]): boolean {
 
 /**
  * Толщина кисти в каждой точке (в долях base).
- * Медленно — шире (кисть «набухает»), быстро — тоньше; начало — нажим с утолщением,
+ * Медленно — шире (кисть «набухает»), быстро — тоньше; начало — круглое, с нажимом и лёгким утолщением,
  * конец — острый «выход кисти», если черту закончили на скорости, и тупой, если остановились.
  */
 export function brushWidths(pts: PenPoint[], base: number): number[] {
@@ -109,14 +109,14 @@ export function brushWidths(pts: PenPoint[], base: number): number[] {
   for (let i = 1; i < n; i++) along.push(along[i - 1] + dist(pts[i], pts[i - 1]));
   const total = along[n - 1];
 
-  // начало: короткое касание острием, затем нажим
-  const head = Math.min(base * 0.9, total * 0.25);
+  // начало: кисть ложится с нажимом (顿笔) — круглое начало и лёгкое утолщение, а не острый «наконечник»
+  const head = Math.min(base * 1.4, total * 0.3);
   // конец: острый, если уходили быстро
   const endSpeed = timed ? speed[n - 1] : 1.5;
   const tail = Math.min(total * 0.45, base * clamp((endSpeed - 1) * 1.2, 0.4, 4));
   return w.map((v, i) => {
     let k = 1;
-    if (head > 0 && along[i] < head) k *= 0.45 + 0.55 * Math.sin((along[i] / head) * Math.PI / 2);
+    if (head > 0 && along[i] < head) { const u = along[i] / head; k *= 0.85 + 0.15 * u + 0.1 * Math.sin(u * Math.PI); }
     const left = total - along[i];
     if (tail > 0 && left < tail) k *= 0.12 + 0.88 * Math.sin((left / tail) * Math.PI / 2);
     return v * k;
@@ -134,7 +134,9 @@ export function outlinePath(pts: PenPoint[], widths: number[]): string {
     let dx = b.x - a.x, dy = b.y - a.y;
     const len = Math.hypot(dx, dy) || 1;
     dx /= len; dy /= len;
-    const h = widths[i] / 2;
+    // На изгибе (横折, 竖弯) отступ по биссектрисе даёт ширину h·cos(φ/2) — угол «сужается».
+    // Компенсация как у соединения «miter», но не больше 1,8 раза, чтобы на острых углах не было шипов.
+    const h = (widths[i] / 2) * (i > 0 && i < n - 1 ? miter(pts[i - 1], pts[i], pts[i + 1]) : 1);
     L.push({ x: pts[i].x - dy * h, y: pts[i].y + dx * h });
     R.push({ x: pts[i].x + dy * h, y: pts[i].y - dx * h });
   }
@@ -155,6 +157,15 @@ export function outlinePath(pts: PenPoint[], widths: number[]): string {
     ...cap(pts[0], R[n - 1], widths[0] / 2),
   ];
   return linePath(ring) + "Z";
+}
+
+/** Во сколько раз увеличить отступ в точке b, чтобы толщина на изгибе a→b→c не сужалась. */
+export function miter(a: PenPoint, b: PenPoint, c: PenPoint): number {
+  const l1 = dist(a, b), l2 = dist(b, c);
+  if (!l1 || !l2) return 1;
+  const sx = (b.x - a.x) / l1 + (c.x - b.x) / l2, sy = (b.y - a.y) / l1 + (c.y - b.y) / l2;
+  const cosHalf = Math.hypot(sx, sy) / 2; // cos половины угла поворота
+  return 1 / Math.max(cosHalf, 1 / 1.8);
 }
 
 function circle(c: PenPoint, r: number): string {

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { penShape, brushWidths, resample, outlinePath, isPen, clampSize, type PenPoint } from "../src/core/pen.ts";
+import { penShape, brushWidths, resample, outlinePath, isPen, clampSize, miter, type PenPoint } from "../src/core/pen.ts";
 
 const line = (n: number, dt: number): PenPoint[] =>
   Array.from({ length: n }, (_, i) => ({ x: 100 + i * 20, y: 500, t: i * dt }));
@@ -56,4 +56,30 @@ test("кисть не толще двух карандашей при медле
   const s = penShape("brush", slow, 16);
   const ys = [...s.d.matchAll(/[ML][\d.]+ ([\d.]+)/g)].map((m) => Number(m[1]));
   assert.ok(Math.max(...ys) - Math.min(...ys) <= 16 * 2 + 1);
+});
+
+test("кисть: на изгибе черта не сужается (miter)", () => {
+  // уголок 横折: вправо, затем вниз; толщина постоянная
+  const pts: PenPoint[] = [];
+  for (let i = 0; i <= 20; i++) pts.push({ x: 100 + i * 10, y: 500 });
+  for (let i = 1; i <= 20; i++) pts.push({ x: 300, y: 500 - i * 10 });
+  const w = 40;
+  const d = outlinePath(pts, pts.map(() => w));
+  const ring = [...d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)].map((m) => ({ x: Number(m[1]), y: Number(m[2]) }));
+  // точки контура у вершины угла (индекс 20): слева L[20], справа R[20]; каждая на расстоянии ≥ w/2 от обеих прямых черты
+  const n = pts.length, Lc = ring[20], Rc = ring[n + 7 + (n - 1 - 20)];
+  for (const p of [Lc, Rc]) {
+    assert.ok(Math.abs(p.y - 500) > (w / 2) * 0.95, `до горизонтали ${Math.abs(p.y - 500)}`);
+    assert.ok(Math.abs(p.x - 300) > (w / 2) * 0.95, `до вертикали ${Math.abs(p.x - 300)}`);
+  }
+  assert.equal(miter({ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }), 1);
+  assert.ok(miter({ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 0.01 }) <= 1.8 + 1e-9);
+});
+
+test("кисть: начало круглое, с нажимом, без острого наконечника и без «шейки»", () => {
+  const ev = resample(line(60, 16), 4);
+  const w = brushWidths(ev, 30);
+  const mid = w[Math.floor(w.length / 2)];
+  assert.ok(w[0] > mid * 0.75, "начало не острое");
+  for (let i = 1; i < w.length / 2; i++) assert.ok(w[i] > w[i - 1] * 0.97, `без провала у точки ${i}`);
 });

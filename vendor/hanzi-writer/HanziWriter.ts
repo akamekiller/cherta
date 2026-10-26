@@ -413,6 +413,11 @@ export default class HanziWriter {
     }
   }
 
+  /** Правка для Черты: стереть последнюю верную черту (см. Quiz.undoStroke). */
+  undoQuizStroke(): number {
+    return this._quiz ? this._quiz.undoStroke() : -1;
+  }
+
   cancelQuiz() {
     if (this._quiz) {
       this._quiz.cancel();

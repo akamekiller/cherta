@@ -2,9 +2,9 @@
 import { isJa } from "../core/deck.ts";
 import { cardOf, words, isHidden, hskEntries, editOf, dictIndex, jdictIndex } from "../state.ts";
 import { jHan, findJ, type JIndex, type JHit } from "../core/jdict.ts";
-import { dictPyToNumeric, type DictIndex, type DictHit } from "../core/dict.ts";
+import { dictPyToNumeric, pyReadings, type DictIndex, type DictHit } from "../core/dict.ts";
 import { applyEdit, type DictEntry } from "../core/edits.ts";
-import { parseRef } from "../core/pinyin.ts";
+import { parseRef, type Syllable } from "../core/pinyin.ts";
 import { wordId, type Word } from "../core/deck.ts";
 import { formatGap, DAY } from "../core/fsrs.ts";
 import { esc, pinyinHTML } from "./dom.ts";
@@ -124,3 +124,26 @@ export type ViewMode = "list" | "grid";
 export const itemHTML = (w: Word, st: string, cls: string, view: ViewMode) => view === "grid"
   ? `<button class="tile ${cls}" data-id="${esc(w.id)}"${(w as OtherWord).jid ? ` data-jid="${(w as OtherWord).jid}"` : ""} title="${esc(w.ru)}"><span class="h">${esc(w.han)}</span><span class="py">${pyHTML(w)}</span><span class="ru">${esc(w.ru)}</span></button>`
   : `<button class="item" data-id="${esc(w.id)}"${(w as OtherWord).jid ? ` data-jid="${(w as OtherWord).jid}"` : ""}><span class="h">${esc(w.han)}</span><span class="txt"><span class="py">${pyHTML(w)}</span><span class="ru">${esc(w.ru)}</span></span><span class="status ${cls}">${st}</span></button>`;
+
+/**
+ * Иероглифы слова по отдельности: кнопки «иероглиф · чтения · краткое значение».
+ * Значение — из своей колоды, затем из HSK (без ссылок статьи БКРС), затем из словаря.
+ * Чтение, с которым иероглиф стоит в слове (`wordRef`), — первым; остальные чтения — бледнее.
+ */
+export function charPartsHTML(hits: DictHit[], word?: { han: string; ref: Syllable[] }): string {
+  const chars = word ? [...word.han] : [];
+  const inWord = word && word.ref.length === chars.length;
+  return hits.map((h) => {
+    const id = wordId("zh", h.han);
+    const e = hsk.find((x) => x.han === h.han);
+    const w = findWord(id) ?? (e ? otherWord(e.han, e.py, e.ru, e.level) : fromHit(h));
+    const reads: Syllable[] = [];
+    const add = (s?: Syllable) => { if (s && !reads.some((r) => r.s === s.s && r.t === s.t)) reads.push(s); };
+    if (inWord) add(word.ref[chars.indexOf(h.han)]);
+    for (const r of [w.ref[0], ...pyReadings(h.py).map((x) => { try { return parseRef(dictPyToNumeric(x, h.han) ?? "")[0]; } catch { return undefined; } })]) add(r);
+    const py = reads.length
+      ? pinyinHTML(reads.slice(0, 1)) + (reads.length > 1 ? `<span class="alt"> · ${reads.slice(1, 3).map((r) => pinyinHTML([r])).join(" · ")}</span>` : "")
+      : pyHTML(w);
+    return `<button class="cpart" data-id="${esc(w.id)}"><span class="h">${esc(w.han)}</span><span class="py">${py}</span><span class="ru">${esc(w.ru)}</span></button>`;
+  }).join("");
+}

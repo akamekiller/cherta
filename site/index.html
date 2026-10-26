@@ -27,8 +27,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Черта">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<link rel="stylesheet" href="data/fonts/fonts.css?v=1.0.1-mvnm4wq3">
-<link rel="stylesheet" href="styles.css?v=1.0.1-mvnm4wq3">
+<link rel="stylesheet" href="data/fonts/fonts.css?v=1.0.2-mvpdvrxi">
+<link rel="stylesheet" href="styles.css?v=1.0.2-mvpdvrxi">
 </head>
 <body>
 <div class="ambient" id="ambient" aria-hidden="true" hidden></div>
@@ -127,10 +127,11 @@
       <div class="flash"></div>
     </div>
     <div id="ask" class="stack">
-      <div class="tools">
+      <div class="tools wtools">
+        <button class="btn small ico" id="b-undo-stroke" aria-label="Стереть черту" title="Стереть черту (Backspace)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+        <button class="btn small ico" id="b-clear" aria-label="Очистить клетку" title="Очистить клетку"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/><path d="M10 11v5M14 11v5"/></svg></button>
         <button class="btn small" id="b-hint">Показать контур</button>
         <button class="btn small" id="b-giveup">Не помню</button>
-        <button class="btn small" id="b-undo-stroke" hidden>Стереть черту</button>
         <button class="btn small primary" id="b-char-done" hidden disabled>Готово</button>
       </div>
       <div class="py-pick" id="py-field">
@@ -230,6 +231,7 @@
       </div>
       <div class="py entry-py" id="d-py"></div>
       <p class="entry-gloss" id="d-ru"></p>
+      <div class="cparts" id="d-parts" hidden></div>
       <div class="entry-tags" id="d-tags"></div>
       <p class="word-note" id="d-note" hidden></p>
       <div class="entry-actions">
@@ -307,7 +309,9 @@
         <div class="hw" id="bk-hw"></div>
         <div class="flash"></div>
     </div>
-    <div class="tools">
+    <div class="tools wtools">
+      <button class="btn small ico" id="bk-undo" aria-label="Стереть черту" title="Стереть черту (Backspace)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+      <button class="btn small ico" id="bk-clear" aria-label="Очистить клетку" title="Очистить клетку"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/><path d="M10 11v5M14 11v5"/></svg></button>
       <button class="btn small" id="bk-anim">Порядок черт</button>
       <button class="btn small" id="bk-again">Заново</button>
     </div>
@@ -559,7 +563,7 @@
     </div>
     <div class="panel stack about" id="set-about">
       <div class="label">О приложении</div>
-      <p>Черта 1.0.1-mvnm4wq3 — бесплатное приложение для письма иероглифов, карточек и словаря.</p>
+      <p>Черта 1.0.2-mvpdvrxi — бесплатное приложение для письма иероглифов, карточек и словаря.</p>
       <div class="row"><button class="btn small" id="whatsnew">Что нового</button><button class="btn small" id="tour">Обучение по приложению</button></div>
       <div class="row"><a class="btn small" href="https://t.me/+h5g131MEvYAwMzIy" target="_blank" rel="noopener">Telegram-канал</a> <a class="btn small" href="https://github.com/akamekiller/cherta" target="_blank" rel="noopener">GitHub</a> <a class="btn small" href="https://akamekiller.github.io/cherta/privacy.html" target="_blank" rel="noopener">Политика конфиденциальности</a></div>
       <div class="row"><button class="btn small" id="fullscr">Полный экран</button> <button class="btn small" id="perfdiag">Диагностика письма</button></div>
@@ -582,7 +586,7 @@
   <div class="sheet-head"><h2 id="sheet-title"></h2><button class="icon-btn" id="sheet-close" aria-label="Закрыть">✕</button></div>
   <div class="sheet-body stack" id="sheet-body"></div>
 </section>
-<script type="module" src="app.js?v=1.0.1-mvnm4wq3"></script>
+<script type="module" src="app.js?v=1.0.2-mvpdvrxi"></script>
 <div id="print-area" aria-hidden="true"></div>
 </body>
 </html>

@@ -10,7 +10,7 @@ import { hashStr } from "../core/skills.ts";
 import { say } from "../speech.ts";
 import { openAddToDeck } from "./editor.ts";
 import { pinyinHTML } from "./dom.ts";
-import { searchDict } from "../core/dict.ts";
+import { searchDict, charHits } from "../core/dict.ts";
 import { searchEntries, type DictEntry } from "../core/edits.ts";
 import type { Word } from "../core/deck.ts";
 import { DAY } from "../core/fsrs.ts";
@@ -19,7 +19,7 @@ import { onShow, show } from "./nav.ts";
 import { openEntry } from "./entry.ts";
 import { initHandwrite } from "./handwrite.ts";
 import { initVoice } from "./voice.ts";
-import { kind, status, itemHTML, otherWord, fromHit, hskList, loadHskList, dictNow, loadDict, wordByHan, jdictNow, loadJDict, jWordAt, fromJHit, type ViewMode } from "./lookup.ts";
+import { kind, status, itemHTML, otherWord, fromHit, charPartsHTML, hskList, loadHskList, dictNow, loadDict, wordByHan, jdictNow, loadJDict, jWordAt, fromJHit, type ViewMode } from "./lookup.ts";
 import { searchJDict } from "../core/jdict.ts";
 
 type Filter = "all" | "new" | "learn" | "review" | "hidden" | "leech";
@@ -199,9 +199,20 @@ async function renderDictSearch(q: string) {
     // слова своих колод, которых в словаре нет (термины, свои слова), — в начало
     const extra = own.filter((e) => !inDict.has(e.han)).map((e) => otherWord(e.han, e.py, e.ru, e.level));
     const items = [...extra, ...hits.slice(0, DICT_MAX).map(fromHit)];
-    if (!items.length) { box.innerHTML = `<p class="empty">Не нашлось. Ищите по иероглифам, пиньиню без тонов или по-русски.</p>`; return; }
+    if (!items.length) {
+      const parts = charHits(dict, q);
+      box.innerHTML = parts.length
+        ? `<p class="empty">Такого слова в словаре нет. По иероглифам:</p><div class="cparts">${charPartsHTML(parts)}</div>`
+        : `<p class="empty">Не нашлось. Ищите по иероглифам, пиньиню без тонов или по-русски.</p>`;
+      return;
+    }
     const total = hits.length > DICT_MAX ? `${DICT_MAX}+` : String(items.length);
-    box.innerHTML = `<h3 class="grp-title"><span>Найдено</span><span class="grp-n">${total}</span></h3>` + listHTML(items.slice(0, shown))
+    // несколько иероглифов в запросе — сначала что значит каждый
+    const parts = charHits(dict, q);
+    // чтения в слове — если запрос сам является словом словаря (银行卡: 行 = háng)
+    const exact = items.find((w) => w.han === q);
+    box.innerHTML = (parts.length ? `<h3 class="grp-title"><span>По иероглифам</span></h3><div class="cparts">${charPartsHTML(parts, exact)}</div>` : "")
+      + `<h3 class="grp-title"><span>Найдено</span><span class="grp-n">${total}</span></h3>` + listHTML(items.slice(0, shown))
       + (items.length > shown ? `<button class="btn small ghost more-btn" data-more>Показать ещё</button>` : "")
       + `<p class="hint src-note">Словарь 大БКРС · bkrs.info</p>`;
   }, 80);
@@ -456,7 +467,7 @@ export function initWords() {
     if (oh) { wordByHan(oh.dataset.openHan!).then((w) => open(w.id, w.han)); return; }
     const ah = t.closest<HTMLButtonElement>("[data-add-han]");
     if (ah) { wordByHan(ah.dataset.addHan!).then((w) => openAddToDeck(w)); return; }
-    const b = t.closest<HTMLButtonElement>(".item,.tile");
+    const b = t.closest<HTMLButtonElement>(".item,.tile,.cpart");
     if (b?.dataset.id) open(b.dataset.id, b.querySelector(".h")?.textContent ?? undefined, b.dataset.jid);
   };
   $("w-groups").addEventListener("click", onClick);

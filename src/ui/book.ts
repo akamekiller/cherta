@@ -226,6 +226,8 @@ async function render() {
   for (const id of ["bk-pad", "bk-strip"]) $(id).hidden = empty;
   $("bk-anim").toggleAttribute("disabled", empty);
   $("bk-again").toggleAttribute("disabled", empty);
+  $("bk-undo").toggleAttribute("disabled", empty);
+  $("bk-clear").toggleAttribute("disabled", empty);
   if (empty) {
     stop();
     stopNotebook();
@@ -494,6 +496,15 @@ export function initBook() {
       r.querySelector("#bk-again-yes")!.addEventListener("click", again);
       r.querySelector("#bk-again-no")!.addEventListener("click", closeSheet);
     });
+  });
+  // стереть черту / очистить текущую клетку (ошибки клетки остаются)
+  const undoStroke = () => { const n = writer?.undoQuizStroke() ?? -1; if (n >= 0) drawn.length = n; };
+  $("bk-undo").addEventListener("click", undoStroke);
+  $("bk-clear").addEventListener("click", () => { if (writer && ci < cells.length) startCell(); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Backspace" || $("book").hidden || $("bk-pad").offsetParent === null || (e.target as HTMLElement).closest("input,textarea,select")) return;
+    e.preventDefault();
+    undoStroke();
   });
   $("bk-anim").addEventListener("click", () => {
     if (!writer) return;

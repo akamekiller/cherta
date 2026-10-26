@@ -1309,3 +1309,18 @@ button,.chip-btn,.w{touch-action:manipulation}
   .hk-instr .zh{font-size:32px}
   .hk-pic{font-size:260px}
 }
+
+/* Стереть черту / очистить клетку — квадратные кнопки слева в строке под клеткой */
+.tools.wtools{grid-template-columns:44px 44px 1fr 1fr}
+.tools.wtools .ico{padding:0;min-width:44px;display:grid;place-items:center}
+.tools.wtools .ico svg{width:20px;height:20px}
+.tools.wtools #b-char-done{grid-column:3/-1}
+
+/* Иероглифы слова по отдельности (поиск и статья) */
+.cparts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:4px 0 8px}
+.cpart{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:10px;align-items:center;padding:8px 12px;border:1px solid var(--line);border-radius:calc(var(--r) - 4px);background:var(--sheet);color:inherit;text-align:left;cursor:pointer;font:inherit;min-width:0}
+.cpart .h{grid-row:1/3;font-family:var(--f-han);font-size:30px;line-height:1}
+.cpart .py{font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cpart .ru{font-size:13px;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.entry .cparts{margin-top:10px}
+.cpart .alt{color:var(--muted);font-size:12px}.cpart .alt .s{color:inherit}

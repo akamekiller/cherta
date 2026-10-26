@@ -178,6 +178,18 @@ export function lookupIndex(idx: DictIndex, han: string): DictHit | null {
   return i < 0 ? null : { i, han, py: idx.py[i], ru: idx.ru[i] };
 }
 
+/**
+ * Иероглифы слова или запроса по отдельности (без повторов, в порядке появления) — «что значит каждый».
+ * Пусто, если иероглифов меньше двух: у одиночного иероглифа разбирать нечего.
+ */
+export function charHits(idx: DictIndex, text: string, max = 12): DictHit[] {
+  const chars = [...new Set([...text].filter((c) => /\p{Script=Han}/u.test(c)))];
+  if (chars.length < 2) return [];
+  const out: DictHit[] = [];
+  for (const ch of chars.slice(0, max)) { const h = lookupIndex(idx, ch); if (h) out.push(h); }
+  return out;
+}
+
 export const dictShardOf = (word: string, shards = 128) => (word.codePointAt(0) ?? 0) % shards;
 export const shardFile = (n: number) => `${String(n).padStart(3, "0")}.json`;
 

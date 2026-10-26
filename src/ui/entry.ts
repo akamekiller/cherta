@@ -1,7 +1,7 @@
 /** Карточка слова: шапка (слово, пиньинь, кратко, статус) и вкладки Значения · Примеры · Слова · Черты. */
 import { cardOf, words, isHidden, dictArticle, dictWordEx, jdictArticle } from "../state.ts";
 import { jArticleHTML, jHeadPol, jWordsWithChar } from "../core/jdict.ts";
-import { splitArticle, wordsWithChar, countWithChar, pyReadings, safeHtml, type ArticleParts, type CharMode } from "../core/dict.ts";
+import { splitArticle, charHits, wordsWithChar, countWithChar, pyReadings, safeHtml, type ArticleParts, type CharMode } from "../core/dict.ts";
 import { isJa, langOf, type Word } from "../core/deck.ts";
 import { formatGap } from "../core/fsrs.ts";
 import { say } from "../speech.ts";
@@ -15,7 +15,7 @@ import { toggleBookWord, inBook } from "./deckpick.ts";
 import { toDecomp, parts as decompParts, layoutName, TYPE_NAME, type DecompRow } from "../core/decomp.ts";
 import { hskLookup, editOf } from "../state.ts";
 import { wordId } from "../core/deck.ts";
-import { findWord, wordByHan, refreshOther, pyHTML, statusAny, itemHTML, fromHit, loadDict, dictNow, jdictNow, loadJDict, jWordAt, jArticlesOf, type OtherWord } from "./lookup.ts";
+import { findWord, wordByHan, refreshOther, pyHTML, statusAny, itemHTML, fromHit, charPartsHTML, loadHskList, loadDict, dictNow, jdictNow, loadJDict, jWordAt, jArticlesOf, type OtherWord } from "./lookup.ts";
 
 type Tab = "mean" | "ex" | "words" | "strokes";
 
@@ -62,9 +62,23 @@ export function openEntry(id: string, fromList = false, jid?: string) {
   if (ja && tab === "ex") tab = "mean";
   if (ja && tab === "words" && !HANRE.test(w.han)) tab = "mean";
   setTab(tab === "strokes" || tab === "words" ? tab : "mean");
+  $("d-parts").hidden = true;
   if (ja) { loadJArticle(w, jid); loadJWordCount(w); return; }
+  loadParts(w);
   loadArticle(w);
   loadWordCount(w);
+}
+
+/** Слово из нескольких иероглифов: что значит каждый (как в Arch Chinese). */
+async function loadParts(w: Word) {
+  if ([...w.han].length < 2) return;
+  let d = dictNow();
+  if (!d) { try { d = await loadDict(); } catch { return; } }
+  await loadHskList().catch(() => {});
+  if (word !== w) return;
+  const hits = charHits(d, w.han);
+  $("d-parts").innerHTML = charPartsHTML(hits, w);
+  $("d-parts").hidden = !hits.length;
 }
 
 async function openByHan(han: string) {
@@ -402,6 +416,10 @@ export function initEntry() {
     if (a?.dataset.w) { e.preventDefault(); openByHan(a.dataset.w); return; }
     const j = (e.target as HTMLElement).closest<HTMLElement>("a[data-jid]");
     if (j?.dataset.jid) { e.preventDefault(); openJid(j.dataset.jid); }
+  });
+  $("d-parts").addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>(".cpart");
+    if (b) openByHan(b.querySelector(".h")!.textContent!);
   });
   $("d-wchars").addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-c]");

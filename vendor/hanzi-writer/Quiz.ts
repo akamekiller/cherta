@@ -8,7 +8,7 @@ import * as characterActions from './characterActions';
 import Character from './models/Character';
 import { ParsedHanziWriterOptions, Point, StrokeData } from './typings/types';
 import RenderState from './RenderState';
-import { GenericMutation } from './Mutation';
+import Mutation, { GenericMutation } from './Mutation';
 
 const getDrawnPath = (userStroke: UserStroke) => ({
   pathString: geometry.getPathString(userStroke.externalPoints),
@@ -37,6 +37,8 @@ export default class Quiz {
   _totalMistakes = 0;
   _userStroke: UserStroke | undefined;
   _userStrokesIds: Array<number> | undefined;
+  /** Правка для Черты: id нарисованной черты для каждой принятой (null — эталонная, показанная подсказкой). */
+  _doneIds: Array<number | null> = [];
 
   constructor(character: Character, renderState: RenderState, positioner: Positioner) {
     this._character = character;
@@ -52,6 +54,7 @@ export default class Quiz {
       );
     }
     this._userStrokesIds = []
+    this._doneIds = [];
 
     this._isActive = true;
     this._options = options;
@@ -186,6 +189,24 @@ export default class Quiz {
     this._userStroke = undefined;
   }
 
+  /**
+   * Правка для Черты: стереть последнюю принятую черту — проверка снова ждёт её.
+   * Возвращает номер стёртой черты или -1 (нечего стирать, проверка закончена, идёт черта).
+   */
+  undoStroke(): number {
+    if (!this._isActive || this._userStroke || this._currentStrokeIndex === 0) return -1;
+    const idx = --this._currentStrokeIndex;
+    this._mistakesOnStroke = 0;
+    const id = this._doneIds.pop();
+    const muts: GenericMutation[] = [
+      new Mutation(`character.main.strokes.${idx}`, { opacity: 0 }, { force: true }),
+      new Mutation(`character.highlight.strokes.${idx}`, { opacity: 0 }, { force: true }),
+    ];
+    if (id != null) muts.push(new Mutation(`userStrokes.${id}.opacity`, 0, { force: true }));
+    this._renderState.run(muts);
+    return idx;
+  }
+
   cancel() {
     this._isActive = false;
     if (this._userStrokesIds) {
@@ -232,6 +253,7 @@ export default class Quiz {
       ? []
       : characterActions.showStroke('main', this._currentStrokeIndex, strokeFadeDuration);
 
+    this._doneIds.push(drawnByUser && this._userStroke ? this._userStroke.id as number : null);
     this._mistakesOnStroke = 0;
     this._currentStrokeIndex += 1;
 

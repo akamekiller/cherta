@@ -72,7 +72,6 @@ const blindNow = () => !!app.settings.blind && !!s && !s.isNew && !!s.word && !i
 function blindTools(on: boolean) {
   $("b-hint").hidden = on;
   $("b-giveup").hidden = on;
-  $("b-undo-stroke").hidden = !on;
   $("b-char-done").hidden = !on;
 }
 
@@ -280,6 +279,22 @@ function runQuiz() {
   });
 }
 
+/** Стереть последнюю черту: ошибки не прощаются, черта просто пишется заново. */
+function undoStroke() {
+  if (free) { free.undo(); return; }
+  if (!s?.writer || s.ci >= s.chars.length) return;
+  const n = s.writer.undoQuizStroke();
+  if (n >= 0) s.drawn[s.ci].length = n;
+}
+
+/** Очистить клетку — текущий иероглиф пишется с первой черты (ошибки остаются). */
+function clearCell() {
+  if (free) { free.clear(); return; }
+  if (!s?.writer || s.ci >= s.chars.length) return;
+  s.drawn[s.ci] = [];
+  runQuiz();
+}
+
 /** Японскому слову нужно вводить чтение, только если в нём есть кандзи (у слова из каны чтение = написание). */
 const needsKana = (w: Word) => isJa(w) && !isKana(w.han);
 
@@ -458,7 +473,8 @@ export function initSession() {
     s.hint[s.ci] = true;
     s.writer.showOutline();
   });
-  $("b-undo-stroke").addEventListener("click", () => free?.undo());
+  $("b-undo-stroke").addEventListener("click", undoStroke);
+  $("b-clear").addEventListener("click", clearCell);
   $("b-char-done").addEventListener("click", () => { finishBlind(); });
   $("b-giveup").addEventListener("click", () => {
     if (!s?.writer || s.ci >= s.chars.length) return;
@@ -502,6 +518,8 @@ export function initSession() {
   document.addEventListener("keydown", (e) => {
     // Ctrl+Z — отменить последний ответ, как в Anki
     if (s && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !(e.target as HTMLElement).closest("input,textarea")) { e.preventDefault(); undo(); return; }
+    // Backspace — стереть черту, пока пишешь
+    if (s && !s.answered && e.key === "Backspace" && !$("pad").hidden && !(e.target as HTMLElement).closest("input,textarea,select") && $("sheet").hidden) { e.preventDefault(); undoStroke(); return; }
     // клавиши 1–4 ставят оценку, но не когда печатаешь в поле (например, в редакторе слова)
     const t = e.target as HTMLElement;
     if (!s?.answered || $("res").hidden || !$("sheet").hidden || t.closest("input,textarea,select")) return;

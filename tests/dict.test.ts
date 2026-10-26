@@ -1,7 +1,7 @@
 // Тесты словаря на выдуманных данных (настоящая база БКРС в тестах не используется).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { splitArticle, countWithChar, pyReadings, parseIndex, searchDict, wordsWithChar, lookupIndex, dictPyToNumeric, safeHtml, dictShardOf, shardFile } from "../src/core/dict.ts";
+import { splitArticle, charHits, countWithChar, pyReadings, parseIndex, searchDict, wordsWithChar, lookupIndex, dictPyToNumeric, safeHtml, dictShardOf, shardFile } from "../src/core/dict.ts";
 
 const FAKE = [
   "甲\tjiǎ\tпервый знак",
@@ -101,4 +101,12 @@ test("статья по смыслам: примеры под своим зна�
   assert.deepEqual(p.examples[0].items.map((x) => x.zh), ["甲乙", "乙甲"]);
   assert.equal(p.examples[1].sense, "второе");
   assert.equal(splitArticle([[0, "т", "甲"]]).examples[0].sense, null);
+});
+
+test("иероглифы по отдельности: без повторов, только если их два и больше", () => {
+  const idx = parseIndex(FAKE);
+  assert.deepEqual(charHits(idx, "甲乙丙甲").map((h) => [h.han, h.ru]), [["甲", "первый знак"], ["丙", "третий знак"]]); // 乙 нет в словаре
+  assert.deepEqual(charHits(idx, "甲"), []);
+  assert.deepEqual(charHits(idx, "甲 abc"), []);
+  assert.deepEqual(charHits(idx, "甲，丙").map((h) => h.han), ["甲", "丙"]);
 });

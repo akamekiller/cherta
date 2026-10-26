@@ -3,6 +3,12 @@ export type Change = { id: string; date: string; title: string; items: string[] 
 
 export const CHANGES: Change[] = [
   {
+    id: "1.0.4",
+    date: "26.10.2026",
+    title: "Кисть на резких поворотах",
+    items: ["Кисть больше не рвётся и не оставляет пустот, если резко повернуть черту: угол закрывается ровно и кругло."],
+  },
+  {
     id: "1.0.3",
     date: "26.10.2026",
     title: "Письмо без подтормаживаний",

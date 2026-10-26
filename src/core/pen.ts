@@ -123,10 +123,55 @@ export function brushWidths(pts: PenPoint[], base: number): number[] {
   });
 }
 
-/** Залитый контур переменной толщины с круглыми концами. widths — полная толщина в каждой точке. */
+/**
+ * Залитый контур переменной толщины с круглыми концами. widths — полная толщина в каждой точке.
+ * На резком повороте (больше ~50°) одна обводка выворачивается внутрь угла и даёт дыру или «обрыв»,
+ * поэтому черта режется на куски по углам, а угол закрывается кругом. Все куски обходятся в одну сторону —
+ * при обычном правиле заливки (nonzero) их наложения остаются залитыми.
+ */
 export function outlinePath(pts: PenPoint[], widths: number[]): string {
   const n = pts.length;
   if (n === 0) return "";
+  if (n === 1) return circle(pts[0], widths[0] / 2);
+  const corners = sharpCorners(pts, widths);
+  let d = "";
+  let s = 0;
+  for (const c of [...corners, n - 1]) {
+    d += ringPath(pts.slice(s, c + 1), widths.slice(s, c + 1));
+    s = c;
+  }
+  for (const c of corners) d += circle(pts[c], widths[c] / 2);
+  return d;
+}
+
+/** Точки, где черта резко поворачивает: угол меряется по отрезкам длиной около толщины (дрожание пальца не в счёт). */
+export function sharpCorners(pts: PenPoint[], widths: number[], minTurn = 50): number[] {
+  const n = pts.length;
+  const turn: number[] = new Array(n).fill(0);
+  for (let i = 1; i < n - 1; i++) {
+    const r = Math.max(widths[i] * 0.75, 3);
+    let j = i - 1, k = i + 1;
+    while (j > 0 && dist(pts[j], pts[i]) < r) j--;
+    while (k < n - 1 && dist(pts[k], pts[i]) < r) k++;
+    const ax = pts[i].x - pts[j].x, ay = pts[i].y - pts[j].y, bx = pts[k].x - pts[i].x, by = pts[k].y - pts[i].y;
+    const la = Math.hypot(ax, ay), lb = Math.hypot(bx, by);
+    if (!la || !lb) continue;
+    turn[i] = (Math.acos(clamp((ax * bx + ay * by) / (la * lb), -1, 1)) * 180) / Math.PI;
+  }
+  // из подряд идущих «углов» берём самый острый; куски не короче двух точек
+  const out: number[] = [];
+  for (let i = 1; i < n - 1; ) {
+    if (turn[i] <= minTurn) { i++; continue; }
+    let best = i;
+    while (i < n - 1 && turn[i] > minTurn) { if (turn[i] > turn[best]) best = i; i++; }
+    if (best - (out.at(-1) ?? 0) >= 1 && n - 1 - best >= 1) out.push(best);
+  }
+  return out;
+}
+
+/** Одна обводка без резких углов: левый край, полукруг конца, правый край, полукруг начала. */
+function ringPath(pts: PenPoint[], widths: number[]): string {
+  const n = pts.length;
   if (n === 1) return circle(pts[0], widths[0] / 2);
   const L: PenPoint[] = [], R: PenPoint[] = [];
   for (let i = 0; i < n; i++) {
@@ -134,8 +179,7 @@ export function outlinePath(pts: PenPoint[], widths: number[]): string {
     let dx = b.x - a.x, dy = b.y - a.y;
     const len = Math.hypot(dx, dy) || 1;
     dx /= len; dy /= len;
-    // На изгибе (横折, 竖弯) отступ по биссектрисе даёт ширину h·cos(φ/2) — угол «сужается».
-    // Компенсация как у соединения «miter», но не больше 1,8 раза, чтобы на острых углах не было шипов.
+    // На плавном изгибе отступ по биссектрисе даёт ширину h·cos(φ/2) — угол «сужается»; компенсация как у «miter».
     const h = (widths[i] / 2) * (i > 0 && i < n - 1 ? miter(pts[i - 1], pts[i], pts[i + 1]) : 1);
     L.push({ x: pts[i].x - dy * h, y: pts[i].y + dx * h });
     R.push({ x: pts[i].x + dy * h, y: pts[i].y - dx * h });
@@ -156,7 +200,14 @@ export function outlinePath(pts: PenPoint[], widths: number[]): string {
     ...R.reverse(),
     ...cap(pts[0], R[n - 1], widths[0] / 2),
   ];
-  return linePath(ring) + "Z";
+  return polyPath(ring);
+}
+
+/** Замкнутый многоугольник, всегда обходом против часовой (положительная площадь) — чтобы куски складывались, а не вычитались. */
+function polyPath(ring: PenPoint[]): string {
+  let area = 0;
+  for (let i = 0; i < ring.length; i++) { const a = ring[i], b = ring[(i + 1) % ring.length]; area += a.x * b.y - b.x * a.y; }
+  return linePath(area < 0 ? ring.slice().reverse() : ring) + "Z";
 }
 
 /** Во сколько раз увеличить отступ в точке b, чтобы толщина на изгибе a→b→c не сужалась. */
@@ -165,7 +216,7 @@ export function miter(a: PenPoint, b: PenPoint, c: PenPoint): number {
   if (!l1 || !l2) return 1;
   const sx = (b.x - a.x) / l1 + (c.x - b.x) / l2, sy = (b.y - a.y) / l1 + (c.y - b.y) / l2;
   const cosHalf = Math.hypot(sx, sy) / 2; // cos половины угла поворота
-  return 1 / Math.max(cosHalf, 1 / 1.8);
+  return 1 / Math.max(cosHalf, 1 / 1.4);
 }
 
 function circle(c: PenPoint, r: number): string {
@@ -174,7 +225,7 @@ function circle(c: PenPoint, r: number): string {
     const a = (Math.PI * 2 * k) / 12;
     pts.push({ x: c.x + Math.cos(a) * r, y: c.y + Math.sin(a) * r });
   }
-  return linePath(pts) + "Z";
+  return polyPath(pts);
 }
 
 /** Толщина пера в настройках: множитель к обычной толщине. */

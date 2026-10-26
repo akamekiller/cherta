@@ -58,20 +58,56 @@ test("кисть не толще двух карандашей при медле
   assert.ok(Math.max(...ys) - Math.min(...ys) <= 16 * 2 + 1);
 });
 
-test("кисть: на изгибе черта не сужается (miter)", () => {
-  // уголок 横折: вправо, затем вниз; толщина постоянная
-  const pts: PenPoint[] = [];
-  for (let i = 0; i <= 20; i++) pts.push({ x: 100 + i * 10, y: 500 });
-  for (let i = 1; i <= 20; i++) pts.push({ x: 300, y: 500 - i * 10 });
-  const w = 40;
-  const d = outlinePath(pts, pts.map(() => w));
-  const ring = [...d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)].map((m) => ({ x: Number(m[1]), y: Number(m[2]) }));
-  // точки контура у вершины угла (индекс 20): слева L[20], справа R[20]; каждая на расстоянии ≥ w/2 от обеих прямых черты
-  const n = pts.length, Lc = ring[20], Rc = ring[n + 7 + (n - 1 - 20)];
-  for (const p of [Lc, Rc]) {
-    assert.ok(Math.abs(p.y - 500) > (w / 2) * 0.95, `до горизонтали ${Math.abs(p.y - 500)}`);
-    assert.ok(Math.abs(p.x - 300) > (w / 2) * 0.95, `до вертикали ${Math.abs(p.x - 300)}`);
+/** Залито ли место (правило nonzero по всем кускам контура). */
+function filled(d: string, q: { x: number; y: number }): boolean {
+  let wn = 0;
+  for (const sub of d.split("Z").filter((s) => s.trim())) {
+    const ring = [...sub.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)].map((m) => ({ x: Number(m[1]), y: Number(m[2]) }));
+    for (let i = 0; i < ring.length; i++) {
+      const a = ring[i], b = ring[(i + 1) % ring.length];
+      const cross = (b.x - a.x) * (q.y - a.y) - (q.x - a.x) * (b.y - a.y);
+      if (a.y <= q.y) { if (b.y > q.y && cross > 0) wn++; }
+      else if (b.y <= q.y && cross < 0) wn--;
+    }
   }
+  return wn !== 0;
+}
+/** Все места ближе 0,45 толщины к средней линии черты залиты — нет дыр и «обрывов». */
+function noHoles(pts: PenPoint[], w: number) {
+  const d = outlinePath(pts, pts.map(() => w));
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], b = pts[i];
+    for (let s = 0; s <= 4; s++) {
+      const c = { x: a.x + ((b.x - a.x) * s) / 4, y: a.y + ((b.y - a.y) * s) / 4 };
+      for (let k = 0; k < 16; k++) {
+        const ang = (k / 16) * Math.PI * 2;
+        const q = { x: c.x + Math.cos(ang) * w * 0.45, y: c.y + Math.sin(ang) * w * 0.45 };
+        assert.ok(filled(d, q), `дыра у (${q.x.toFixed(1)}, ${q.y.toFixed(1)})`);
+      }
+    }
+  }
+}
+
+test("кисть: на изгибе черта не сужается и резкий поворот не даёт дыр", () => {
+  // уголок 横折: вправо, затем вниз
+  const corner: PenPoint[] = [];
+  for (let i = 0; i <= 20; i++) corner.push({ x: 100 + i * 10, y: 500 });
+  for (let i = 1; i <= 20; i++) corner.push({ x: 300, y: 500 - i * 10 });
+  noHoles(corner, 40);
+  // резкий разворот почти назад (острая «галочка»)
+  const vee: PenPoint[] = [];
+  for (let i = 0; i <= 30; i++) vee.push({ x: 100 + i * 8, y: 500 - i * 2 });
+  for (let i = 1; i <= 30; i++) vee.push({ x: 340 - i * 8, y: 440 - i * 6 });
+  noHoles(vee, 60);
+  // зигзаг с плотными точками и толстой кистью
+  const zig: PenPoint[] = [];
+  for (let i = 0; i <= 80; i++) { const u = i % 20; zig.push({ x: 100 + i * 5, y: 500 + (u < 10 ? u : 20 - u) * 12 }); }
+  noHoles(zig, 70);
+  // тугая петля-крючок (钩): радиус меньше толщины
+  const hook: PenPoint[] = [];
+  for (let i = 0; i <= 30; i++) hook.push({ x: 300, y: 800 - i * 15 });
+  for (let i = 1; i <= 12; i++) { const a = Math.PI + (i / 12) * Math.PI * 0.9; hook.push({ x: 280 + Math.cos(a) * -20, y: 350 + Math.sin(a) * 20 }); }
+  noHoles(hook, 50);
   assert.equal(miter({ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }), 1);
   assert.ok(miter({ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 0.01 }) <= 1.8 + 1e-9);
 });

@@ -1314,3 +1314,6 @@ button,.chip-btn,.w{touch-action:manipulation}
 .cpart .ru{font-size:13px;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .entry .cparts{margin-top:10px}
 .cpart .alt{color:var(--muted);font-size:12px}.cpart .alt .s{color:inherit}
+/* «Чтение»: заголовок набора или уровня с кнопкой «убрать все» */
+.rd-ghead{display:flex;align-items:center;gap:4px}
+.rd-ghead .fold-head{flex:1;min-width:0}

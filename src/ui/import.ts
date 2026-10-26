@@ -281,6 +281,11 @@ export function openImport(o: ImportOpts = {}) {
         one.title = q<HTMLInputElement>("#im-ttitle").value.trim() || one.title;
         one.level = Number(q<HTMLSelectElement>("#im-lv").value);
       }
+      // несколько текстов из одного файла — один набор (в «Чтении» его можно свернуть и удалить целиком)
+      if (texts.length > 1) {
+        const set = name.replace(/\.[a-z0-9]+$/i, "").replace(/^Чтение\s*[—–-]\s*/i, "").trim() || "Мои тексты";
+        for (const t of texts) t.set = set;
+      }
       await addOwnTexts(texts);
       const all = texts.map((t) => t.lines.map((l) => l[0]).join("\n")).join("\n");
       openSheet("Импорт", `<div class="stack"><p>Добавлено в «Чтение»: ${texts.length === 1 ? `«${esc(texts[0].title)}»` : `${texts.length} ${plural(texts.length, "текст", "текста", "текстов")}`}.</p>
@@ -302,7 +307,7 @@ export function openImport(o: ImportOpts = {}) {
     root.addEventListener("dragover", (e) => { e.preventDefault(); root.classList.add("drop"); });
     root.addEventListener("dragleave", () => root.classList.remove("drop"));
     root.addEventListener("drop", (e) => { e.preventDefault(); root.classList.remove("drop"); const f = e.dataTransfer?.files?.[0]; if (f) void loadFile(f); });
-    q<HTMLInputElement>("#im-file-in").addEventListener("change", (e) => { const i = e.target as HTMLInputElement; const f = i.files?.[0]; i.value = ""; if (f) void loadFile(f); });
+    q<HTMLInputElement>("#im-file-in").addEventListener("change", (e) => { const i = e.target as HTMLInputElement; const f = i.files?.[0]; if (f) void loadFile(f).finally(() => { i.value = ""; }); });
     root.addEventListener("input", (e) => {
       const t = e.target as HTMLInputElement;
       const ip = t.dataset.py, ir = t.dataset.ru;

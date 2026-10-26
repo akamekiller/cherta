@@ -9,7 +9,8 @@
  */
 export type ReadQ = { q: string; o: string[]; a: number };
 /** lang "ja" — японский текст: уровень 5/4 = JLPT N5/N4; строки — словами через пробел с чтением в [скобках] или обычный текст. */
-export type ReadText = { id: string; level: number; title: string; words: [string, string, string][]; lines: [string, string][]; q: ReadQ[]; lang?: "ja" };
+/** set — набор (файл учебника), из которого загружен свой текст: по нему тексты группируются и удаляются разом. */
+export type ReadText = { id: string; level: number; title: string; words: [string, string, string][]; lines: [string, string][]; q: ReadQ[]; lang?: "ja"; set?: string };
 
 const HAN_ZH = /\p{Script=Han}/u;
 const HAN_JA = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u;

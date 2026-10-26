@@ -122,15 +122,23 @@ function renderList() {
       <p class="hint">Добавьте готовые тексты по своему уровню или загрузите свои.</p></div>${tools}`;
     return;
   }
-  const levels = [...new Set(texts.map((t) => t.level))].sort((x, y) => lvlKey(x) - lvlKey(y));
-  const unreadLv = levels.find((lv) => texts.some((t) => t.level === lv && lib.done[t.id] === undefined));
-  $("rd-list").innerHTML = tools + levels.map((lv) => {
-    const list = texts.filter((t) => t.level === lv);
-    const read = list.filter((t) => lib.done[t.id] !== undefined).length;
-    const key = `lv${lv}`;
-    const open = ui.fold[key] ?? (levels.length <= 2 || lv === unreadLv);
-    return `<button class="fold-head" data-rfold="${key}" aria-expanded="${open}"><span>${esc(lvlName(lv))}</span><small>${read}/${list.length}</small>${CHEV}</button>
-      <div class="deck-list" ${open ? "" : "hidden"}>${list.map((t) => `<div class="pick-row"><button class="deck-opt" data-text="${esc(t.id)}"><span>${esc(t.title)}<small>${t.lines.length} ${plural(t.lines.length, "предложение", "предложения", "предложений")}${t.words.length ? ` · новых слов: ${t.words.length}` : ""}${t.id.startsWith("o-") ? " · свой" : ""}</small></span>${lib.done[t.id] !== undefined ? `<span class="pick-btn on">✓</span>` : ""}</button><button class="pick-eye" data-rdel="${esc(t.id)}" aria-label="Убрать «${esc(t.title)}»">${TRASH}</button></div>`).join("")}</div>`;
+  // свои тексты из одного файла (учебника) — отдельным набором; остальные — по уровням
+  const sets = [...new Set(texts.map(setOf).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ru", { numeric: true }));
+  const rest = texts.filter((t) => !setOf(t));
+  const levels = [...new Set(rest.map((t) => t.level))].sort((x, y) => lvlKey(x) - lvlKey(y));
+  const groups = [
+    ...sets.map((s) => ({ key: `set:${s}`, title: s, list: texts.filter((t) => setOf(t) === s) })),
+    ...levels.map((lv) => ({ key: `lv${lv}`, title: lvlName(lv), list: rest.filter((t) => t.level === lv) })),
+  ];
+  groupIds.clear();
+  const unread = groups.find((g) => g.list.some((t) => lib.done[t.id] === undefined))?.key;
+  const row = (t: Text) => `<div class="pick-row"><button class="deck-opt" data-text="${esc(t.id)}"><span>${esc(shortTitle(t))}<small>${t.lines.length} ${plural(t.lines.length, "предложение", "предложения", "предложений")}${t.words.length ? ` · новых слов: ${t.words.length}` : ""}${t.id.startsWith("o-") && !setOf(t) ? " · свой" : ""}</small></span>${lib.done[t.id] !== undefined ? `<span class="pick-btn on">✓</span>` : ""}</button><button class="pick-eye" data-rdel="${esc(t.id)}" aria-label="Убрать «${esc(t.title)}»">${TRASH}</button></div>`;
+  $("rd-list").innerHTML = tools + groups.map((g) => {
+    groupIds.set(g.key, { title: g.title, ids: g.list.map((t) => t.id) });
+    const read = g.list.filter((t) => lib.done[t.id] !== undefined).length;
+    const open = ui.fold[g.key] ?? (groups.length <= 2 || g.key === unread);
+    return `<div class="rd-ghead"><button class="fold-head" data-rfold="${esc(g.key)}" aria-expanded="${open}"><span>${esc(g.title)}</span><small>${read}/${g.list.length}</small>${CHEV}</button><button class="pick-eye" data-rgdel="${esc(g.key)}" aria-label="Убрать все тексты: ${esc(g.title)}">${TRASH}</button></div>
+      <div class="deck-list" ${open ? "" : "hidden"}>${g.list.map(row).join("")}</div>`;
   }).join("") + `<div class="confirm" id="rd-confirm" hidden></div>`;
 }
 
@@ -182,12 +190,27 @@ export function openOwnText(id: string) {
   show("read");
 }
 
-async function removeText(id: string) {
-  lib.lib[id] = -Date.now();
-  lib.own = lib.own.filter((t) => t.id !== id);
+async function removeText(id: string) { await removeTexts([id]); }
+async function removeTexts(ids: string[]) {
+  const del = new Set(ids);
+  for (const id of ids) lib.lib[id] = -Date.now();
+  lib.own = lib.own.filter((t) => !del.has(t.id));
   await saveLib();
   renderList();
 }
+
+/** Набор своего текста: из файла (`set`) или из начала названия «HSK 1 · Урок 1…» у текстов, загруженных раньше. */
+function setOf(t: Text): string {
+  if (!t.id.startsWith("o-")) return "";
+  if (t.set) return t.set;
+  const m = t.title.match(/^(.+?) · /);
+  return m && !/^урок/i.test(m[1]) ? m[1] : "";
+}
+/** В наборе «HSK 1» название «HSK 1 · Урок 1. …» показывается без повтора набора. */
+const shortTitle = (t: Text) => { const s = setOf(t); return s && t.title.startsWith(`${s} · `) ? t.title.slice(s.length + 3) : t.title; };
+/** Подтверждение — сразу под строкой, на которую нажали (а не в конце длинного списка). */
+const confirmAt = (el: HTMLElement) => { const c = $("rd-confirm"); (el.closest(".rd-ghead, .pick-row") ?? el).after(c); return c; };
+const groupIds = new Map<string, { title: string; ids: string[] }>();
 
 const KANJI = /[\p{Script=Han}々]/u;
 function tok(t: string, rd?: string) {
@@ -334,11 +357,24 @@ export function initReading() {
       save();
       return;
     }
+    const gdel = t0.closest<HTMLButtonElement>("[data-rgdel]");
+    if (gdel) {
+      const g = groupIds.get(gdel.dataset.rgdel!);
+      if (!g) return;
+      const own = g.ids.filter((id) => id.startsWith("o-")).length;
+      const n = g.ids.length;
+      const what = `${n} ${plural(n, "текст", "текста", "текстов")}`;
+      confirmInline(confirmAt(gdel), own === n ? `Удалить «${g.title}» — ${what}? Свои тексты удалятся совсем.`
+        : own ? `Убрать «${g.title}» — ${what}? Свои удалятся, готовые можно вернуть в «Готовых».` : `Убрать «${g.title}» — ${what}? Вернуть можно в «Готовых».`,
+        own ? "Удалить" : "Убрать", () => removeTexts(g.ids));
+      $("rd-confirm").scrollIntoView({ block: "nearest" });
+      return;
+    }
     const del = t0.closest<HTMLButtonElement>("[data-rdel]");
     if (del) {
       const id = del.dataset.rdel!;
       const tt = texts.find((x) => x.id === id);
-      confirmInline($("rd-confirm"), id.startsWith("o-") ? `Удалить свой текст «${tt?.title ?? ""}»?` : `Убрать «${tt?.title ?? ""}» из списка? Вернуть можно в «Готовых».`, id.startsWith("o-") ? "Удалить" : "Убрать", () => removeText(id));
+      confirmInline(confirmAt(del), id.startsWith("o-") ? `Удалить свой текст «${tt?.title ?? ""}»?` : `Убрать «${tt?.title ?? ""}» из списка? Вернуть можно в «Готовых».`, id.startsWith("o-") ? "Удалить" : "Убрать", () => removeText(id));
       $("rd-confirm").scrollIntoView({ block: "nearest" });
       return;
     }

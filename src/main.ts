@@ -57,7 +57,6 @@ async function boot() {
   setTheme(app.settings.theme, app.settings.custom ?? null);
   initAmbient(app.settings.motion);
   fxOpts.slash = app.settings.fxSlash !== false;
-  fxOpts.death = app.settings.fxDeath !== false;
   setPen(app.settings.pen, app.settings.ink, app.settings.keepStrokes, app.settings.penSize);
   setSpeechRate(app.settings.speechRate ?? 1);
   onThemeChange(() => recolor([sessionWriter(), entryWriter(), bookWriter(), penWriter()]));

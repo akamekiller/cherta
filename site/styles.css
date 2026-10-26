@@ -73,8 +73,9 @@ h2{font-size:22px;line-height:1.25;margin:0;text-wrap:balance}
 .pad .hw{position:absolute;inset:0}
 /* поле hanzi-writer тянется по клетке (размер в атрибутах задаётся один раз при создании) */
 .pad .hw>svg{display:block;width:100%;height:100%}
-.pad .flash{position:absolute;inset:0;border-radius:3px;pointer-events:none;box-shadow:inset 0 0 0 3px transparent;transition:box-shadow .25s}
-.pad.miss .flash{box-shadow:inset 0 0 0 3px var(--warn)}
+/* рамка ошибки нарисована заранее и только проявляется (прозрачность — без перерисовки клетки) */
+.pad .flash{position:absolute;inset:0;border-radius:3px;pointer-events:none;box-shadow:inset 0 0 0 3px var(--warn);opacity:0;transition:opacity .25s;will-change:opacity}
+.pad.miss .flash{opacity:1}
 .tools{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .field{display:flex;flex-direction:column;gap:6px}
 .field input{font:500 18px var(--f-ui);padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--sheet);color:var(--ink);min-width:0}
@@ -671,7 +672,7 @@ input[type=range]{width:100%;accent-color:var(--jade)}
 .fold-body.stack{gap:10px}
 /* Письмо без подсказок */
 .free-pad{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}
-.pad.hit .flash{box-shadow:inset 0 0 0 3px var(--good)}
+.pad.hit .flash{box-shadow:inset 0 0 0 3px var(--good);opacity:1}
 /* Состав иероглифа */
 .decomp{display:flex;flex-direction:column;gap:8px;margin-top:6px}
 .dc-parts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
@@ -1190,29 +1191,18 @@ button,.chip-btn,.w{touch-action:manipulation}
 
 /* росчерк меча: клинок + брызги; печать «死»: полоса, рваная кисть, потёки */
 .fx-slash{position:fixed;inset:0;z-index:60;pointer-events:none;overflow:hidden}
-.fx-slash .sl-flash{position:absolute;inset:0;background:#FFE9E3;opacity:0;animation:sl-flash .22s ease-out}
+.fx-slash .sl-flash{position:absolute;inset:0;background:#FFE9E3;opacity:0;animation:sl-flash .22s ease-out;will-change:opacity}
 @keyframes sl-flash{0%{opacity:.16}100%{opacity:0}}
 .fx-slash .sl-cut{position:absolute;left:50%;top:44%;width:0;height:0;transform:rotate(var(--ang))}
 .fx-slash .blade{position:absolute;left:-90vmax;top:-5px;width:180vmax;height:10px;background:linear-gradient(#fff 0,#fff 35%,#FFD9D2 100%);
-  clip-path:polygon(0 50%,14% 42%,50% 0,86% 42%,100% 50%,86% 58%,50% 100%,14% 58%);filter:drop-shadow(0 0 5px #E0343B) drop-shadow(0 0 22px #B3121B);
+  clip-path:polygon(0 50%,14% 42%,50% 0,86% 42%,100% 50%,86% 58%,50% 100%,14% 58%);will-change:transform,opacity;
   animation:sl-blade .62s cubic-bezier(.1,.85,.2,1) forwards;-webkit-clip-path:polygon(0 50%,14% 42%,50% 0,86% 42%,100% 50%,86% 58%,50% 100%,14% 58%)}
 .fx-slash .blade.thin{top:-2px;height:5px;left:-70vmax;width:140vmax;animation-delay:.04s;opacity:.9}
 @keyframes sl-blade{0%{transform:translateX(-45%) scaleX(.2);opacity:0}12%{transform:translateX(0) scaleX(1);opacity:1}45%{opacity:1}100%{transform:translateX(8%) scaleX(1);opacity:0}}
 .fx-slash .spray u{position:absolute;left:var(--ax);top:0;width:var(--sz);height:var(--sz);margin:-2px;border-radius:50% 50% 50% 8%;background:radial-gradient(circle at 35% 30%,#E0343B,#8A0F16);
-  opacity:0;animation:sl-drop .8s cubic-bezier(.2,.7,.3,1) var(--dl) forwards}
+  opacity:0;will-change:transform,opacity;animation:sl-drop .8s cubic-bezier(.2,.7,.3,1) var(--dl) forwards}
 @keyframes sl-drop{0%{opacity:0;transform:translate3d(0,0,0) scale(.3)}10%{opacity:1}100%{opacity:0;transform:translate3d(calc(var(--sd)*.25),var(--sd),0) scale(1)}}
-.fx-death{position:fixed;inset:0;z-index:60;pointer-events:none;display:grid;place-items:center;overflow:hidden}
-.fx-death .dt-band{position:absolute;left:0;right:0;top:50%;height:46vh;margin-top:-23vh;background:linear-gradient(transparent,#000000D9 24%,#000000E6 50%,#000000D9 76%,transparent);opacity:0;animation:dt-band 1.8s ease-out forwards}
-.fx-death b{position:relative;font:700 44vmin/1 var(--f-han);color:#B3121B;filter:url(#fx-ink);
-  text-shadow:0 0 14px #6A0A10;opacity:0;transform-origin:50% 40%;animation:dt-glyph 1.8s cubic-bezier(.2,.8,.2,1) forwards}
-.fx-death .dt-drips{position:absolute;left:50%;top:50%;width:34vmin;height:0;margin-left:-17vmin}
-.fx-death .dt-drips i{position:absolute;top:19vmin;width:3px;border-radius:0 0 3px 3px;background:linear-gradient(#B3121B,#6A0A10);height:0;animation:dt-drip 1.5s ease-in .35s forwards}
-.fx-death .dt-drips i:nth-child(1){left:12%;--h:9vmin}.fx-death .dt-drips i:nth-child(2){left:38%;--h:15vmin;animation-delay:.5s}
-.fx-death .dt-drips i:nth-child(3){left:64%;--h:7vmin;animation-delay:.42s}.fx-death .dt-drips i:nth-child(4){left:86%;--h:12vmin;animation-delay:.6s}
-@keyframes dt-band{0%{opacity:0}14%{opacity:1}70%{opacity:1}100%{opacity:0}}
-@keyframes dt-glyph{0%{opacity:0;transform:scale(1.1)}8%{opacity:1;transform:scale(1)}74%{opacity:1;transform:scale(1.015)}100%{opacity:0;transform:scale(1.03)}}
-@keyframes dt-drip{0%{height:0;opacity:0}10%{opacity:1}70%{opacity:1}100%{height:var(--h);opacity:0}}
-@media (prefers-reduced-motion: reduce){.fx-slash,.fx-death{display:none}}
+@media (prefers-reduced-motion: reduce){.fx-slash{display:none}}
 :root[data-theme="ketsu"] header{background:linear-gradient(var(--paper) 62%,transparent)}
 :root[data-theme="ketsu"] .dt-ghead{background:transparent}
 .ambient[data-kind="ketsu"] .amb-moon{top:calc(env(safe-area-inset-top,0px) + 96px)}

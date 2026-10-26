@@ -22,7 +22,7 @@ import { loadHwDb } from "./hwpad.ts";
 import { recognize } from "../core/handwriting.ts";
 import { blindMistakes } from "../core/grade.ts";
 import { getChar } from "../strokes.ts";
-import { slashFx, deathFx } from "./ambient.ts";
+import { slashFx } from "./ambient.ts";
 import { initPyPick, resetPyPick, pyAnswer, pyAnswerShown, pyComplete } from "./pypick.ts";
 
 type Session = {
@@ -373,7 +373,6 @@ function reveal() {
   const lapses = lapsesOf(w);
   if (lapses >= LEECH) chips.push(`<button class="chip mid leech" id="r-leech">Пиявка: забыто ${lapses} раз — добавить подсказку</button>`);
 
-  if (g === 1) deathFx();
   $("ask").hidden = true;
   $("res").hidden = false;
   // у чтения, тонов и значения ответ повторяет вопрос — вопрос прячем
@@ -424,7 +423,7 @@ async function grade(g: Grade) {
   if (!s?.word || !s.answered || s.grading) return;
   const cur = s;
   cur.grading = true;
-  if (g === 1) deathFx(); else if (g >= 3) slashFx();
+  if (g >= 3) slashFx();
   const card: NextCard = { word: cur.word!, skill: cur.skill, fresh: cur.fresh };
   const info = await answer(cur.word!, cur.skill, g, cur.mistakes, cur.fresh);
   if (s !== cur) return;

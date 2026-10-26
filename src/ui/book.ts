@@ -10,7 +10,7 @@ import { hashStr } from "../core/skills.ts";
 import { uniqueChars, cellPlan, printRows, paginate, rowsPerPage, type PrintCell } from "../core/copybook.ts";
 import { dictPyToNumeric, type DictIndex } from "../core/dict.ts";
 import { parseRef, toMarked } from "../core/pinyin.ts";
-import { getChar, type StrokeLang } from "../strokes.ts";
+import { getChar, preload, type StrokeLang } from "../strokes.ts";
 import { scoreHandwriting, beautyLabel, type P } from "../core/beauty.ts";
 import { $, esc, pinyinHTML, plural, buzz } from "./dom.ts";
 import { createWriter, type Writer } from "./writer.ts";
@@ -269,6 +269,8 @@ async function startChar() {
   $("bk-ru").textContent = "";
   $("bk-prev").toggleAttribute("disabled", idx === 0);
   $("bk-next").toggleAttribute("disabled", idx >= chars.length - 1);
+  // данные следующего иероглифа — заранее, чтобы переход на него не подтормаживал
+  if (idx + 1 < chars.length) preload(chars[idx + 1], bookLang());
   cells = cellPlan(st.total, st.trace);
   miss = cells.map(() => 0);
   scores = cells.map(() => null);

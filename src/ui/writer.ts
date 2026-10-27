@@ -3,7 +3,7 @@ import HanziWriter from "../../vendor/hanzi-writer/HanziWriter.ts";
 import { setStrokePainter } from "../../vendor/hanzi-writer/renderers/svg/UserStrokeRenderer.ts";
 import { setKeepUserStrokes } from "../../vendor/hanzi-writer/Quiz.ts";
 import { loaderFor, type StrokeLang } from "../strokes.ts";
-import { penShape, type PenType, type PenPoint, type PenShape } from "../core/pen.ts";
+import { penShape, type PenType, type PenPoint, type PenShape, type PenRange } from "../core/pen.ts";
 import { cssVar } from "./dom.ts";
 
 export type Writer = ReturnType<typeof HanziWriter.create>;
@@ -18,7 +18,7 @@ export const INKS: { id: string; name: string }[] = [
 ];
 
 let ink = "auto";
-let painter: (points: PenPoint[], width: number) => PenShape = (points, width) => penShape("brush", points, width, 1);
+let painter: (points: PenPoint[], width: number, range?: PenRange) => PenShape = (points, width, range) => penShape("brush", points, width, 1, range);
 /** Черта выбранным пером (для своих полей письма: тетрадь на планшете). width — в единицах поля, толщина пера из настроек учтена. */
 export const paintStroke = (points: PenPoint[], width: number) => painter(points, width);
 
@@ -32,7 +32,7 @@ export function inkColor(id = ink): string {
 export function setPen(type: PenType, inkId: string, keep: boolean, size = 1) {
   ink = inkId;
   setKeepUserStrokes(keep);
-  painter = (points, width) => penShape(type, points, width, size);
+  painter = (points, width, range) => penShape(type, points, width, size, range);
   setStrokePainter(painter);
 }
 

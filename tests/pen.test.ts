@@ -119,3 +119,20 @@ test("кисть: начало круглое, с нажимом, без ост�
   assert.ok(w[0] > mid * 0.75, "начало не острое");
   for (let i = 1; i < w.length / 2; i++) assert.ok(w[i] > w[i - 1] * 0.97, `без провала у точки ${i}`);
 });
+
+test("кисть по кускам: устоявшееся начало черты не меняется, когда черта растёт", () => {
+  // длинная диагональ с меняющейся скоростью, точки как от пальца (каждые ~8 мс)
+  const raw: PenPoint[] = [];
+  for (let i = 0; i <= 120; i++) raw.push({ x: 100 + i * 7, y: 900 - i * 7 + Math.sin(i / 7) * 12, t: i * 8 + (i > 80 ? (i - 80) * 6 : 0) });
+  for (const k of [40, 70, 100]) {
+    const part = penShape("brush", raw.slice(0, k), 16, 2);
+    assert.ok(part.stable! > 0, "у длинной черты есть устоявшаяся часть");
+    const a = penShape("brush", raw.slice(0, k), 16, 2, { from: 0, to: part.stable });
+    const b = penShape("brush", raw, 16, 2, { from: 0, to: part.stable });
+    assert.equal(a.d, b.d, `кусок до ${part.stable} тот же при ${k} и 121 точке`);
+  }
+  // короткая черта целиком «живая»
+  assert.equal(penShape("brush", raw.slice(0, 4), 16, 2).stable, 0);
+  // маркер полупрозрачный — по кускам не рисуется
+  assert.equal(penShape("marker", raw, 16, 1).stable, 0);
+});

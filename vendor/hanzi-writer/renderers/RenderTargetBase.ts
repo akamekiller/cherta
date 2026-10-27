@@ -117,9 +117,8 @@ export default class RenderTargetBase<
   }
 
   /** Правка для Черты: точка из pointer-события; нажим — только у стилуса и у пальца, если устройство его меряет. */
-  _pointerPoint(e: PointerEvent, left: number, top: number): Point {
+  _pointerPoint(e: PointerEvent, left: number, top: number, k = this._cssScale()): Point {
     const p = e.pointerType === 'mouse' || !(e.pressure > 0) || (e.pointerType === 'touch' && e.pressure === 0.5) ? undefined : e.pressure;
-    const k = this._cssScale();
     return { x: (e.clientX - left) * k, y: (e.clientY - top) * k, t: e.timeStamp, p };
   }
 
@@ -134,18 +133,22 @@ export default class RenderTargetBase<
   }
 
   _pointerEventify(e: PointerEvent): BoundEvent {
+    // Правка для Черты: размер поля меряется один раз на событие (и не после того, как черта изменила путь,
+    // иначе каждая точка заставляла браузер заново раскладывать страницу)
     let rect: DOMRect | undefined;
+    let scale: number | undefined;
     const box = () => (rect ??= this.getBoundingClientRect());
+    const k = () => (scale ??= this._cssScale());
     return {
-      getPoint: () => this._pointerPoint(e, box().left, box().top),
+      getPoint: () => this._pointerPoint(e, box().left, box().top, k()),
       getPoints: () => {
         const list = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents() : [];
         const src = list.length ? list : [e];
-        return src.map((c) => this._pointerPoint(c, box().left, box().top));
+        return src.map((c) => this._pointerPoint(c, box().left, box().top, k()));
       },
       getPredicted: () => {
         const list = typeof e.getPredictedEvents === 'function' ? e.getPredictedEvents() : [];
-        return list.map((c) => this._pointerPoint(c, box().left, box().top));
+        return list.map((c) => this._pointerPoint(c, box().left, box().top, k()));
       },
       preventDefault: () => e.preventDefault(),
     };

@@ -8,7 +8,13 @@
 export type PenType = "pencil" | "brush" | "pen" | "marker";
 export type PenPoint = { x: number; y: number; t?: number; p?: number };
 /** fill — залитый контур (кисть); stroke — линия заданной ширины. */
-export type PenShape = { d: string; mode: "fill" | "stroke"; width: number; opacity: number };
+export type PenShape = {
+  d: string; mode: "fill" | "stroke"; width: number; opacity: number;
+  /** Длина черты от начала, до которой её вид уже не изменится, сколько бы точек ни добавили (0 — рисовать целиком). */
+  stable?: number;
+};
+/** Кусок черты по длине от начала: from…to (to не задан — до конца). */
+export type PenRange = { from: number; to?: number };
 
 export const PENS: { id: PenType; name: string; hint: string }[] = [
   { id: "brush", name: "Кисть", hint: "толщина от скорости и нажима, острые концы" },
@@ -80,13 +86,11 @@ function hasPressure(pts: PenPoint[]): boolean {
  * Медленно — шире (кисть «набухает»), быстро — тоньше; начало — круглое, с нажимом и лёгким утолщением,
  * конец — острый «выход кисти», если черту закончили на скорости, и тупой, если остановились.
  */
-export function brushWidths(pts: PenPoint[], base: number): number[] {
+/** Сглаженная скорость кисти в каждой точке (единиц за мс). */
+function brushSpeed(pts: PenPoint[]): number[] {
   const n = pts.length;
-  if (n === 0) return [];
-  const pressure = hasPressure(pts);
-  const timed = pts.every((p) => p.t !== undefined) && pts[n - 1].t! > pts[0].t!;
-  // скорость, единиц иероглифа за мс, сглаженная
   const speed: number[] = new Array(n).fill(1.5);
+  const timed = n > 1 && pts.every((p) => p.t !== undefined) && pts[n - 1].t! > pts[0].t!;
   if (timed) {
     for (let i = 1; i < n; i++) {
       const dt = Math.max(4, pts[i].t! - pts[i - 1].t!);
@@ -95,6 +99,19 @@ export function brushWidths(pts: PenPoint[], base: number): number[] {
     speed[0] = speed[1] ?? 1.5;
     for (let i = 1; i < n; i++) speed[i] = speed[i - 1] * 0.7 + speed[i] * 0.3;
   }
+  return speed;
+}
+
+/** Длина острого «выхода» в конце черты. */
+const tailLen = (total: number, base: number, endSpeed: number) => Math.min(total * 0.45, base * clamp((endSpeed - 1) * 1.2, 0.4, 4));
+
+export function brushWidths(pts: PenPoint[], base: number): number[] {
+  const n = pts.length;
+  if (n === 0) return [];
+  const pressure = hasPressure(pts);
+  const timed = pts.every((p) => p.t !== undefined) && pts[n - 1].t! > pts[0].t!;
+  // скорость, единиц иероглифа за мс, сглаженная
+  const speed = brushSpeed(pts);
   const w = pts.map((p, i) => {
     if (pressure && p.p !== undefined) return 0.3 + 1.0 * clamp(p.p, 0, 1);
     // ~1.5 ед/мс — спокойное письмо (черта через пол-иероглифа за 0.4 с), 4+ — быстрый росчерк.
@@ -113,7 +130,7 @@ export function brushWidths(pts: PenPoint[], base: number): number[] {
   const head = Math.min(base * 1.4, total * 0.3);
   // конец: острый, если уходили быстро
   const endSpeed = timed ? speed[n - 1] : 1.5;
-  const tail = Math.min(total * 0.45, base * clamp((endSpeed - 1) * 1.2, 0.4, 4));
+  const tail = tailLen(total, base, endSpeed);
   return w.map((v, i) => {
     let k = 1;
     if (head > 0 && along[i] < head) { const u = along[i] / head; k *= 0.85 + 0.15 * u + 0.1 * Math.sin(u * Math.PI); }
@@ -129,14 +146,15 @@ export function brushWidths(pts: PenPoint[], base: number): number[] {
  * поэтому черта режется на куски по углам, а угол закрывается кругом. Все куски обходятся в одну сторону —
  * при обычном правиле заливки (nonzero) их наложения остаются залитыми.
  */
-export function outlinePath(pts: PenPoint[], widths: number[]): string {
+export function outlinePath(pts: PenPoint[], widths: number[], from = 0, to = pts.length - 1): string {
   const n = pts.length;
   if (n === 0) return "";
-  if (n === 1) return circle(pts[0], widths[0] / 2);
-  const corners = sharpCorners(pts, widths);
+  if (n === 1 || from >= to) return circle(pts[from], widths[from] / 2);
+  // углы ищутся по всей черте — у куска на краю угол не потеряется
+  const corners = sharpCorners(pts, widths).filter((c) => c > from && c < to);
   let d = "";
-  let s = 0;
-  for (const c of [...corners, n - 1]) {
+  let s = from;
+  for (const c of [...corners, to]) {
     d += ringPath(pts.slice(s, c + 1), widths.slice(s, c + 1));
     s = c;
   }
@@ -247,16 +265,51 @@ export function samplePoints(): PenPoint[] {
   return out;
 }
 
-/** Главная функция: как нарисовать черту выбранным пером. base — толщина «карандаша», size — множитель из настроек. */
-export function penShape(type: PenType, raw: PenPoint[], base: number, size = 1): PenShape {
+/** Индексы точек, которые покрывают кусок черты по длине [from, to] (с крайними точками — куски стыкуются). */
+export function rangeIdx(pts: PenPoint[], from: number, to = Infinity): [number, number] {
+  let s = 0, i0 = 0, i1 = pts.length - 1;
+  for (let i = 0; i < pts.length; i++) {
+    if (i) s += dist(pts[i], pts[i - 1]);
+    if (s <= from) i0 = i;
+    if (s > to) { i1 = i; break; }
+  }
+  return [i0, Math.max(i0, i1)];
+}
+
+const pathLen = (pts: PenPoint[]) => { let s = 0; for (let i = 1; i < pts.length; i++) s += dist(pts[i], pts[i - 1]); return s; };
+
+/**
+ * Главная функция: как нарисовать черту выбранным пером. base — толщина «карандаша», size — множитель из настроек.
+ * range — только кусок черты (для рисования по частям: старая часть замораживается отдельным путём,
+ * и телефон перерисовывает только конец черты, а не всю клетку — длинная диагональ иначе тормозит).
+ */
+export function penShape(type: PenType, raw: PenPoint[], base: number, size = 1, range?: PenRange): PenShape {
   base *= size;
-  if (raw.length === 0) return { d: "", mode: "stroke", width: base, opacity: 1 };
-  if (type === "pencil") return { d: linePath(raw), mode: "stroke", width: base, opacity: 1 };
+  if (raw.length === 0) return { d: "", mode: "stroke", width: base, opacity: 1, stable: 0 };
+  // запас от конца: последние точки ещё сглаживаются (два прохода — три последних отрезка),
+  // предсказанный хвост (до 40) убирается при отпускании
+  let near = 50;
+  for (let i = Math.max(1, raw.length - 3); i < raw.length; i++) near += dist(raw[i], raw[i - 1]);
+  const line = (pts: PenPoint[], width: number, opacity: number): PenShape => {
+    const total = pathLen(pts);
+    const [a, b] = range ? rangeIdx(pts, range.from, range.to) : [0, pts.length - 1];
+    // у полупрозрачного маркера стыки кусков были бы темнее — его рисуем целиком
+    return { d: linePath(pts.slice(a, b + 1)), mode: "stroke", width, opacity, stable: opacity < 1 ? 0 : Math.max(0, total - near - width) };
+  };
+  if (type === "pencil") return line(raw, base, 1);
   const pts = smooth(raw);
-  if (type === "pen") return { d: linePath(pts), mode: "stroke", width: base * 0.5, opacity: 1 };
-  if (type === "marker") return { d: linePath(pts), mode: "stroke", width: base * 1.8, opacity: 0.88 };
+  if (type === "pen") return line(pts, base * 0.5, 1);
+  if (type === "marker") return line(pts, base * 1.8, 0.88);
   // кисть: основа шире карандаша (в 1,6 раза, максимум ~2 карандаша), точки через равный шаг
   const b = base * 1.6;
   const even = resample(pts, Math.max(2, b * 0.18));
-  return { d: outlinePath(even, brushWidths(even, b).map((k) => k * b)), mode: "fill", width: 0, opacity: 1 };
+  const widths = brushWidths(even, b).map((k) => k * b);
+  const total = pathLen(even);
+  // начало «устоялось», когда утолщение в начале перестало зависеть от длины; конец — острый «выход» нынешней длины
+  // (если к отпусканию он станет длиннее, рисовальщик увидит, что stable уменьшилось, и перерисует черту целиком)
+  const speed = brushSpeed(even);
+  const stable = total * 0.3 < b * 1.4 ? 0 : Math.max(0, total - tailLen(total, b, speed[speed.length - 1]) - near - b);
+  if (!range) return { d: outlinePath(even, widths), mode: "fill", width: 0, opacity: 1, stable };
+  const [i0, i1] = rangeIdx(even, range.from, range.to);
+  return { d: outlinePath(even, widths, i0, i1), mode: "fill", width: 0, opacity: 1, stable };
 }

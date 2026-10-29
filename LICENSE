@@ -1,0 +1,66 @@
+Copyright (c) 2026 Влад (GitHub: akamekiller). Все права защищены.
+Copyright (c) 2026 Vlad (GitHub: akamekiller). All rights reserved.
+
+РУССКИЙ
+
+«Черта» — исходный код, дизайн, тексты, тексты курсов и упражнений, задания
+экзамена, рисунок панды, логотип и иные материалы этого репозитория (далее —
+«Приложение») — собственность автора. Приложение опубликовано для просмотра
+и личного использования автором. Никакая лицензия на него не предоставляется.
+
+Без предварительного письменного разрешения автора запрещено:
+  1. копировать, форкать для распространения, изменять, переводить
+     и создавать производные произведения на основе Приложения или его частей;
+  2. распространять Приложение, его сборки (сайт, APK, установщик) или части,
+     в том числе бесплатно, и выкладывать их на других сайтах и в магазинах;
+  3. использовать Приложение или его части в коммерческих целях: продавать,
+     сдавать в аренду, предлагать по подписке, размещать рекламу, брать плату
+     за доступ или за услуги на его основе;
+  4. выдавать Приложение или его части за своё, убирать или менять указание
+     автора.
+
+Автор оставляет за собой право на защиту своих прав, включая жалобы
+в GitHub, магазины приложений и хостинг-провайдерам.
+
+Это не распространяется на материалы третьих лиц, которые остаются
+под собственными лицензиями (см. ниже): к ним применяются условия их авторов.
+
+ENGLISH
+
+"Cherta" — the source code, design, texts, course and exercise content, exam
+tasks, panda artwork, logo and other materials in this repository (the
+"Software") — is the property of the author. The Software is published for
+viewing and for the author's own use. No licence to the Software is granted.
+
+Without the author's prior written permission you may not:
+  1. copy, fork for redistribution, modify, translate or create derivative
+     works based on the Software or any part of it;
+  2. distribute the Software, its builds (website, APK, installer) or parts of
+     it, free of charge or otherwise, or host them on other sites or stores;
+  3. use the Software or parts of it commercially: sell, rent, offer by
+     subscription, show advertising, or charge for access or services built
+     on it;
+  4. pass the Software or parts of it off as your own, or remove or alter
+     authorship notices.
+
+The author reserves the right to enforce these rights, including through
+takedown notices to GitHub, app stores and hosting providers.
+
+Viewing the code on GitHub and the rights GitHub's Terms of Service give to
+users of the platform are not affected.
+
+THIRD-PARTY MATERIALS / МАТЕРИАЛЫ ТРЕТЬИХ ЛИЦ
+
+These are NOT covered by the terms above and keep their own licences:
+  - hanzi-writer (vendor/hanzi-writer) — MIT;
+  - Make Me a Hanzi / hanzi-writer-data — Arphic Public License; its
+    dictionary.txt — LGPL-3.0;
+  - KanjiVG — CC BY-SA 3.0 (© Ulrich Apel);
+  - 大БКРС (bkrs.info) database — free use per its terms;
+  - WARODAI Japanese-Russian dictionary — CC BY-NC-ND 3.0;
+  - CC-CEDICT — CC BY-SA; JMdict / KANJIDIC — EDRDG licence;
+  - Tatoeba — CC BY 2.0 FR; jieba word list — MIT;
+  - complete-hsk-vocabulary — MIT; open-anki-jlpt-decks — MIT;
+  - Kokoro-82M voice model — Apache 2.0; Noto fonts, Golos Text, IBM Plex
+    Mono — SIL OFL 1.1.
+Full attributions are shown in the app: Settings -> About.

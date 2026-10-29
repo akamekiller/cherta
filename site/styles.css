@@ -1322,3 +1322,10 @@ button,.chip-btn,.w{touch-action:manipulation}
 .lesson-end{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--line);border-radius:var(--r);text-align:left}
 .lesson-end .le-head{display:flex;flex-direction:column;gap:2px}
 .lesson-end .le-head small{color:var(--muted);font-size:13px}
+
+/* подсказка по токену синхронизации */
+.sync-steps{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:10px;font-size:14px;color:var(--ink)}
+.sync-steps li::marker{color:var(--muted);font-weight:600}
+.sync-steps li{padding-left:2px}
+.sync-steps li>span{display:block;color:var(--muted);line-height:1.45}
+.sync-steps li>a.btn{display:inline-flex;margin-bottom:6px;text-decoration:none}

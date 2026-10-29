@@ -2,7 +2,7 @@
  * Тоны и произношение.
  *  «На слух» — звучит слово из колоды (запись), буквы слогов даны, ставишь тоны кнопками; засчитываются и варианты (3-3 → 2-3, 不/一).
  *  «Произношение» — говоришь слово в микрофон, кривая высоты голоса рисуется поверх образцовых кривых тонов;
- *  для каждого слога — примерная оценка, на какой тон похоже.
+ *  экспериментально: оценки «верно/неверно» нет (классификатор ошибался), только график.
  */
 import { app, deckById, loadThemes, deckBlocks } from "../state.ts";
 import type { Block } from "../core/blocks.ts";
@@ -11,7 +11,7 @@ import { openSheet, closeSheet } from "./sheet.ts";
 import { pickDeck, deckWords, deckTitle, setPickLabel } from "./deckpick.ts";
 import { hasRecording, loadRecorded, say } from "../speech.ts";
 import { mark } from "../core/pinyin.ts";
-import { pitchTrack, splitSyllables, semitones, classifyTone, acceptedTones, toneTemplate, resampleCurve, downsample } from "../core/pitch.ts";
+import { pitchTrack, splitSyllables, semitones, acceptedTones, toneTemplate, resampleCurve, downsample } from "../core/pitch.ts";
 import type { Word } from "../core/deck.ts";
 import { $, esc, pinyinHTML } from "./dom.ts";
 import { onShow, onLeave } from "./nav.ts";
@@ -301,16 +301,8 @@ async function analyze(blob: Blob) {
     const curves = parts.map((p) => semitones(p, st.base));
     // образец — как слово звучит (3+3, 不, 一 уже изменены); засчитываются и тоны словаря
     const want = spokenTones(word.han, tonesOf(word));
-    const acc = acceptedTones(tonesOf(word), word.ref.map((s) => s.alt)).map((a, i) => [...new Set([...a, want[i]])]);
     $("tn-graph").innerHTML = graph(curves, want);
-    $("tn-s-res").innerHTML = `<div class="tn-verdicts">${curves.map((c, i) => {
-      const g = classifyTone(c);
-      const syl = mark(word!.ref[i].s, want[i]);
-      if (want[i] === 5) return `<span class="chip">${esc(syl)}: лёгкий тон</span>`;
-      if (!g.tone) return `<span class="chip mid">${esc(syl)}: не расслышал</span>`;
-      const ok = acc[i].includes(g.tone);
-      return `<span class="chip ${ok ? "ok" : "no"}">${esc(syl)}: ${ok ? "похоже ✓" : `похоже на ${g.tone}-й`}</span>`;
-    }).join("")}</div><p class="hint">Оценка примерная: высота голоса меряется прямо в браузере. Сверяйте форму своей линии с пунктиром.</p>`;
+    $("tn-s-res").innerHTML = `<div class="tn-verdicts">${want.map((t, i) => `<span class="chip">${esc(mark(word!.ref[i].s, t))}: ${t === 5 ? "лёгкий тон" : `${t}-й тон`}</span>`).join("")}</div><p class="hint">Экспериментально: оценки нет, программа не судит, верно или нет. Сравните форму своей сплошной линии с пунктиром образца и послушайте образец и свою запись.</p>`;
   } catch {
     $("tn-s-res").innerHTML = `<p class="note danger">Не получилось разобрать запись.</p>`;
   }

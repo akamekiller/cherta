@@ -85,9 +85,16 @@ function render() {
   $("sync-box").innerHTML = c.token
     ? `<p class="hint">Синхронизация включена${c.last ? `. Последняя: ${esc(new Date(c.last).toLocaleString("ru-RU"))}` : ""}. Прогресс хранится в вашем приватном Gist на GitHub.</p>
       <div class="row"><button class="btn small primary" id="sync-now">Синхронизировать сейчас</button><button class="btn small" id="sync-off">Отключить</button></div>`
-    : `<p class="hint">Один и тот же прогресс на телефоне и компьютере. Нужен свой токен GitHub с правом «gist»:
-       <a href="https://github.com/settings/tokens/new?scopes=gist&description=%D0%A7%D0%B5%D1%80%D1%82%D0%B0" target="_blank" rel="noopener">создать токен</a> (срок — «No expiration»), скопировать и вставить сюда. На втором устройстве — тот же токен.</p>
-      <div class="row sync-in"><input type="password" id="sync-token" placeholder="ghp_… или github_pat_…" autocomplete="off" spellcheck="false"><button class="btn small primary" id="sync-save">Подключить</button></div>`;
+    : `<p class="hint">Один и тот же прогресс на телефоне и компьютере. Для этого нужен аккаунт GitHub и свой «токен» — одноразовый ключ, которым приложение записывает ваш прогресс в приватный Gist (скрытую заметку, видимую только вам).</p>
+      <ol class="sync-steps">
+        <li><a class="btn small primary" href="https://github.com/settings/tokens/new?scopes=gist&description=%D0%A7%D0%B5%D1%80%D1%82%D0%B0" target="_blank" rel="noopener">Создать токен на GitHub</a>
+          <span>Откроется GitHub; если попросит, войдите в аккаунт (или зарегистрируйтесь — это бесплатно).</span></li>
+        <li><span>В поле «Expiration» выберите <b>No expiration</b>. Галочка «gist» уже стоит — больше ничего не отмечайте. Внизу нажмите зелёную <b>Generate token</b>.</span></li>
+        <li><span>Скопируйте токен (он начинается с <b>ghp_</b>) и вставьте ниже. GitHub показывает его <b>только один раз</b> — сохраните его в заметках, он пригодится для второго устройства.</span></li>
+        <li><span>На втором устройстве вставьте <b>тот же токен</b> — прогресс подтянется сам.</span></li>
+      </ol>
+      <div class="row sync-in"><input type="password" id="sync-token" placeholder="ghp_…" autocomplete="off" spellcheck="false"><button class="btn small primary" id="sync-save">Подключить</button></div>
+      <p class="hint">Токен хранится только на этом устройстве. Если GitHub не открывается (например, в Китае без VPN), синхронизация не заработает — тогда переносите прогресс файлом: «Сохранить в файл» в разделе «Прогресс и правки».</p>`;
 }
 
 export function initSync() {

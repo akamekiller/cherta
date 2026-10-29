@@ -2,8 +2,8 @@
  * Занятие. Навыки слова (как в Skritter): написание (значение → иероглифы → пиньинь, оценка сама),
  * чтение и значение (иероглифы → вспомнить → показать ответ → оценить себя), тоны (иероглифы → тоны жестом → оценка сама).
  */
-import { app, counts, nextCard, preview, answer, undoAnswer, skillCard, editOf, words, lapsesOf, LEECH, type UndoInfo, type NextCard } from "../state.ts";
-import { SKILLS, cardId, type Skill } from "../core/skills.ts";
+import { app, counts, nextCard, preview, answer, undoAnswer, skillCard, editOf, words, lapsesOf, LEECH, focusInfo, deckSkills, type UndoInfo, type NextCard } from "../state.ts";
+import { SKILLS, cardId, practiceQueue, type Skill } from "../core/skills.ts";
 import type { P } from "../core/beauty.ts";
 import { handResult, beautyLabel } from "./handview.ts";
 import { openWordEditor } from "./editor.ts";
@@ -44,6 +44,10 @@ type Session = {
   done: number;
   /** Свои черты по иероглифам — для оценки почерка и повтора. */
   drawn: P[][][];
+  /** Практика урока сверх расписания: очередь карточек, ответы в FSRS не пишутся. */
+  practice: { word: number; skill: Skill }[] | null;
+  /** Сколько карточек было в очереди практики (для подписи). */
+  practiceN: number;
 };
 let s: Session | null = null;
 export const sessionWriter = () => s?.writer ?? null;
@@ -51,8 +55,19 @@ export const sessionWriter = () => s?.writer ?? null;
 const GRADE_NAMES = ["Снова", "Трудно", "Хорошо", "Легко"];
 
 export function startSession() {
-  s = { word: null, skill: "write", fresh: null, undo: null, chars: [], ci: 0, miss: [], gave: [], hint: [], isNew: false, writer: null, answered: false, grading: false, mistakes: 0, done: 0, drawn: [] };
+  s = { word: null, skill: "write", fresh: null, undo: null, chars: [], ci: 0, miss: [], gave: [], hint: [], isNew: false, writer: null, answered: false, grading: false, mistakes: 0, done: 0, drawn: [], practice: null, practiceN: 0 };
   show("session");
+  nextQuestion();
+}
+
+/** Ещё раз пройти слова текущего урока (сверх расписания): оценки в расписание не попадают. */
+export function startPractice() {
+  const f = focusInfo(), d = app.deck;
+  if (!f || !d || f.deckId !== d.id) return;
+  startSession();
+  if (!s) return;
+  s.practice = practiceQueue(f.idx, deckSkills(d.id), Math.random);
+  s.practiceN = s.practice.length;
   nextQuestion();
 }
 
@@ -155,23 +170,26 @@ const task = (w: Word, sk: Skill) => (isJa(w) ? SKILL_TASK[sk].replace("иеро
 
 function nextQuestion(force?: NextCard) {
   if (!s) return;
-  const next = force ?? nextCard(s.word ? cardId(s.word.id, s.skill) : undefined);
+  const practice = s.practice;
+  const q = practice?.shift();
+  const next = force ?? (practice ? (q && app.deck ? { word: app.deck.words[q.word], skill: q.skill, fresh: null } : null) : nextCard(s.word ? cardId(s.word.id, s.skill) : undefined));
   if (!next) {
     const n = s.done;
     endSession();
-    $("done-text").textContent = n
-      ? `Пройдено карточек: ${n}. Новые слова и повторения на сейчас закончились.`
-      : "Новые слова и повторения на сейчас закончились.";
+    $("done-text").textContent = practice
+      ? `Урок повторён: ${n} ${plural(n, "карточка", "карточки", "карточек")}. На расписание повторений это не влияет.`
+      : n
+        ? `Пройдено карточек: ${n}. Новые слова и повторения на сейчас закончились.`
+        : "Новые слова и повторения на сейчас закончились.";
     show("done");
     document.dispatchEvent(new CustomEvent("cherta:done"));
     return;
   }
   const { word: w, skill } = next;
-  const c = counts();
-  $("left").textContent = `осталось ${c.total}`;
-  $("undo").hidden = !s.undo;
+  $("left").textContent = practice ? `повторение · осталось ${practice.length + 1}` : `осталось ${counts().total}`;
+  $("undo").hidden = !s.undo || !!practice;
   const chars = [...w.han];
-  Object.assign(s, { word: w, skill, fresh: next.fresh, chars, ci: 0, miss: chars.map(() => 0), gave: chars.map(() => false), hint: chars.map(() => false), isNew: !skillCard(w, skill), answered: false, grading: false, mistakes: 0, drawn: chars.map(() => []) });
+  Object.assign(s, { word: w, skill, fresh: next.fresh, chars, ci: 0, miss: chars.map(() => 0), gave: chars.map(() => false), hint: chars.map(() => false), isNew: !practice && (!skillCard(w, skill) || skillCard(w, skill)!.state === "new"), answered: false, grading: false, mistakes: 0, drawn: chars.map(() => []) });
   stopWriter();
   practiceGen++;
   const write = skill === "write";
@@ -424,6 +442,13 @@ async function grade(g: Grade) {
   const cur = s;
   cur.grading = true;
   if (g >= 3) slashFx();
+  if (cur.practice) {
+    // практика: «Снова» — вернуть карточку в конец очереди, остальное в расписание не пишем
+    if (g === 1) cur.practice.push({ word: app.deck!.words.indexOf(cur.word!), skill: cur.skill });
+    else cur.done++;
+    nextQuestion();
+    return;
+  }
   const card: NextCard = { word: cur.word!, skill: cur.skill, fresh: cur.fresh };
   const info = await answer(cur.word!, cur.skill, g, cur.mistakes, cur.fresh);
   if (s !== cur) return;

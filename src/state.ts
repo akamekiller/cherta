@@ -160,8 +160,29 @@ export const deckSkills = (deckId: string): Skill[] => {
 };
 
 /** Занятие одним уроком колоды (из экрана урока): остальные слова колоды в нём не участвуют. */
-let focus: { deckId: string; idx: Set<number> } | null = null;
-export const setFocus = (deckId: string | null, idx?: number[]) => { focus = deckId && idx ? { deckId, idx: new Set(idx) } : null; };
+let focus: { deckId: string; idx: Set<number>; block: number } | null = null;
+export const setFocus = (deckId: string | null, idx?: number[], block = -1) => { focus = deckId && idx ? { deckId, idx: new Set(idx), block } : null; };
+/** Урок, которым идёт занятие (колода, номер урока, слова), или null. */
+export const focusInfo = () => (focus ? { deckId: focus.deckId, block: focus.block, idx: [...focus.idx] } : null);
+
+/**
+ * «Начать урок заново»: карточки слов урока снова новые (журнал ответов остаётся).
+ * `last` ставим на сейчас, чтобы при синхронизации сброс не затёрся старой карточкой с другого устройства.
+ */
+export async function resetLesson(deck: Deck, idx: number[]): Promise<void> {
+  const now = Date.now();
+  const fresh: Card[] = [];
+  for (const i of idx) {
+    for (const sk of ALL_SKILLS) {
+      const id = cardId(deck.words[i].id, sk);
+      if (!app.cards.has(id)) continue;
+      const c = { ...newCard(id, now), last: now };
+      app.cards.set(id, c);
+      fresh.push(c);
+    }
+  }
+  await store.putCards(fresh);
+}
 const qWords = (deck: Deck) => deck.words.map((w, i) => ({ id: w.id, hidden: !!app.edits.get(w.id)?.hidden || (focus?.deckId === deck.id && !focus.idx.has(i)) }));
 
 /* ---------- уроки по словам (блоки колоды) ---------- */

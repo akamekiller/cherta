@@ -96,3 +96,16 @@ test("«Вспомнить слово»: свой навык, по умолча�
   assert.equal(splitCardId("zh:学#recall").skill, "recall");
   assert.equal(cardId("zh:学", "recall"), "zh:学#recall");
 });
+
+import { practiceQueue } from "../src/core/skills.ts";
+test("очередь практики урока: по одной карточке на слово, навык из включённых, порядок меняется", () => {
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const q = practiceQueue([2, 5, 9, 11, 14], ["write", "read"], rnd);
+  assert.equal(q.length, 5);
+  assert.deepEqual(q.map((x) => x.word).sort((a, b) => a - b), [2, 5, 9, 11, 14]);
+  assert.ok(q.every((x) => x.skill === "write" || x.skill === "read"));
+  assert.notDeepEqual(q.map((x) => x.word), [2, 5, 9, 11, 14]);
+  assert.deepEqual(practiceQueue([], ["write"], rnd), []);
+  assert.deepEqual(practiceQueue([1], [], rnd), []);
+});

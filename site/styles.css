@@ -1317,3 +1317,8 @@ button,.chip-btn,.w{touch-action:manipulation}
 /* «Чтение»: заголовок набора или уровня с кнопкой «убрать все» */
 .rd-ghead{display:flex;align-items:center;gap:4px}
 .rd-ghead .fold-head{flex:1;min-width:0}
+
+/* плашка пройденного урока */
+.lesson-end{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--line);border-radius:var(--r);text-align:left}
+.lesson-end .le-head{display:flex;flex-direction:column;gap:2px}
+.lesson-end .le-head small{color:var(--muted);font-size:13px}

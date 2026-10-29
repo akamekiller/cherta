@@ -11,6 +11,7 @@ import { exportDeckText, fileName } from "../core/importer.ts";
 import { openImport } from "./import.ts";
 import { $, esc, plural, downloadText, pinyinHTML } from "./dom.ts";
 import { currentBlock, blockStat, type Block } from "../core/blocks.ts";
+import { lessonFinished, renderLessonActions } from "./lessonend.ts";
 import { say, sayAll } from "../speech.ts";
 import { onShow, show } from "./nav.ts";
 import { startSession } from "./session.ts";
@@ -193,6 +194,7 @@ function openBlock(i: number) {
   const mark = (k: number) => (wordKnown(d.words[k]) ? `<span class="bw-st ok" title="выучено">✓</span>` : wordStarted(d.words[k]) ? `<span class="bw-st mid" title="учу">•</span>` : `<span class="bw-st"></span>`);
   openSheet(`Урок ${i + 1}. ${b.title}`, `<div class="stack">
       <div class="row"><button class="btn small" id="bl-all">▶ Все слова</button><span class="hint">${ws.length} ${plural(ws.length, "слово", "слова", "слов")}</span></div>
+      <div class="stack" id="bl-end" hidden></div>
       <div class="blk-words">${b.idx.map((k) => { const w = d.words[k]; return `<div class="bw">${mark(k)}<b class="bw-han">${esc(w.han)}</b><span class="bw-t"><span class="py">${w.ref.length ? pinyinHTML(w.ref) : esc(w.py)}</span><small>${esc(w.ru)}</small></span><button class="icon-btn small-ic" data-say="${esc(w.han)}" aria-label="Послушать">${PLAY}</button></div>`; }).join("")}</div>
       <button class="btn primary wide" id="bl-learn">Учить этот урок</button>
       <button class="btn wide" id="bl-book">Писать в тетради прописей</button>
@@ -206,9 +208,10 @@ function openBlock(i: number) {
     root.querySelector("#bl-book")!.addEventListener("click", () => { closeSheet(); useBookDeck(d.id, i); show("book"); });
     root.querySelector("#bl-learn")!.addEventListener("click", () => {
       closeSheet();
-      setFocus(d.id, b.idx);
+      setFocus(d.id, b.idx, i);
       startSession();
     });
+    if (lessonFinished(d.id, i)) renderLessonActions(root.querySelector<HTMLElement>("#bl-end")!, i, closeSheet);
   });
 }
 

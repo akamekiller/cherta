@@ -1,3 +1,4 @@
+import { initLessonEnd } from "./ui/lessonend.ts";
 import { init } from "./state.ts";
 import { requestPersist } from "./store.ts";
 import { $ } from "./ui/dom.ts";
@@ -38,6 +39,7 @@ async function boot() {
   initSheet();
   initHome();
   initSession();
+  initLessonEnd();
   initWords();
   initEntry();
   initBook();

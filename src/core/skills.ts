@@ -140,3 +140,14 @@ export function queueCounts(words: QWord[], card: (id: string) => Card | undefin
   const newLeft = newWords + newSkills;
   return { due, learning, review, newLeft, unseen, total: due + learning + newLeft };
 }
+
+/** Очередь практики урока (сверх расписания): по одной карточке на слово, навык случайный из включённых, слова вперемешку. */
+export function practiceQueue(idx: number[], skills: Skill[], rnd: () => number): { word: number; skill: Skill }[] {
+  if (!skills.length) return [];
+  const q = idx.map((word) => ({ word, skill: skills[Math.floor(rnd() * skills.length)] }));
+  for (let i = q.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    [q[i], q[j]] = [q[j], q[i]];
+  }
+  return q;
+}

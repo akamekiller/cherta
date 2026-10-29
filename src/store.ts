@@ -111,6 +111,14 @@ export async function allCards(): Promise<Map<string, Card>> {
   return new Map(list.map((c) => [c.id, c]));
 }
 
+/** Записать несколько карточек разом (сброс урока). */
+export async function putCards(cards: Card[]): Promise<void> {
+  const db = await open();
+  const tx = db.transaction("cards", "readwrite");
+  for (const c of cards) tx.objectStore("cards").put(c);
+  await txDone(tx);
+}
+
 /** Сохранить ответ; возвращает ключ записи в журнале (для отмены). */
 export async function saveAnswer(card: Card, review: Review, day: DayCounter, agg?: DaysAgg): Promise<IDBValidKey> {
   const db = await open();

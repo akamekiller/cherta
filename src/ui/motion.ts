@@ -28,6 +28,9 @@ const own = new WeakSet<Element>();
 const running = new WeakMap<Element, Animation>();
 const EASE = "cubic-bezier(.2,.75,.3,1)";
 
+/** Высоту анимируем только у коротких списков: на каждом кадре она пересчитывает раскладку. У длинных — только прозрачность (на графическом процессоре). */
+const light = (el: HTMLElement, h: number) => h <= 400 && el.querySelectorAll("*").length <= 60;
+
 /** Выдвинуть или задвинуть список (высота + прозрачность, ~200 мс). Задвигание прячет элемент после анимации. */
 export function setOpen(el: HTMLElement | null | undefined, open: boolean) {
   if (!el) return;
@@ -41,12 +44,12 @@ export function setOpen(el: HTMLElement | null | undefined, open: boolean) {
     el.hidden = false;
     const h = el.offsetHeight;
     if (h <= 0) { own.delete(el); return; }
-    frames = h > 1600
+    frames = !light(el, h)
       ? [{ opacity: 0 }, { opacity: 1 }]
       : [{ height: "0px", opacity: 0 }, { height: `${h}px`, opacity: 1 }];
   } else {
     const h = el.offsetHeight;
-    frames = h > 1600
+    frames = !light(el, h)
       ? [{ opacity: 1 }, { opacity: 0 }]
       : [{ height: `${h}px`, opacity: 1 }, { height: "0px", opacity: 0 }];
   }

@@ -24,12 +24,47 @@ function ok(el: HTMLElement) {
   return !reduced.matches && !SKIP_SELF.has(el.id) && el.isConnected && !el.closest(SKIP_IN) && el.getBoundingClientRect().height > 0;
 }
 
+const own = new WeakSet<Element>();
+const running = new WeakMap<Element, Animation>();
+const EASE = "cubic-bezier(.2,.75,.3,1)";
+
+/** Выдвинуть или задвинуть список (высота + прозрачность, ~200 мс). Задвигание прячет элемент после анимации. */
+export function setOpen(el: HTMLElement | null | undefined, open: boolean) {
+  if (!el) return;
+  running.get(el)?.cancel();
+  el.style.overflow = "";
+  const visible = !el.hidden && el.getBoundingClientRect().height > 0;
+  if (reduced.matches || !el.isConnected || el.closest(SKIP_IN) || (!open && !visible)) { el.hidden = !open; return; }
+  let frames: Keyframe[];
+  if (open) {
+    own.add(el);
+    el.hidden = false;
+    const h = el.offsetHeight;
+    if (h <= 0) { own.delete(el); return; }
+    frames = h > 1600
+      ? [{ opacity: 0 }, { opacity: 1 }]
+      : [{ height: "0px", opacity: 0 }, { height: `${h}px`, opacity: 1 }];
+  } else {
+    const h = el.offsetHeight;
+    frames = h > 1600
+      ? [{ opacity: 1 }, { opacity: 0 }]
+      : [{ height: `${h}px`, opacity: 1 }, { height: "0px", opacity: 0 }];
+  }
+  el.style.overflow = "hidden";
+  try {
+    const a = el.animate(frames, { duration: open ? 210 : 170, easing: EASE });
+    running.set(el, a);
+    a.onfinish = () => { el.style.overflow = ""; running.delete(el); own.delete(el); if (!open) el.hidden = true; };
+    a.oncancel = () => { el.style.overflow = ""; own.delete(el); };
+  } catch { el.style.overflow = ""; own.delete(el); el.hidden = !open; }
+}
+
 export function initMotion() {
   // показали экран, вкладку, раскрыли список
   new MutationObserver((list) => {
     for (const m of list) {
       const el = m.target as HTMLElement;
-      if (el.hidden || !ok(el)) continue;
+      if (el.hidden || own.has(el) || !ok(el)) continue;
       if (el.tagName === "SECTION") play(el, 22, 220); else play(el, 10, 190);
     }
   }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ["hidden"] });

@@ -4,6 +4,7 @@
  * Курсы: встроенные (data/courses, подключаются по желанию) и свои из файла (уроки учебника и т. п.).
  * «Своя практика» — предложения корпуса под слова своей колоды, как раньше.
  */
+import { setOpen } from "./motion.ts";
 import { app, hskLookup, deckById, exCorpus, loadExSets, saveExSets, dictIndex, updateSettings, saveUserDeck, switchDeck, appLang, type ExSetFile } from "../state.ts";
 import {
   KINDS, STEPS, PASS, parseCorpus, segment, sentencesFor, gapTask, diffZh, parseExSet, planSession, tilesFor, checkAssembled, isWordTok, record,
@@ -1082,7 +1083,7 @@ export function initExercise() {
     const now = f.getAttribute("aria-expanded") === "true";
     toggleFold(f.dataset.fold!, now);
     f.setAttribute("aria-expanded", String(!now));
-    (f.nextElementSibling as HTMLElement).hidden = now;
+    setOpen(f.nextElementSibling as HTMLElement, !now);
     return true;
   };
   $("ex-courses").addEventListener("click", (e) => {

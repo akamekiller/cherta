@@ -1,4 +1,5 @@
 /** Выбор колоды-источника для тетради прописей, тонов и упражнений: панель снизу со списком колод по группам. */
+import { setOpen } from "./motion.ts";
 import { app, deckById, saveUserDeck, deleteDeck } from "../state.ts";
 import type { Deck } from "../core/deck.ts";
 import { $, esc, plural } from "./dom.ts";
@@ -50,7 +51,7 @@ export function pickDeck(title: string, current: string, onPick: (id: string) =>
       if (f) {
         const open = f.getAttribute("aria-expanded") !== "true";
         f.setAttribute("aria-expanded", String(open));
-        (f.nextElementSibling as HTMLElement).hidden = !open;
+        setOpen(f.nextElementSibling as HTMLElement, open);
         setFold(f.dataset.pfold!, open);
         return;
       }

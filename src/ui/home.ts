@@ -1,4 +1,5 @@
 /** Главная — список колод со счётчиками (как в Anki), обзор колоды, действия с колодой, импорт и экспорт. */
+import { setOpen } from "./motion.ts";
 import { appLang } from "../state.ts";
 import { useBookDeck } from "./book.ts";
 import { useTonesDeck } from "./tones.ts";
@@ -80,7 +81,7 @@ function toggleFold(g: string, head: HTMLElement) {
   const list = visibleDecks().filter((d) => (d.group ?? "") === g);
   for (const d of list) {
     const row = document.querySelector<HTMLElement>(`#decks [data-id="${CSS.escape(d.id)}"]`);
-    if (row) row.hidden = hide;
+    if (row) setOpen(row, !hide);
   }
   head.setAttribute("aria-expanded", String(!hide));
   head.querySelector("small")!.textContent = hide ? `${list.length} ${plural(list.length, "колода", "колоды", "колод")}` : "";
@@ -379,7 +380,7 @@ export function initHome() {
     if (f) {
       const open = f.getAttribute("aria-expanded") !== "true";
       f.setAttribute("aria-expanded", String(open));
-      (f.nextElementSibling as HTMLElement).hidden = !open;
+      setOpen(f.nextElementSibling as HTMLElement, open);
       const all = dfolds(); all[f.dataset.dfold!] = open;
       try { localStorage.setItem(DFOLD, JSON.stringify(all)); } catch { /* */ }
       return;

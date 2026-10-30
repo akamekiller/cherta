@@ -3,6 +3,7 @@
  * Тап по слову — пиньинь, значение, «Статья», «+ В колоду». Пиньинь и перевод включаются кнопками,
  * текст читается голосом целиком или по предложениям, в конце — вопросы на понимание.
  */
+import { setOpen } from "./motion.ts";
 import { hskLookup, deckById, app, dictIndex, appLang } from "../state.ts";
 import { segment, isWordTok, jaTokens, plainJa } from "../core/exercise.ts";
 import { findJ, type JIndex } from "../core/jdict.ts";
@@ -352,7 +353,7 @@ export function initReading() {
     if (f) {
       const open = f.getAttribute("aria-expanded") !== "true";
       f.setAttribute("aria-expanded", String(open));
-      (f.closest(".rd-ghead")?.nextElementSibling as HTMLElement | null)!.hidden = !open;
+      setOpen(f.closest(".rd-ghead")?.nextElementSibling as HTMLElement | null, open);
       ui.fold[f.dataset.rfold!] = open;
       save();
       return;

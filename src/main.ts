@@ -3,6 +3,7 @@ import { init } from "./state.ts";
 import { requestPersist } from "./store.ts";
 import { $ } from "./ui/dom.ts";
 import { initNav, show, rerender } from "./ui/nav.ts";
+import { initMotion } from "./ui/motion.ts";
 import { initHome, openDeck } from "./ui/home.ts";
 import { openImport } from "./ui/import.ts";
 import { initSession, sessionWriter } from "./ui/session.ts";
@@ -36,6 +37,7 @@ async function boot() {
   initPerfDiag(); // раньше всего: нужны задержки с первых секунд запуска
   initNative();
   initNav();
+  initMotion();
   initSheet();
   initHome();
   initSession();

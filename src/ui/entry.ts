@@ -8,7 +8,7 @@ import { say } from "../speech.ts";
 import { $, esc, pinyinHTML } from "./dom.ts";
 import { parseRef } from "../core/pinyin.ts";
 import { createWriter, type Writer } from "./writer.ts";
-import { onLeave, show } from "./nav.ts";
+import { onLeave, show, noteOrigin, returnLabel, returnBack } from "./nav.ts";
 import { showNote } from "./session.ts";
 import { openWordEditor, openAddToDeck } from "./editor.ts";
 import { toggleBookWord, inBook } from "./deckpick.ts";
@@ -40,7 +40,7 @@ export function openEntry(id: string, fromList = false, jid?: string) {
   if (jid && jx) { const i = jx.id.indexOf(jid); if (i >= 0) w = jWordAt(jx, i); }
   if (!w) return;
   curJid = jid;
-  if (fromList) trail.length = 0;
+  if (fromList) { trail.length = 0; noteOrigin(); }
   word = w;
   show("detail");
   renderHead(w);
@@ -135,8 +135,9 @@ async function loadJWordCount(w: Word) {
 }
 
 function renderHead(w: Word | OtherWord) {
-  $("d-back").textContent = trail.length ? "← Назад" : "← К словам";
-  $("d-back").toggleAttribute("data-root", !trail.length); // на широком экране список слов и так рядом — кнопка не нужна
+  const back = !trail.length ? returnLabel() : null; // пришли из упражнения или чтения — вернуться туда
+  $("d-back").textContent = trail.length ? "← Назад" : back ?? "← К словам";
+  $("d-back").toggleAttribute("data-root", !trail.length && !back); // на широком экране список слов и так рядом — кнопка не нужна
   $("d-han").textContent = w.han;
   $("d-han").classList.toggle("long", [...w.han].length > 3);
   $("d-py").innerHTML = pyHTML(w);
@@ -470,6 +471,7 @@ export function initEntry() {
   });
   $("d-say").addEventListener("click", () => word && say(word.han, 0.85, langOf(word)));
   $("d-back").addEventListener("click", () => {
+    if (!trail.length && returnBack()) return;
     const prev = trail.pop();
     const [pid, pj] = (prev ?? "").split("|");
     if (prev && (findWord(pid) || pj)) openEntry(pid, false, pj || undefined); else { trail.length = 0; show("words"); }

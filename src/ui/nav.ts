@@ -24,11 +24,35 @@ let detailShown = false; // на широком экране последняя 
 const stack: View[] = [];
 let goingBack = false;
 
+/** Откуда открыта статья слова (из упражнения или чтения): экран остаётся в памяти, «вернуться» показывает его как был. */
+let ret: { view: View; label: string; y: number } | null = null;
+let keepScreen = false; // при возврате не перерисовывать экран
+const RETURN_LABEL: Partial<Record<View, string>> = { ex: "← Вернуться в упражнение", read: "← Вернуться к тексту" };
+/** Вызывать перед открытием статьи: запоминает, куда вернуться. Из самой статьи и из «Слов» — не трогает/сбрасывает. */
+export function noteOrigin() {
+  if (RETURN_LABEL[current]) ret = { view: current, label: RETURN_LABEL[current]!, y: window.scrollY };
+  else if (current !== "detail") ret = null;
+}
+export const returnLabel = () => ret?.label ?? null;
+/** Вернуться из статьи туда, откуда пришли, ничего не сбрасывая. */
+export function returnBack(): boolean {
+  const r = ret;
+  if (!r) return false;
+  ret = null;
+  const i = stack.lastIndexOf(r.view);
+  if (i >= 0) stack.length = i; // забыть шаги, сделанные в статье
+  keepScreen = true; goingBack = true;
+  try { show(r.view); } finally { keepScreen = false; goingBack = false; }
+  window.scrollTo(0, r.y);
+  return true;
+}
+
 export function show(v: View) {
   if (current !== v) leaveHandlers[current]?.();
   const prev = current;
   if (!goingBack && prev !== v) { stack.push(prev); if (stack.length > 40) stack.shift(); }
   current = v;
+  if (!keepScreen && v !== "detail") ret = null; // ушли в другой раздел — возвращаться некуда
   document.documentElement.dataset.view = v; // живой фон темы скрыт на экранах письма (styles.css)
   for (const x of VIEWS) document.getElementById(x)!.hidden = x !== v;
   const split = isWide() && (v === "words" || v === "detail");
@@ -47,6 +71,7 @@ export function show(v: View) {
   if (split && prev === "words" || split && prev === "detail") document.getElementById("detail")!.scrollTo(0, 0);
   else window.scrollTo(0, 0);
   if (split && v === "words" && prev === "detail") return; // список уже на экране — не перерисовывать
+  if (keepScreen) return; // возврат из статьи: упражнение или текст остаются как были
   handlers[v]?.();
 }
 

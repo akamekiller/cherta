@@ -2,8 +2,8 @@
 const SKIP_SELF = new Set(["sheet", "sheet-scrim", "scrim", "drawer", "ambient"]);
 const SKIP_IN = "#session, #book, #print-area, .guide, .tour, #ambient, .sheet-scrim, .scrim, .drawer, .fx-slash";
 /** Блоки, содержимое которых заменяется целиком (следующее задание, список, статья, вкладка…) — при замене плавно проявляются. */
-const SWAP = ["ex-card", "ex-c-head", "ex-l-head", "rd-head", "rd-body", "rd-q",
-  "d-art", "d-ex", "hk-card", "ho-card", "st-tiles", "st-fc", "st-hist", "st-cal", "tn-s-res", "tn-l-res"];
+const SWAP = ["ex-card", "ex-courses", "ex-c-head", "ex-c-lessons", "ex-l-head", "ex-l-steps", "rd-list", "rd-head", "rd-body", "rd-q",
+  "d-art", "d-ex", "d-rel", "d-wchars", "w-groups", "hk-card", "ho-card", "st-tiles", "st-fc", "st-hist", "st-cal", "tn-s-res", "tn-l-res"];
 
 const reduced = matchMedia("(prefers-reduced-motion: reduce)");
 const last = new WeakMap<Element, number>();
@@ -21,15 +21,7 @@ function play(el: HTMLElement, dy: number, ms: number) {
 }
 
 function ok(el: HTMLElement) {
-  if (reduced.matches || SKIP_SELF.has(el.id) || !el.isConnected || el.closest(SKIP_IN)) return false;
-  const h = el.getBoundingClientRect().height;
-  // длинные экраны и списки (большая колода, много курсов) на телефоне фризят — открываются мгновенно
-  return h > 0 && h < innerHeight * 1.2 && el.childElementCount < 40;
-}
-
-/** Сворачиваемые списки: без анимации, просто показать или спрятать. */
-export function setOpen(el: HTMLElement | null | undefined, open: boolean) {
-  if (el) el.hidden = !open;
+  return !reduced.matches && !SKIP_SELF.has(el.id) && el.isConnected && !el.closest(SKIP_IN) && el.getBoundingClientRect().height > 0;
 }
 
 export function initMotion() {
@@ -53,4 +45,9 @@ export function initMotion() {
     const el = document.getElementById(id);
     if (el) swap.observe(el, { childList: true });
   }
+}
+
+/** Сворачиваемые списки: без анимации (анимация выдвигания фризила на телефоне), просто показать или спрятать. */
+export function setOpen(el: HTMLElement | null | undefined, open: boolean) {
+  if (el) el.hidden = !open;
 }

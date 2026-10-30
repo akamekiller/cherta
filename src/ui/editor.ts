@@ -209,10 +209,10 @@ export function openAddToDeck(w: Word, changed?: () => void) {
     err.textContent = "";
     return [w.han, py, ru];
   };
-  const render = () => app.userDecks.map((d) => {
+  const render = () => `<button class="deck-opt deck-add" id="ad-new">+ Новая колода с этим словом</button>` + app.userDecks.map((d) => {
     const on = d.words.some((x) => x[0] === w.han);
     return `<button class="deck-opt" data-deck="${esc(d.id)}" aria-pressed="${on}"><span>${esc(d.title)}<small>${d.words.length} ${plural(d.words.length, "слово", "слова", "слов")}</small></span><span class="pick-btn${on ? " on" : ""}">${on ? "✓" : "+"}</span></button>`;
-  }).join("") + `<button class="deck-opt deck-add" id="ad-new">+ Новая колода с этим словом</button>`;
+  }).join("");
   const fields = need ? `
     ${w.py ? "" : `<label class="field"><span class="label">Пиньинь</span><input id="ad-py" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="xué xí"></label>`}
     ${w.ru ? "" : `<label class="field"><span class="label">Значение</span><input id="ad-ru" autocomplete="off"></label>`}
@@ -236,10 +236,10 @@ export function openAddToDeck(w: Word, changed?: () => void) {
 /** Японское слово — в свою японскую колоду (чтение и значение из словаря или колоды). */
 function openAddJa(w: Word, changed?: () => void) {
   const mine = () => app.userDecks.filter((d) => d.lang === "ja");
-  const render = () => mine().map((d) => {
+  const render = () => `<button class="deck-opt deck-add" id="ad-new">+ Новая колода с этим словом</button>` + mine().map((d) => {
     const on = d.words.some((x) => x[0] === w.han);
     return `<button class="deck-opt" data-deck="${esc(d.id)}" aria-pressed="${on}"><span>${esc(d.title)}<small>${d.words.length} ${plural(d.words.length, "слово", "слова", "слов")}</small></span><span class="pick-btn${on ? " on" : ""}">${on ? "✓" : "+"}</span></button>`;
-  }).join("") + `<button class="deck-opt deck-add" id="ad-new">+ Новая колода с этим словом</button>`;
+  }).join("");
   const row: Row = [w.han, w.py || w.han, w.ru];
   openSheet(`«${w.han}» в колоду`, `<label class="field"><span class="label">Значение в карточке</span><input id="ad-ru" autocomplete="off" value="${esc(w.ru)}"></label>
     <div class="deck-list" id="ad-list">${render()}</div>`, (root) => {

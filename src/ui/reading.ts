@@ -352,7 +352,7 @@ export function initReading() {
     if (f) {
       const open = f.getAttribute("aria-expanded") !== "true";
       f.setAttribute("aria-expanded", String(open));
-      (f.nextElementSibling as HTMLElement).hidden = !open;
+      (f.closest(".rd-ghead")?.nextElementSibling as HTMLElement | null)!.hidden = !open;
       ui.fold[f.dataset.rfold!] = open;
       save();
       return;
